@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+deploy-seo/
+deploy-light/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Media files (exclués pour réduire la taille)
+public/images/
+public/videos/
+src/assets/images/
+src/assets/videos/
+
+# Fichiers temporaires
+*.tmp
+*.temp
+.cache/
+
+# Fichiers de build
+*.br
+*.gz
+bundle-report.html 

@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+  }
+
+  body {
+    @apply bg-white dark:bg-dark-bg-primary text-gray-900 dark:text-dark-text-primary transition-colors duration-200;
+  }
+
+  /* Styles de transition pour le mode sombre */
+  * {
+    @apply transition-colors duration-200;
+  }
+
+  /* Styles pour les images en mode sombre */
+  .dark img {
+    @apply brightness-90;
+  }
+
+  /* Styles pour les vidéos en mode sombre */
+  .dark video {
+    @apply brightness-90;
+  }
+
+  /* Styles pour les boutons en mode sombre */
+  .dark button {
+    @apply text-dark-text-primary;
+  }
+
+  /* Styles pour les liens en mode sombre */
+  .dark a {
+    @apply text-dark-text-primary hover:text-dark-accent;
+  }
+}

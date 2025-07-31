@@ -1,0 +1,120 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: 198 100 26;
+  --primary-foreground: 0 0 100;
+  
+  --secondary: 32 28 77;
+  --secondary-foreground: 0 0 100;
+  
+  --accent: 37 18 194;
+  --accent-foreground: 0 0 100;
+  
+  --background: 0 0 100;
+  --foreground: 222 47 11;
+  
+  --card: 0 0 100;
+  --card-foreground: 222 47 11;
+  
+  --border: 214 32 91;
+  --ring: 214 32 91;
+  
+  --destructive: 0 84 61;
+  --destructive-foreground: 0 0 100;
+}
+
+.dark {
+  --primary: 198 100 26;
+  --primary-foreground: 0 0 100;
+  
+  --secondary: 32 28 77;
+  --secondary-foreground: 0 0 100;
+  
+  --accent: 37 18 194;
+  --accent-foreground: 0 0 100;
+  
+  --background: 222 47 11;
+  --foreground: 210 40 98;
+  
+  --card: 222 47 11;
+  --card-foreground: 210 40 98;
+  
+  --border: 214 32 21;
+  --ring: 214 32 91;
+  
+  --destructive: 0 84 91;
+  --destructive-foreground: 0 0 100;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground overflow-x-hidden;
+  }
+}
+
+@media (max-width: 600px) {
+  /* Réduction du logo principal du hero */
+  .hero-logo {
+    max-width: 160px !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+  /* Réduction du titre principal du hero */
+  .hero-title {
+    font-size: 2rem !important;
+    line-height: 2.4rem !important;
+    padding: 0.5rem 1rem !important;
+  }
+  /* Réduction du sous-titre */
+  .hero-subtitle {
+    font-size: 1.1rem !important;
+  }
+  .intro-logo {
+    height: 90px !important;
+    max-width: 120px !important;
+  }
+  .intro-text {
+    font-size: 1rem !important;
+    max-width: 90vw !important;
+    padding: 0 0.5rem !important;
+  }
+}
+
+@media (max-width: 1990px) {
+  .intro-logo {
+    height: 220px !important;
+    max-width: 320px !important;
+  }
+  .intro-text {
+    font-size: 1.7rem !important;
+    max-width: 60vw !important;
+    padding: 0 1rem !important;
+  }
+}
+@media (max-width: 1400px) {
+  .intro-logo {
+    height: 160px !important;
+    max-width: 200px !important;
+  }
+  .intro-text {
+    font-size: 1.2rem !important;
+    max-width: 80vw !important;
+    padding: 0 0.5rem !important;
+  }
+}
+@media (max-width: 900px) {
+  .intro-logo {
+    height: 100px !important;
+    max-width: 120px !important;
+  }
+  .intro-text {
+    font-size: 1rem !important;
+    max-width: 95vw !important;
+    padding: 0 0.2rem !important;
+  }
+}

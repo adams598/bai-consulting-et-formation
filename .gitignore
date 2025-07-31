@@ -1,0 +1,215 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencies
+node_modules
+dist
+frontend/dist
+frontend/public/*
+dist-ssr
+*.local
+
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+
+# ===== VIDÉOS - EXCLUSION COMPLÈTE =====
+# Formats vidéo courants
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+*.mkv
+*.m4v
+*.3gp
+*.ogv
+*.mpg
+*.mpeg
+*.mts
+*.m2ts
+*.vob
+*.asf
+*.rm
+*.rmvb
+*.divx
+*.xvid
+*.h264
+*.h265
+*.hevc
+*.vp8
+*.vp9
+*.av1
+
+# Formats vidéo professionnels
+*.prores
+*.dnxhd
+*.cineform
+*.red
+*.arw
+*.r3d
+*.braw
+*.crm
+*.dng
+
+# Formats vidéo de streaming
+*.m3u8
+*.f4v
+*.f4p
+*.f4a
+*.f4b
+
+# Dossiers vidéo spécifiques
+**/videos/**
+**/video/**
+**/media/videos/**
+**/assets/videos/**
+**/public/videos/**
+**/frontend/public/videos/**
+**/frontend/src/assets/videos/**
+**/backend/uploads/videos/**
+**/uploads/videos/**
+
+# ===== IMAGES ET MÉDIAS =====
+# Images
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.svg
+*.webp
+*.ico
+*.tiff
+*.tif
+*.psd
+*.ai
+*.eps
+*.indd
+*.sketch
+
+# Audio
+*.mp3
+*.wav
+*.flac
+*.aac
+*.ogg
+*.wma
+*.m4a
+*.opus
+*.aiff
+*.au
+*.ra
+*.rm
+*.mid
+*.midi
+
+# Dossiers médias
+**/images/**
+**/media/**
+**/assets/images/**
+**/assets/media/**
+**/public/images/**
+**/public/media/**
+**/frontend/public/images/**
+**/frontend/public/media/**
+**/frontend/src/assets/images/**
+**/frontend/src/assets/media/**
+
+# ===== FICHIERS VOLUMINEUX =====
+# Archives
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.bz2
+*.xz
+*.lzma
+*.lz4
+*.zst
+
+# Fichiers de données volumineux
+*.csv
+*.json
+*.xml
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== SÉCURITÉ =====
+# Fichiers sensibles
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.p7b
+*.p7c
+*.p7s
+*.p8
+*.p10
+*.spc
+*.sst
+*.stl
+*.cat
+*.stl
+*.crl
+*.ocsp
+*.srl
+
+# Fichiers de configuration sensibles
+config.json
+secrets.json
+credentials.json
+*.env.*
+!.env.example
+
+# ===== DÉVELOPPEMENT =====
+# Build outputs
+build/
+out/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

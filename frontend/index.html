@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/images/BAI 2-modified.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="BAI Formation Consulting - Des formations professionnelles d'excellence pour les secteurs de la banque, de l'assurance et de l'immobilier." />
+    <meta name="keywords" content="formation, banque, assurance, immobilier, consulting, professionnel" />
+    <meta name="author" content="BAI Formation Consulting" />
+    
+    <!-- Performance optimizations -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="//res.cloudinary.com" />
+    
+    <!-- Cache control -->
+    <meta http-equiv="Cache-Control" content="public, max-age=31536000, immutable" />
+    
+    <!-- Preload critical resources -->
+    <link rel="preload" href="/src/index.css" as="style" />
+    <link rel="preload" href="/src/main.tsx" as="script" />
+    
+    <!-- Theme color -->
+    <meta name="theme-color" content="#C7B299" />
+    
+    <title>BAI Consulting et Formation</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Performance monitoring -->
+    <script>
+      // Simple performance monitoring
+      window.addEventListener('load', () => {
+        if ('performance' in window) {
+          const perfData = performance.getEntriesByType('navigation')[0];
+          console.log('Page load time:', perfData.loadEventEnd - perfData.loadEventStart, 'ms');
+        }
+      });
+    </script>
+  </body>
+</html>

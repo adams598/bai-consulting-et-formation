@@ -1,0 +1,154 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum AccessType {
+  FREE
+  PAID
+}
+
+model User {
+  id                String            @id @default(uuid())
+  email             String            @unique
+  name              String
+  hashedPassword    String
+  role              UserRole          @default(USER)
+  accessType        AccessType        @default(FREE)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  enrollments       Enrollment[]
+  courseProgression CourseProgress[]
+  resetToken        String?
+  resetTokenExpiry  DateTime?
+}
+
+model Course {
+  id               String            @id @default(uuid())
+  title            String
+  description      String
+  coverImage       String?
+  category         Category          @relation(fields: [categoryId], references: [id])
+  categoryId       String
+  chapters         Chapter[]
+  enrollments      Enrollment[]
+  courseProgression CourseProgress[]
+  position         Int
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  courses     Course[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Chapter {
+  id               String            @id @default(uuid())
+  title            String
+  description      String
+  content          String            @db.Text
+  videoUrl         String?
+  pdfUrl           String?
+  position         Int
+  isFreeSample     Boolean           @default(false)
+  course           Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId         String
+  quizzes          Quiz[]
+  chapterProgress  ChapterProgress[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+}
+
+model Quiz {
+  id         String       @id @default(uuid())
+  title      String
+  chapter    Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  chapterId  String
+  questions  Question[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model Question {
+  id         String       @id @default(uuid())
+  content    String
+  quiz       Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  quizId     String
+  options    Option[]
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model Option {
+  id         String       @id @default(uuid())
+  content    String
+  isCorrect  Boolean      @default(false)
+  question   Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId String
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+}
+
+model Enrollment {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, courseId])
+}
+
+model CourseProgress {
+  id        String            @id @default(uuid())
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  course    Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId  String
+  completed Boolean           @default(false)
+  chapters  ChapterProgress[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([userId, courseId])
+}
+
+model ChapterProgress {
+  id               String         @id @default(uuid())
+  courseProgress   CourseProgress @relation(fields: [courseProgressId], references: [id], onDelete: Cascade)
+  courseProgressId String
+  chapter          Chapter        @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  chapterId        String
+  completed        Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  @@unique([courseProgressId, chapterId])
+}
+
+model Contact {
+  id        String   @id @default(uuid())
+  name      String
+  email     String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+}

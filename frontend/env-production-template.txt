@@ -1,0 +1,9 @@
+# Copiez ce contenu dans un fichier .env.production dans le dossier frontend/
+VITE_API_URL=https://backend-rczbsah5t-adams-projects-b35f6371.vercel.app
+# Pour le développement local, décommentez la ligne suivante :
+# VITE_API_URL=http://localhost:3001
+
+# Configuration Cloudinary pour la production
+VITE_CLOUDINARY_CLOUD_NAME=votre_cloud_name
+VITE_CLOUDINARY_API_KEY=votre_api_key
+VITE_CLOUDINARY_API_SECRET=votre_api_secret 
