@@ -9,7 +9,7 @@ import { useToast } from "../../components/ui/use-toast";
 import { useState } from "react";
 import { Mail, MapPin, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
-import { API_ENDPOINTS } from "../../config/api";
+import { api } from "../../config/api";
 import { Helmet } from "react-helmet";
 
 export default function ContactPage() {

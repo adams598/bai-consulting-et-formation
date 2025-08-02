@@ -19,7 +19,7 @@ import {
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3001;
+const port = process.env.PORT || 3000;
 
 // Middlewares de sécurité
 app.use(addSecurityHeaders);
@@ -52,6 +52,8 @@ const corsOptions = {
   origin: function (origin, callback) {
     const allowedOrigins = [
       "https://olivedrab-hornet-656554.hostingersite.com",
+      "http://localhost:3001",
+      "http://localhost:3002",
       "http://localhost:5173",
       "https://backend-k05cpsnj6-adams-projects-b35f6371.vercel.app",
     ];
@@ -65,7 +67,7 @@ const corsOptions = {
       callback(new Error("Not allowed by CORS"));
     }
   },
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,
   optionsSuccessStatus: 200,
@@ -75,7 +77,14 @@ app.use(cors(corsOptions));
 app.use(limiter); // Rate limiting global
 app.use(express.json({ limit: "10mb" })); // Limiter la taille des requêtes
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Import des routes
+import adminRoutes from "./src/routes/admin.routes.js";
+
+// Initialisation conditionnelle d'OpenAI
+let openai = null;
+if (process.env.OPENAI_API_KEY) {
+  openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+}
 
 // Base de connaissances des formations
 const formations = [
@@ -144,6 +153,9 @@ const faq = [
       "Vous pouvez contacter notre support technique via le formulaire de contact ou par email à contact@bai-consulting.com.",
   },
 ];
+
+// Routes d'administration
+app.use("/api/admin", adminRoutes);
 
 app.post(
   "/api/chat",
@@ -244,29 +256,33 @@ app.post(
 
       // Si aucune réponse prédéfinie, fallback sur OpenAI avec contexte
       if (!assistantResponse) {
-        const context =
-          `Voici la liste des formations proposées par BAI Consulting :\n` +
-          formations
-            .map((f) => `- [${f.domaine}] ${f.titre} : ${f.description}`)
-            .join("\n");
-        const completion = await openai.chat.completions.create({
-          model: "gpt-3.5-turbo",
-          messages: [
-            {
-              role: "system",
-              content:
-                "Vous êtes un assistant virtuel de BAI Formation Consulting. Vous aidez les utilisateurs à trouver des informations sur les formations et à répondre à leurs questions. Répondez toujours en français de manière professionnelle et concise. Utilisez le contexte suivant pour répondre :\n" +
-                context,
-            },
-            {
-              role: "user",
-              content: message,
-            },
-          ],
-          temperature: 0.7,
-          max_tokens: 500,
-        });
-        assistantResponse = completion.choices[0].message.content;
+        if (openai) {
+          const context =
+            `Voici la liste des formations proposées par BAI Consulting :\n` +
+            formations
+              .map((f) => `- [${f.domaine}] ${f.titre} : ${f.description}`)
+              .join("\n");
+          const completion = await openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "Vous êtes un assistant virtuel de BAI Formation Consulting. Vous aidez les utilisateurs à trouver des informations sur les formations et à répondre à leurs questions. Répondez toujours en français de manière professionnelle et concise. Utilisez le contexte suivant pour répondre :\n" +
+                  context,
+              },
+              {
+                role: "user",
+                content: message,
+              },
+            ],
+            temperature: 0.7,
+            max_tokens: 500,
+          });
+          assistantResponse = completion.choices[0].message.content;
+        } else {
+          assistantResponse = "Je ne peux pas traiter votre demande pour le moment. Veuillez réessayer plus tard ou nous contacter directement.";
+        }
       }
 
       res.json({ response: assistantResponse });

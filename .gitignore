@@ -20,6 +20,7 @@ dist-ssr
 .env.local
 .env.production
 .env.development
+.env.test
 
 # ===== VIDÉOS - EXCLUSION COMPLÈTE =====
 # Formats vidéo courants
@@ -213,3 +214,10 @@ $RECYCLE.BIN/
 *.njsproj
 *.sln
 *.sw?
+
+# ===== ENVIRONNEMENT DE TEST =====
+# Fichiers d'environnement de test
+backend/env.test
+frontend/.env.test
+test-data/
+test-logs/

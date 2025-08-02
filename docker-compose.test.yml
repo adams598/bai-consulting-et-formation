@@ -1,0 +1,90 @@
+version: "3.8"
+
+services:
+  # Base de données PostgreSQL pour les tests
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: bai-postgres-test
+    environment:
+      POSTGRES_DB: bai_consulting_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+    ports:
+      - "5433:5432" # Port différent pour éviter les conflits
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    networks:
+      - bai-test-network
+
+  # Backend pour les tests
+  backend-test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bai-backend-test
+    ports:
+      - "3002:3001" # Port différent pour les tests
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://test_user:test_password@postgres-test:5432/bai_consulting_test
+      JWT_SECRET: test-jwt-secret-for-testing-only
+      JWT_EXPIRES_IN: 1h
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: test@bai-consulting.com
+      SMTP_PASS: test-password
+      CONTACT_RECEIVER: test@bai-consulting.com
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-test-key}
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 1000
+      AUTH_RATE_LIMIT_MAX_ATTEMPTS: 10
+      ALLOWED_ORIGINS: http://localhost:3003,http://localhost:5173
+      COOKIE_SECRET: test-cookie-secret
+      COOKIE_DOMAIN: localhost
+    depends_on:
+      - postgres-test
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - bai-test-network
+    command: ["npm", "run", "dev"]
+
+  # Frontend pour les tests
+  frontend-test:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: bai-frontend-test
+    ports:
+      - "3003:3000" # Port différent pour les tests
+    environment:
+      VITE_API_URL: http://localhost:3002
+      VITE_NODE_ENV: test
+    depends_on:
+      - backend-test
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - bai-test-network
+
+  # Nginx pour les tests (optionnel)
+  nginx-test:
+    image: nginx:alpine
+    container_name: bai-nginx-test
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend/nginx.test.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - frontend-test
+    networks:
+      - bai-test-network
+
+volumes:
+  postgres_test_data:
+
+networks:
+  bai-test-network:
+    driver: bridge

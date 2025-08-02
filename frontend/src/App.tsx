@@ -8,6 +8,12 @@ import RootLayout from './layouts/RootLayout';
 import Loader from "./components/ui/loader";
 import { useTheme } from "./contexts/ThemeContext";
 
+// Import des pages admin
+import AdminLoginPage from './app/admin/login/page';
+import AdminDashboardPage from './app/admin/dashboard/page';
+import AdminFormationsPage from './app/admin/formations/page';
+import { AdminLayoutWrapper } from './app/admin/layout';
+
 const slides = [
   {
     image: '', // pas d'image de fond
@@ -132,11 +138,12 @@ const BanquePage = lazy(() => import('./app/banque/page'));
 const AssurancePage = lazy(() => import('./app/assurance/page'));
 const ImmobilierPage = lazy(() => import('./app/immobilier/page'));
 const SolutionsPage = lazy(() => import('./app/solutions/page'));
-const CoursesPage = lazy(() => import('./features/learner/pages/CoursesPage'));
-const CourseDetailPage = lazy(() => import('./features/learner/pages/CourseDetailPage'));
-const CertificatesPage = lazy(() => import('./features/learner/pages/CertificatesPage'));
-const SettingsPage = lazy(() => import('./features/learner/pages/SettingsPage'));
-const ProgressionPage = lazy(() => import('./features/learner/pages/ProgressionPage'));
+// Pages de formation (à implémenter plus tard)
+// const CoursesPage = lazy(() => import('./features/learner/pages/CoursesPage'));
+// const CourseDetailPage = lazy(() => import('./features/learner/pages/CourseDetailPage'));
+// const CertificatesPage = lazy(() => import('./features/learner/pages/CertificatesPage'));
+// const SettingsPage = lazy(() => import('./features/learner/pages/SettingsPage'));
+// const ProgressionPage = lazy(() => import('./features/learner/pages/ProgressionPage'));
 
 // Fonction utilitaire pour précharger une image
 function preloadImage(src: string): Promise<void> {
@@ -205,14 +212,26 @@ function App() {
       <ScrollToAnchor />
       <Suspense fallback={<div className="w-full h-screen flex items-center justify-center"><Loader size={56} color="#C7B299" /><span className="ml-4 text-xl text-[#C7B299] font-semibold animate-pulse">Chargement...</span></div>}>
         <Routes>
+          {/* Routes Admin */}
+          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/admin" element={<AdminLayoutWrapper />}>
+            <Route path="dashboard" element={<AdminDashboardPage />} />
+            <Route path="formations" element={<AdminFormationsPage />} />
+          </Route>
+          
+          {/* Routes Apprenant */}
           <Route path="/apprenant/connexion" element={<LoginPage />} />
           <Route path="/apprenant/dashboard" element={<DashboardPage />} />
           <Route path="/apprenant" element={<DashboardPage />} />
+          {/* Routes de formation temporairement désactivées
           <Route path="/apprenant/courses" element={<CoursesPage />} />
           <Route path="/apprenant/courses/:id" element={<CourseDetailPage />} />
           <Route path="/apprenant/certificates" element={<CertificatesPage />} />
           <Route path="/apprenant/parametres" element={<SettingsPage />} />
           <Route path="/apprenant/progression" element={<ProgressionPage />} />
+          */}
+          
+          {/* Routes Publiques */}
           <Route path="/" element={<HomePage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/banque" element={<BanquePage />} />
@@ -621,6 +640,22 @@ function HomePage() {
             </div> */}
           </div>
           <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
+            <p>&copy; {new Date().getFullYear()} BAI Formation Consulting. Tous droits réservés.</p>
+          </div>
+          <div className="flex justify-center mt-8">
+            <Link to="/contact">
+              <button className="bg-brand-beige text-brand-blue dark:bg-dark-bg-primary dark:text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-brand-beige/80 transition-colors text-lg">
+                Contactez-nous
+              </button>
+            </Link>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+export default App;
             <p>&copy; {new Date().getFullYear()} BAI Formation Consulting. Tous droits réservés.</p>
           </div>
           <div className="flex justify-center mt-8">
