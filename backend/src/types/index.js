@@ -1,0 +1,35 @@
+// Types pour l'espace apprenant
+export const UserRole = {
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  BANK_ADMIN: 'BANK_ADMIN',
+  COLLABORATOR: 'COLLABORATOR'
+};
+
+export const FormationType = {
+  VIDEO: 'VIDEO',
+  SLIDES: 'SLIDES',
+  DOCUMENT: 'DOCUMENT',
+  MIXED: 'MIXED'
+};
+
+export const FormationStatus = {
+  NOT_STARTED: 'NOT_STARTED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  FAILED: 'FAILED'
+};
+
+export const AssignmentStatus = {
+  PENDING: 'PENDING',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  OVERDUE: 'OVERDUE'
+};
+
+export const NotificationType = {
+  FORMATION_ASSIGNED: 'FORMATION_ASSIGNED',
+  FORMATION_STARTED: 'FORMATION_STARTED',
+  FORMATION_COMPLETED: 'FORMATION_COMPLETED',
+  QUIZ_RESULT: 'QUIZ_RESULT',
+  REMINDER: 'REMINDER'
+}; 

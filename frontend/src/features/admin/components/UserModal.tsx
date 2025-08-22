@@ -1,251 +1,175 @@
-import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Lock, Building2 } from 'lucide-react';
-import { User as UserType, UserRole } from '../types';
-import { usersApi } from '../../../api/adminApi';
-import { Button } from '../../../components/ui/button';
-import { Input } from '../../../components/ui/input';
-import { useToast } from '../../../components/ui/use-toast';
+import React, { useState } from 'react';
+import { X, Plus, Trash2 } from 'lucide-react';
 
 interface UserModalProps {
-  user?: UserType | null;
-  bankId: string;
+  isOpen: boolean;
   onClose: () => void;
-  onSave: () => void;
+  onSave: (users: Array<{ email: string; firstName: string; lastName: string; department: string }>) => void;
 }
 
-export const UserModal: React.FC<UserModalProps> = ({
-  user,
-  bankId,
-  onClose,
-  onSave
-}) => {
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    role: UserRole.COLLABORATOR,
-    department: '',
-    isActive: true
-  });
-  const [isLoading, setIsLoading] = useState(false);
-  
-  const { toast } = useToast();
+const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave }) => {
+  const [users, setUsers] = useState<Array<{ email: string; firstName: string; lastName: string; department: string }>>([
+    { email: '', firstName: '', lastName: '', department: '' }
+  ]);
 
-  const isEditing = !!user;
-
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        department: user.department || '',
-        isActive: user.isActive
-      });
-    }
-  }, [user]);
-
-  const handleInputChange = (field: string, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const addUser = () => {
+    setUsers([...users, { email: '', firstName: '', lastName: '', department: '' }]);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const removeUser = (index: number) => {
+    if (users.length > 1) {
+      setUsers(users.filter((_, i) => i !== index));
+    }
+  };
+
+  const updateUser = (index: number, field: string, value: string) => {
+    const newUsers = [...users];
+    newUsers[index] = { ...newUsers[index], [field]: value };
+    setUsers(newUsers);
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()) {
-      toast({
-        title: "Erreur",
-        description: "Veuillez remplir tous les champs obligatoires",
-        variant: "destructive",
-      });
+    // Validation
+    const validUsers = users.filter(user => 
+      user.email.trim() && user.firstName.trim() && user.lastName.trim()
+    );
+    
+    if (validUsers.length === 0) {
+      alert('Au moins un utilisateur valide est requis');
       return;
     }
 
-    try {
-      setIsLoading(true);
-      
-      const userData = {
-        ...formData,
-        bankId
-      };
-
-      if (isEditing && user) {
-        await usersApi.update(user.id, userData);
-        toast({
-          title: "Succès",
-          description: "Utilisateur mis à jour avec succès",
-        });
-      } else {
-        await usersApi.create(userData);
-        toast({
-          title: "Succès",
-          description: "Utilisateur créé avec succès",
-        });
-      }
-      
-      onSave();
-    } catch (error) {
-      toast({
-        title: "Erreur",
-        description: isEditing ? "Impossible de mettre à jour l'utilisateur" : "Impossible de créer l'utilisateur",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    onSave(validUsers);
   };
 
-  const getRoleLabel = (role: UserRole) => {
-    switch (role) {
-      case UserRole.SUPER_ADMIN:
-        return 'Super Admin';
-      case UserRole.BANK_ADMIN:
-        return 'Admin Banque';
-      case UserRole.COLLABORATOR:
-        return 'Collaborateur';
-      default:
-        return 'Inconnu';
-    }
-  };
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-        {/* Header */}
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-900">
-            {isEditing ? 'Modifier l\'utilisateur' : 'Nouvel utilisateur'}
+          <h2 className="text-lg font-semibold text-gray-900">
+            Ajouter des Collaborateurs
           </h2>
-          <Button variant="ghost" size="sm" onClick={onClose}>
-            <X className="w-5 h-5" />
-          </Button>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-6 w-6" />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Informations de base */}
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Prénom *
-              </label>
-              <Input
-                value={formData.firstName}
-                onChange={(e) => handleInputChange('firstName', e.target.value)}
-                placeholder="Prénom"
-                required
-              />
-            </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {users.map((user, index) => (
+            <div key={index} className="border border-gray-200 rounded-lg p-4 space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="text-md font-medium text-gray-900">
+                  Collaborateur {index + 1}
+                </h3>
+                {users.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeUser(index)}
+                    className="text-red-600 hover:text-red-700 p-1"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nom *
-              </label>
-              <Input
-                value={formData.lastName}
-                onChange={(e) => handleInputChange('lastName', e.target.value)}
-                placeholder="Nom"
-                required
-              />
-            </div>
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Prénom *
+                  </label>
+                  <input
+                    type="text"
+                    value={user.firstName}
+                    onChange={(e) => updateUser(index, 'firstName', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Prénom"
+                    required
+                  />
+                </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email professionnel *
-            </label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="email@banque.com"
-                className="pl-10"
-                required
-              />
-            </div>
-          </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Nom *
+                  </label>
+                  <input
+                    type="text"
+                    value={user.lastName}
+                    onChange={(e) => updateUser(index, 'lastName', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nom"
+                    required
+                  />
+                </div>
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Rôle
-            </label>
-            <select
-              value={formData.role}
-              onChange={(e) => handleInputChange('role', e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value={UserRole.COLLABORATOR}>Collaborateur</option>
-              <option value={UserRole.BANK_ADMIN}>Admin Banque</option>
-              {!isEditing && <option value={UserRole.SUPER_ADMIN}>Super Admin</option>}
-            </select>
-          </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email professionnel *
+                  </label>
+                  <input
+                    type="email"
+                    value={user.email}
+                    onChange={(e) => updateUser(index, 'email', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="email@banque.com"
+                    required
+                  />
+                </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Département
-            </label>
-            <div className="relative">
-              <Building2 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                value={formData.department}
-                onChange={(e) => handleInputChange('department', e.target.value)}
-                placeholder="Ex: Finance, RH, IT..."
-                className="pl-10"
-              />
-            </div>
-          </div>
-
-          {/* Options */}
-          <div className="flex items-center space-x-6">
-            <label className="flex items-center">
-              <input
-                type="checkbox"
-                checked={formData.isActive}
-                onChange={(e) => handleInputChange('isActive', e.target.checked)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="ml-2 text-sm text-gray-700">Actif</span>
-            </label>
-          </div>
-
-          {/* Informations importantes */}
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start">
-              <User className="w-5 h-5 text-blue-600 mt-0.5 mr-2" />
-              <div>
-                <h4 className="text-sm font-medium text-blue-900">
-                  {isEditing ? 'Modification d\'utilisateur' : 'Création d\'utilisateur'}
-                </h4>
-                <p className="text-sm text-blue-700 mt-1">
-                  {isEditing 
-                    ? 'Les modifications seront appliquées immédiatement.'
-                    : 'Un mot de passe sécurisé sera généré automatiquement et envoyé par email.'
-                  }
-                </p>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Département
+                  </label>
+                  <input
+                    type="text"
+                    value={user.department}
+                    onChange={(e) => updateUser(index, 'department', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Département (optionnel)"
+                  />
+                </div>
               </div>
             </div>
+          ))}
+
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={addUser}
+              className="bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Ajouter un autre collaborateur
+            </button>
           </div>
 
-          {/* Actions */}
-          <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-200">
-            <Button type="button" variant="outline" onClick={onClose}>
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
               Annuler
-            </Button>
-            <Button type="submit" disabled={isLoading}>
-              {isLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              ) : (
-                isEditing ? 'Mettre à jour' : 'Créer'
-              )}
-            </Button>
+            </button>
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            >
+              Créer les comptes
+            </button>
           </div>
         </form>
       </div>
     </div>
   );
-}; 
+};
+
+export default UserModal; 

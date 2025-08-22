@@ -11,7 +11,12 @@ import { useTheme } from "./contexts/ThemeContext";
 // Import des pages admin
 import AdminLoginPage from './app/admin/login/page';
 import AdminDashboardPage from './app/admin/dashboard/page';
-import AdminFormationsPage from './app/admin/formations/page';
+
+import AdminBanksPage from './app/admin/banks/page';
+import AdminUsersPage from './app/admin/users/page';
+import AdminStatsPage from './app/admin/stats/page';
+import AdminSettingsPage from './app/admin/settings/page';
+import BankDetailPage from './features/admin/components/BankDetailPage';
 import { AdminLayoutWrapper } from './app/admin/layout';
 
 const slides = [
@@ -212,12 +217,17 @@ function App() {
       <ScrollToAnchor />
       <Suspense fallback={<div className="w-full h-screen flex items-center justify-center"><Loader size={56} color="#C7B299" /><span className="ml-4 text-xl text-[#C7B299] font-semibold animate-pulse">Chargement...</span></div>}>
         <Routes>
-          {/* Routes Admin */}
-          <Route path="/admin/login" element={<AdminLoginPage />} />
-          <Route path="/admin" element={<AdminLayoutWrapper />}>
-            <Route path="dashboard" element={<AdminDashboardPage />} />
-            <Route path="formations" element={<AdminFormationsPage />} />
-          </Route>
+            {/* Routes Admin */}
+            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/admin" element={<AdminLayoutWrapper />}>
+              <Route path="dashboard" element={<AdminDashboardPage />} />
+
+              <Route path="banks" element={<AdminBanksPage />} />
+              <Route path="banks/:bankId" element={<BankDetailPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
+              <Route path="stats" element={<AdminStatsPage />} />
+              <Route path="settings" element={<AdminSettingsPage />} />
+            </Route>
           
           {/* Routes Apprenant */}
           <Route path="/apprenant/connexion" element={<LoginPage />} />
@@ -640,22 +650,6 @@ function HomePage() {
             </div> */}
           </div>
           <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <p>&copy; {new Date().getFullYear()} BAI Formation Consulting. Tous droits réservés.</p>
-          </div>
-          <div className="flex justify-center mt-8">
-            <Link to="/contact">
-              <button className="bg-brand-beige text-brand-blue dark:bg-dark-bg-primary dark:text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-brand-beige/80 transition-colors text-lg">
-                Contactez-nous
-              </button>
-            </Link>
-          </div>
-        </div>
-      </footer>
-    </div>
-  );
-}
-
-export default App;
             <p>&copy; {new Date().getFullYear()} BAI Formation Consulting. Tous droits réservés.</p>
           </div>
           <div className="flex justify-center mt-8">

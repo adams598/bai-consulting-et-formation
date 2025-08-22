@@ -79,6 +79,11 @@ app.use(express.json({ limit: "10mb" })); // Limiter la taille des requêtes
 
 // Import des routes
 import adminRoutes from "./src/routes/admin.routes.js";
+import learnerRoutes from "./src/routes/learner.routes.js";
+
+// Routes
+app.use("/api/admin", adminRoutes);
+app.use("/api/learner", learnerRoutes);
 
 // Initialisation conditionnelle d'OpenAI
 let openai = null;
@@ -281,7 +286,8 @@ app.post(
           });
           assistantResponse = completion.choices[0].message.content;
         } else {
-          assistantResponse = "Je ne peux pas traiter votre demande pour le moment. Veuillez réessayer plus tard ou nous contacter directement.";
+          assistantResponse =
+            "Je ne peux pas traiter votre demande pour le moment. Veuillez réessayer plus tard ou nous contacter directement.";
         }
       }
 

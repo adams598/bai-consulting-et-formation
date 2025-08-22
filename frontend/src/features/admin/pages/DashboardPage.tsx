@@ -10,7 +10,7 @@ import {
   Calendar,
   AlertTriangle
 } from 'lucide-react';
-import { AdminLayout } from '../components/AdminLayout';
+
 import { dashboardApi } from '../../../api/adminApi';
 import { AdminDashboardStats, BankStats } from '../types';
 import { useToast } from '../../../components/ui/use-toast';
@@ -72,30 +72,15 @@ export const DashboardPage: React.FC = () => {
     try {
       setIsLoading(true);
       
-      // Données de test pour le développement
-      const mockStats = {
-        totalBanks: 5,
-        totalUsers: 127,
-        totalFormations: 23,
-        completedFormations: 89
-      };
+      // Charger les vraies données depuis l'API
+      const [statsResponse, banksResponse] = await Promise.all([
+        dashboardApi.getStats(),
+        dashboardApi.getBankStats()
+      ]);
       
-      const mockBankStats = [
-        { id: '1', name: 'Banque Populaire', users: 45, formations: 8, completionRate: 78 },
-        { id: '2', name: 'Crédit Agricole', users: 32, formations: 6, completionRate: 85 },
-        { id: '3', name: 'BNP Paribas', users: 28, formations: 5, completionRate: 92 },
-        { id: '4', name: 'Société Générale', users: 22, formations: 4, completionRate: 76 }
-      ];
-      
-      const mockActivity = [
-        { id: '1', type: 'formation_created', title: 'Nouvelle formation', description: 'Formation "Gestion des risques bancaires" créée', timestamp: new Date(), user: 'Admin' },
-        { id: '2', type: 'user_registered', title: 'Nouveau collaborateur', description: 'Ajouté à la Banque Populaire', timestamp: new Date(Date.now() - 3600000), user: 'Admin' },
-        { id: '3', type: 'formation_completed', title: 'Formation terminée', description: 'Compliance bancaire terminée par 15 utilisateurs', timestamp: new Date(Date.now() - 7200000), user: 'Système' }
-      ];
-      
-      setStats(mockStats);
-      setBankStats(mockBankStats);
-      setRecentActivity(mockActivity);
+      setStats(statsResponse.data);
+      setBankStats(banksResponse.data);
+      setRecentActivity([]); // Pas d'activité récente pour l'instant
       
     } catch (error) {
       toast({
@@ -149,22 +134,14 @@ export const DashboardPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <AdminLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        </div>
-      </AdminLayout>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
     );
   }
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Tableau de bord</h1>
-          <p className="text-gray-600">Vue d'ensemble de votre plateforme de formation</p>
-        </div>
+    <div className="space-y-6">
 
         {/* Statistiques principales */}
         {stats && (
@@ -173,28 +150,22 @@ export const DashboardPage: React.FC = () => {
               title="Banques"
               value={stats.totalBanks}
               icon={<Building2 className="w-5 h-5 text-blue-600" />}
-              change="+2 ce mois"
-              changeType="positive"
             />
             <StatCard
               title="Utilisateurs"
               value={stats.totalUsers}
               icon={<Users className="w-5 h-5 text-green-600" />}
-              change="+15 cette semaine"
-              changeType="positive"
             />
             <StatCard
               title="Formations"
               value={stats.totalFormations}
               icon={<BookOpen className="w-5 h-5 text-purple-600" />}
-              change="+5 ce mois"
-              changeType="positive"
             />
             <StatCard
               title="Formations terminées"
               value={stats.completedFormations}
               icon={<CheckCircle className="w-5 h-5 text-green-600" />}
-              change={`${Math.round((stats.completedFormations / stats.totalFormations) * 100)}% taux de réussite`}
+              change={(stats.totalFormations || 0) > 0 ? `${Math.round(((stats.completedFormations || 0) / (stats.totalFormations || 1)) * 100)}% taux de réussite` : "0% taux de réussite"}
               changeType="positive"
             />
           </div>
@@ -299,18 +270,18 @@ export const DashboardPage: React.FC = () => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-700">Formations actives</span>
-                    <span className="text-sm font-semibold text-gray-900">
-                      {stats.totalFormations - stats.completedFormations}
-                    </span>
+                                         <span className="text-sm font-semibold text-gray-900">
+                       {(stats.totalFormations || 0) - (stats.completedFormations || 0)}
+                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                      style={{ 
-                        width: `${stats.totalFormations > 0 ? (stats.completedFormations / stats.totalFormations) * 100 : 0}%` 
-                      }}
-                    ></div>
-                  </div>
+                                       <div className="w-full bg-gray-200 rounded-full h-2">
+                       <div 
+                         className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                         style={{ 
+                           width: `${(stats.totalFormations || 0) > 0 ? Math.min(((stats.completedFormations || 0) / (stats.totalFormations || 1)) * 100, 100) : 0}%` 
+                         }}
+                       ></div>
+                     </div>
                   <div className="flex items-center justify-between text-sm text-gray-600">
                     <span>0%</span>
                     <span>100%</span>
@@ -368,6 +339,5 @@ export const DashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
-    </AdminLayout>
   );
 }; 

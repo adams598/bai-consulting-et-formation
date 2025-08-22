@@ -2,16 +2,26 @@ import express from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
 import { adminMiddleware } from "../middleware/admin.middleware.js";
 import {
+  uploadSingleImage,
+  uploadSingleVideo,
+  uploadSingleFile,
+  uploadProfileImage,
+  uploadLessonImage,
+  uploadFormationImage,
+  handleMulterError,
+} from "../middleware/upload.middleware.js";
+import {
   authController,
   banksController,
   formationsController,
   usersController,
-  assignmentsController,
   dashboardController,
+  formationContentController,
   quizController,
-  progressController,
-  notificationsController,
+  bankFormationController,
+  userFormationAssignmentController,
 } from "../controllers/admin.controllers.js";
+import { uploadController } from "../controllers/upload.controller.js";
 
 const router = express.Router();
 
@@ -21,7 +31,7 @@ router.get("/auth/health", (req, res) => {
     status: "OK",
     message: "API Backend BAI Consulting opérationnelle",
     timestamp: new Date().toISOString(),
-    version: "1.0.0"
+    version: "1.0.0",
   });
 });
 
@@ -29,13 +39,18 @@ router.get("/auth/health", (req, res) => {
 router.post("/auth/login", authController.login);
 router.post("/auth/logout", authMiddleware, authController.logout);
 router.get("/auth/me", authMiddleware, authController.getCurrentUser);
-router.post("/auth/refresh", authController.refreshToken);
-router.post(
-  "/auth/switch-bank",
-  authMiddleware,
-  adminMiddleware,
-  authController.switchBank
-);
+// router.post("/auth/refresh", authController.refreshToken); // À implémenter
+// router.post(
+//   "/auth/switch-bank",
+//   authMiddleware,
+//   adminMiddleware,
+//   authController.switchBank
+// ); // À implémenter
+
+// Routes de gestion du profil
+router.get("/profile", authMiddleware, authController.getProfile);
+router.put("/profile", authMiddleware, authController.updateProfile);
+router.put("/profile/password", authMiddleware, authController.changePassword);
 
 // Routes des banques
 router.get(
@@ -67,6 +82,18 @@ router.delete(
   authMiddleware,
   adminMiddleware,
   banksController.deleteBank
+);
+router.patch(
+  "/banks/:id/archive",
+  authMiddleware,
+  adminMiddleware,
+  banksController.archiveBank
+);
+router.patch(
+  "/banks/:id/toggle",
+  authMiddleware,
+  adminMiddleware,
+  banksController.toggleActive
 );
 
 // Routes des formations
@@ -111,6 +138,157 @@ router.patch(
   authMiddleware,
   adminMiddleware,
   formationsController.toggleMandatory
+);
+
+// Routes du contenu des formations
+router.get(
+  "/formations/:formationId/content",
+  authMiddleware,
+  adminMiddleware,
+  formationContentController.getByFormation
+);
+
+router.post(
+  "/formations/:formationId/sections",
+  authMiddleware,
+  adminMiddleware,
+  formationContentController.addSection
+);
+
+router.post(
+  "/formations/:formationId/lessons",
+  authMiddleware,
+  adminMiddleware,
+  formationContentController.addLesson
+);
+
+router.put(
+  "/formations/sections/:id",
+  authMiddleware,
+  adminMiddleware,
+  formationContentController.updateSection
+);
+
+router.put(
+  "/formations/lessons/:id",
+  authMiddleware,
+  adminMiddleware,
+  formationContentController.updateLesson
+);
+
+router.delete(
+  "/formations/sections/:id",
+  authMiddleware,
+  adminMiddleware,
+  formationContentController.deleteSection
+);
+
+router.delete(
+  "/formations/lessons/:id",
+  authMiddleware,
+  adminMiddleware,
+  formationContentController.deleteLesson
+);
+
+router.put(
+  "/formations/:formationId/reorder",
+  authMiddleware,
+  adminMiddleware,
+  formationContentController.reorderContent
+);
+
+// Routes des quiz
+router.post(
+  "/formations/:formationId/quiz",
+  authMiddleware,
+  adminMiddleware,
+  quizController.createQuiz
+);
+
+router.put(
+  "/quiz/:id",
+  authMiddleware,
+  adminMiddleware,
+  quizController.updateQuiz
+);
+
+router.delete(
+  "/quiz/:id",
+  authMiddleware,
+  adminMiddleware,
+  quizController.deleteQuiz
+);
+
+router.patch(
+  "/quiz/:id/toggle",
+  authMiddleware,
+  adminMiddleware,
+  quizController.toggleQuizActive
+);
+
+// Routes des assignations banque-formation
+router.post(
+  "/bank-formations",
+  authMiddleware,
+  adminMiddleware,
+  bankFormationController.assignFormationToBank
+);
+
+router.get(
+  "/banks/:bankId/formations",
+  authMiddleware,
+  adminMiddleware,
+  bankFormationController.getBankFormations
+);
+
+router.patch(
+  "/bank-formations/:id/mandatory",
+  authMiddleware,
+  adminMiddleware,
+  bankFormationController.updateFormationMandatory
+);
+
+router.delete(
+  "/bank-formations/:id",
+  authMiddleware,
+  adminMiddleware,
+  bankFormationController.removeFormationFromBank
+);
+
+// Routes des assignations utilisateurs aux formations
+router.post(
+  "/bank-formations/:bankFormationId/users",
+  authMiddleware,
+  adminMiddleware,
+  userFormationAssignmentController.assignUsersToFormation
+);
+
+router.post(
+  "/bank-formations/:bankFormationId/users/group",
+  authMiddleware,
+  adminMiddleware,
+  userFormationAssignmentController.assignUsersByGroup
+);
+
+router.patch(
+  "/user-formation-assignments/:id",
+  authMiddleware,
+  adminMiddleware,
+  userFormationAssignmentController.updateUserFormationMandatory
+);
+
+router.delete(
+  "/user-formation-assignments/:id",
+  authMiddleware,
+  adminMiddleware,
+  userFormationAssignmentController.removeUserFromFormation
+);
+
+router.get(
+  "/bank-formations/:bankFormationId/users",
+  authMiddleware,
+  adminMiddleware,
+  userFormationAssignmentController.getFormationUserAssignments
 );
 
 // Routes des utilisateurs
@@ -163,43 +341,43 @@ router.post(
   usersController.sendCredentials
 );
 
-// Routes des assignations
-router.get(
-  "/assignments",
-  authMiddleware,
-  adminMiddleware,
-  assignmentsController.getAllAssignments
-);
-router.get(
-  "/assignments/:id",
-  authMiddleware,
-  adminMiddleware,
-  assignmentsController.getAssignmentById
-);
-router.post(
-  "/assignments",
-  authMiddleware,
-  adminMiddleware,
-  assignmentsController.createAssignment
-);
-router.put(
-  "/assignments/:id",
-  authMiddleware,
-  adminMiddleware,
-  assignmentsController.updateAssignment
-);
-router.delete(
-  "/assignments/:id",
-  authMiddleware,
-  adminMiddleware,
-  assignmentsController.deleteAssignment
-);
-router.post(
-  "/assignments/bulk",
-  authMiddleware,
-  adminMiddleware,
-  assignmentsController.bulkAssign
-);
+// Routes des assignations (à implémenter)
+// router.get(
+//   "/assignments",
+//   authMiddleware,
+//   adminMiddleware,
+//   assignmentsController.getAllAssignments
+// );
+// router.get(
+//   "/assignments/:id",
+//   authMiddleware,
+//   adminMiddleware,
+//   assignmentsController.getAssignmentById
+// );
+// router.post(
+//   "/assignments",
+//   authMiddleware,
+//   adminMiddleware,
+//   assignmentsController.createAssignment
+// );
+// router.put(
+//   "/assignments/:id",
+//   authMiddleware,
+//   adminMiddleware,
+//   assignmentsController.updateAssignment
+// );
+// router.delete(
+//   "/assignments/:id",
+//   authMiddleware,
+//   adminMiddleware,
+//   assignmentsController.deleteAssignment
+// );
+// router.post(
+//   "/assignments/bulk",
+//   authMiddleware,
+//   adminMiddleware,
+//   assignmentsController.bulkAssign
+// );
 
 // Routes du tableau de bord
 router.get(
@@ -221,94 +399,155 @@ router.get(
   dashboardController.getRecentActivity
 );
 
-// Routes des quiz
-router.get(
-  "/quiz",
-  authMiddleware,
-  adminMiddleware,
-  quizController.getAllQuizzes
-);
-router.get(
-  "/quiz/:id",
-  authMiddleware,
-  adminMiddleware,
-  quizController.getQuizById
-);
+// Routes des quiz (à implémenter)
+// router.get(
+//   "/quiz",
+//   authMiddleware,
+//   adminMiddleware,
+//   quizController.getAllQuizzes
+// );
+// router.get(
+//   "/quiz/:id",
+//   authMiddleware,
+//   adminMiddleware,
+//   quizController.getQuizById
+// );
+// router.post(
+//   "/quiz",
+//   authMiddleware,
+//   adminMiddleware,
+//   quizController.createQuiz
+// );
+// router.put(
+//   "/quiz/:id",
+//   authMiddleware,
+//   adminMiddleware,
+//   quizController.updateQuiz
+// );
+// router.delete(
+//   "/quiz/:id",
+//   authMiddleware,
+//   adminMiddleware,
+//   quizController.deleteQuiz
+// );
+
+// Routes des progressions (à implémenter)
+// router.get(
+//   "/progress",
+//   authMiddleware,
+//   adminMiddleware,
+//   progressController.getAllProgress
+// );
+// router.get(
+//   "/progress/user/:userId",
+//   authMiddleware,
+//   adminMiddleware,
+//   progressController.getUserProgress
+// );
+// router.get(
+//   "/progress/formation/:formationId",
+//   authMiddleware,
+//   adminMiddleware,
+//   progressController.getFormationProgress
+// );
+// router.put(
+//   "/progress/:id",
+//   authMiddleware,
+//   adminMiddleware,
+//   progressController.updateProgress
+// );
+
+// Routes des notifications (à implémenter)
+// router.get(
+//   "/notifications",
+//   authMiddleware,
+//   adminMiddleware,
+//   notificationsController.getAllNotifications
+// );
+// router.get(
+//   "/notifications/user/:userId",
+//   authMiddleware,
+//   adminMiddleware,
+//   notificationsController.getUserNotifications
+// );
+// router.post(
+//   "/notifications",
+//   authMiddleware,
+//   adminMiddleware,
+//   notificationsController.createNotification
+// );
+// router.patch(
+//   "/notifications/:id/read",
+//   authMiddleware,
+//   adminMiddleware,
+//   notificationsController.markAsRead
+// );
+// router.delete(
+//   "/notifications/:id",
+//   authMiddleware,
+//   adminMiddleware,
+//   notificationsController.deleteNotification
+// );
+
+// Routes d'upload
 router.post(
-  "/quiz",
+  "/upload/image",
   authMiddleware,
   adminMiddleware,
-  quizController.createQuiz
-);
-router.put(
-  "/quiz/:id",
-  authMiddleware,
-  adminMiddleware,
-  quizController.updateQuiz
-);
-router.delete(
-  "/quiz/:id",
-  authMiddleware,
-  adminMiddleware,
-  quizController.deleteQuiz
+  uploadSingleImage,
+  handleMulterError,
+  uploadController.uploadImage
 );
 
-// Routes des progressions
-router.get(
-  "/progress",
+router.post(
+  "/upload/lesson-image",
   authMiddleware,
   adminMiddleware,
-  progressController.getAllProgress
-);
-router.get(
-  "/progress/user/:userId",
-  authMiddleware,
-  adminMiddleware,
-  progressController.getUserProgress
-);
-router.get(
-  "/progress/formation/:formationId",
-  authMiddleware,
-  adminMiddleware,
-  progressController.getFormationProgress
-);
-router.put(
-  "/progress/:id",
-  authMiddleware,
-  adminMiddleware,
-  progressController.updateProgress
+  uploadLessonImage,
+  handleMulterError,
+  uploadController.uploadImage
 );
 
-// Routes des notifications
-router.get(
-  "/notifications",
-  authMiddleware,
-  adminMiddleware,
-  notificationsController.getAllNotifications
-);
-router.get(
-  "/notifications/user/:userId",
-  authMiddleware,
-  adminMiddleware,
-  notificationsController.getUserNotifications
-);
 router.post(
-  "/notifications",
+  "/upload/profile-image",
   authMiddleware,
   adminMiddleware,
-  notificationsController.createNotification
+  uploadProfileImage,
+  handleMulterError,
+  uploadController.uploadImage
 );
-router.patch(
-  "/notifications/:id/read",
+
+router.post(
+  "/upload/video",
   authMiddleware,
   adminMiddleware,
-  notificationsController.markAsRead
+  uploadSingleVideo,
+  handleMulterError,
+  uploadController.uploadVideo
 );
-router.delete(
-  "/notifications/:id",
+
+router.post(
+  "/upload/file",
   authMiddleware,
   adminMiddleware,
-  notificationsController.deleteNotification
+  uploadSingleFile,
+  handleMulterError,
+  uploadController.uploadFile
+);
+
+// Routes de vérification et gestion
+router.get(
+  "/upload/check/:contentType/:userFolder/:filename",
+  authMiddleware,
+  adminMiddleware,
+  uploadController.checkFile
+);
+
+router.get(
+  "/upload/files",
+  authMiddleware,
+  adminMiddleware,
+  uploadController.listUserFiles
 );
 
 export default router;

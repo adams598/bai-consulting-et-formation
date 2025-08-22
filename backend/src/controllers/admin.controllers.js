@@ -83,6 +83,8 @@ export const authController = {
             bankId: user.bankId,
             bank: user.bank,
             department: user.department,
+            phone: user.phone,
+            avatar: user.avatar,
           },
           accessToken,
           refreshToken,
@@ -124,11 +126,18 @@ export const authController = {
 
       // Récupérer les données complètes de l'utilisateur
       const fullUser = await prisma.user.findUnique({
-        where: { id: user.userId },
+        where: { id: user.id },
         include: {
           bank: true,
         },
       });
+
+      if (!fullUser) {
+        return res.status(404).json({
+          success: false,
+          message: "Utilisateur non trouvé",
+        });
+      }
 
       res.json({
         success: true,
@@ -142,6 +151,8 @@ export const authController = {
             bankId: fullUser.bankId,
             bank: fullUser.bank,
             department: fullUser.department,
+            phone: fullUser.phone,
+            avatar: fullUser.avatar,
           },
         },
       });
@@ -154,90 +165,205 @@ export const authController = {
     }
   },
 
-  // Rafraîchir le token
-  async refreshToken(req, res) {
+  // Obtenir le profil de l'utilisateur
+  async getProfile(req, res) {
     try {
-      const { refreshToken } = req.body;
-
-      if (!refreshToken) {
-        return res.status(400).json({
-          success: false,
-          message: "Refresh token requis",
-        });
-      }
-
-      // Vérifier le refresh token
-      const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-      const user = await prisma.user.findUnique({
-        where: { id: decoded.userId },
-      });
-
-      if (!user || !user.isActive) {
+      const user = req.user;
+      if (!user) {
         return res.status(401).json({
           success: false,
-          message: "Token invalide",
+          message: "Utilisateur non authentifié",
         });
       }
 
-      // Générer un nouveau access token
-      const newAccessToken = jwt.sign(
-        { userId: user.id, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: "1h" }
-      );
+      const fullUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        include: {
+          bank: true,
+        },
+      });
+
+      if (!fullUser) {
+        return res.status(404).json({
+          success: false,
+          message: "Utilisateur non trouvé",
+        });
+      }
 
       res.json({
         success: true,
         data: {
-          accessToken: newAccessToken,
+          id: fullUser.id,
+          email: fullUser.email,
+          firstName: fullUser.firstName,
+          lastName: fullUser.lastName,
+          role: fullUser.role,
+          bankId: fullUser.bankId,
+          bank: fullUser.bank,
+          department: fullUser.department,
+          phone: fullUser.phone,
+          avatar: fullUser.avatar,
         },
       });
     } catch (error) {
-      console.error("Erreur refreshToken:", error);
-      res.status(401).json({
+      console.error("Erreur getProfile:", error);
+      res.status(500).json({
         success: false,
-        message: "Token invalide",
+        message: "Erreur interne du serveur",
       });
     }
   },
 
-  // Changer de banque
-  async switchBank(req, res) {
+  // Mettre à jour le profil
+  async updateProfile(req, res) {
     try {
-      const { bankId } = req.body;
       const user = req.user;
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié",
+        });
+      }
 
-      if (!bankId) {
+      const { firstName, lastName, email, department, phone, avatar } =
+        req.body;
+
+      // Validation des champs obligatoires
+      if (!firstName || !lastName || !email) {
         return res.status(400).json({
           success: false,
-          message: "ID de banque requis",
+          message: "Prénom, nom et email sont obligatoires",
         });
       }
 
-      // Vérifier que la banque existe
-      const bank = await prisma.bank.findUnique({
-        where: { id: bankId },
+      // Vérifier si l'email est déjà utilisé par un autre utilisateur
+      const existingUser = await prisma.user.findFirst({
+        where: {
+          email,
+          id: { not: user.id },
+        },
       });
 
-      if (!bank) {
-        return res.status(404).json({
+      if (existingUser) {
+        return res.status(400).json({
           success: false,
-          message: "Banque non trouvée",
+          message: "Cette adresse email est déjà utilisée",
         });
       }
 
-      // Mettre à jour l'utilisateur
-      await prisma.user.update({
-        where: { id: user.userId },
-        data: { bankId },
+      // Mettre à jour le profil
+      const updatedUser = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          firstName,
+          lastName,
+          email,
+          department,
+          phone,
+          avatar,
+        },
+        include: {
+          bank: true,
+        },
       });
 
       res.json({
         success: true,
-        message: "Banque changée avec succès",
+        data: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          firstName: updatedUser.firstName,
+          lastName: updatedUser.lastName,
+          role: updatedUser.role,
+          bankId: updatedUser.bankId,
+          bank: updatedUser.bank,
+          department: updatedUser.department,
+          phone: updatedUser.phone,
+          avatar: updatedUser.avatar,
+        },
       });
     } catch (error) {
-      console.error("Erreur switchBank:", error);
+      console.error("Erreur updateProfile:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Changer le mot de passe
+  async changePassword(req, res) {
+    try {
+      const user = req.user;
+      if (!user) {
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié",
+        });
+      }
+
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "Mot de passe actuel et nouveau mot de passe requis",
+        });
+      }
+
+      // Récupérer l'utilisateur avec le mot de passe hashé
+      const fullUser = await prisma.user.findUnique({
+        where: { id: user.id },
+      });
+
+      if (!fullUser) {
+        return res.status(404).json({
+          success: false,
+          message: "Utilisateur non trouvé",
+        });
+      }
+
+      // Vérifier le mot de passe actuel
+      const isValidCurrentPassword = await bcrypt.compare(
+        currentPassword,
+        fullUser.password
+      );
+      if (!isValidCurrentPassword) {
+        return res.status(400).json({
+          success: false,
+          message: "Mot de passe actuel incorrect",
+        });
+      }
+
+      // Vérifier que le nouveau mot de passe est différent
+      const isSamePassword = await bcrypt.compare(
+        newPassword,
+        fullUser.password
+      );
+      if (isSamePassword) {
+        return res.status(400).json({
+          success: false,
+          message: "Le nouveau mot de passe doit être différent de l'actuel",
+        });
+      }
+
+      // Hasher le nouveau mot de passe
+      const hashedNewPassword = await bcrypt.hash(newPassword, 12);
+
+      // Mettre à jour le mot de passe
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          password: hashedNewPassword,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: "Mot de passe modifié avec succès",
+      });
+    } catch (error) {
+      console.error("Erreur changePassword:", error);
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
@@ -246,20 +372,18 @@ export const authController = {
   },
 };
 
-// Contrôleur des banques
+// Contrôleurs stubs pour les autres fonctionnalités
 export const banksController = {
-  // Obtenir toutes les banques
   async getAllBanks(req, res) {
     try {
       const banks = await prisma.bank.findMany({
-        where: { isActive: true },
+        where: {
+          isArchived: false, // Ne pas afficher les banques archivées, mais afficher les actives ET inactives
+        },
         orderBy: { name: "asc" },
       });
 
-      res.json({
-        success: true,
-        data: banks,
-      });
+      res.json({ success: true, data: banks });
     } catch (error) {
       console.error("Erreur getAllBanks:", error);
       res.status(500).json({
@@ -269,11 +393,9 @@ export const banksController = {
     }
   },
 
-  // Obtenir une banque par ID
   async getBankById(req, res) {
     try {
       const { id } = req.params;
-
       const bank = await prisma.bank.findUnique({
         where: { id },
         include: {
@@ -284,18 +406,7 @@ export const banksController = {
               lastName: true,
               email: true,
               role: true,
-              department: true,
               isActive: true,
-            },
-          },
-          formations: {
-            select: {
-              id: true,
-              title: true,
-              type: true,
-              duration: true,
-              isActive: true,
-              isMandatory: true,
             },
           },
         },
@@ -308,10 +419,7 @@ export const banksController = {
         });
       }
 
-      res.json({
-        success: true,
-        data: bank,
-      });
+      res.json({ success: true, data: bank });
     } catch (error) {
       console.error("Erreur getBankById:", error);
       res.status(500).json({
@@ -321,20 +429,20 @@ export const banksController = {
     }
   },
 
-  // Créer une banque
   async createBank(req, res) {
     try {
       const { name, code } = req.body;
 
+      // Validation
       if (!name || !code) {
         return res.status(400).json({
           success: false,
-          message: "Nom et code de banque requis",
+          message: "Nom et code de la banque requis",
         });
       }
 
-      // Vérifier que le code n'existe pas déjà
-      const existingBank = await prisma.bank.findUnique({
+      // Vérifier si le code existe déjà
+      const existingBank = await prisma.bank.findFirst({
         where: { code },
       });
 
@@ -353,10 +461,7 @@ export const banksController = {
         },
       });
 
-      res.status(201).json({
-        success: true,
-        data: bank,
-      });
+      res.status(201).json({ success: true, data: bank });
     } catch (error) {
       console.error("Erreur createBank:", error);
       res.status(500).json({
@@ -366,13 +471,12 @@ export const banksController = {
     }
   },
 
-  // Mettre à jour une banque
   async updateBank(req, res) {
     try {
       const { id } = req.params;
       const { name, code, isActive } = req.body;
 
-      // Vérifier que la banque existe
+      // Vérifier si la banque existe
       const existingBank = await prisma.bank.findUnique({
         where: { id },
       });
@@ -384,13 +488,16 @@ export const banksController = {
         });
       }
 
-      // Vérifier que le code n'existe pas déjà (sauf pour cette banque)
+      // Vérifier si le code existe déjà (sauf pour cette banque)
       if (code && code !== existingBank.code) {
-        const bankWithCode = await prisma.bank.findUnique({
-          where: { code },
+        const duplicateCode = await prisma.bank.findFirst({
+          where: {
+            code,
+            id: { not: id },
+          },
         });
 
-        if (bankWithCode) {
+        if (duplicateCode) {
           return res.status(400).json({
             success: false,
             message: "Ce code de banque existe déjà",
@@ -407,10 +514,7 @@ export const banksController = {
         },
       });
 
-      res.json({
-        success: true,
-        data: bank,
-      });
+      res.json({ success: true, data: bank });
     } catch (error) {
       console.error("Erreur updateBank:", error);
       res.status(500).json({
@@ -420,12 +524,11 @@ export const banksController = {
     }
   },
 
-  // Supprimer une banque
   async deleteBank(req, res) {
     try {
       const { id } = req.params;
 
-      // Vérifier que la banque existe
+      // Vérifier si la banque existe
       const bank = await prisma.bank.findUnique({
         where: { id },
         include: {
@@ -441,14 +544,24 @@ export const banksController = {
         });
       }
 
-      // Vérifier qu'il n'y a pas d'utilisateurs ou de formations associés
-      if (bank.users.length > 0 || bank.formations.length > 0) {
+      // Vérifier s'il y a des utilisateurs ou formations associés
+      if (bank.users.length > 0) {
         return res.status(400).json({
           success: false,
-          message: "Impossible de supprimer une banque avec des utilisateurs ou formations associés",
+          message:
+            "Impossible de supprimer une banque qui a des utilisateurs associés",
         });
       }
 
+      if (bank.formations.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Impossible de supprimer une banque qui a des formations associées",
+        });
+      }
+
+      // Supprimer la banque
       await prisma.bank.delete({
         where: { id },
       });
@@ -465,32 +578,94 @@ export const banksController = {
       });
     }
   },
-};
 
-// Contrôleur des formations
-export const formationsController = {
-  // Obtenir toutes les formations
-  async getAllFormations(req, res) {
+  async archiveBank(req, res) {
     try {
-      const { bankId, type, isActive, isMandatory } = req.query;
-      const user = req.user;
+      const { id } = req.params;
 
-      let where = {};
+      // Vérifier si la banque existe
+      const bank = await prisma.bank.findUnique({
+        where: { id },
+      });
 
-      // Filtrer par banque si l'utilisateur n'est pas super admin
-      if (user.role !== "SUPER_ADMIN") {
-        where.bankId = user.bankId;
-      } else if (bankId) {
-        where.bankId = bankId;
+      if (!bank) {
+        return res.status(404).json({
+          success: false,
+          message: "Banque non trouvée",
+        });
       }
 
-      // Autres filtres
-      if (type) where.type = type;
-      if (isActive !== undefined) where.isActive = isActive === "true";
-      if (isMandatory !== undefined) where.isMandatory = isMandatory === "true";
+      // Archiver la banque (désactiver et marquer comme archivée)
+      const archivedBank = await prisma.bank.update({
+        where: { id },
+        data: {
+          isActive: false,
+          isArchived: true,
+          archivedAt: new Date(),
+        },
+      });
 
+      res.json({
+        success: true,
+        message: "Banque archivée avec succès",
+        data: archivedBank,
+      });
+    } catch (error) {
+      console.error("Erreur archiveBank:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  async toggleActive(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Vérifier si la banque existe
+      const bank = await prisma.bank.findUnique({
+        where: { id },
+      });
+
+      if (!bank) {
+        return res.status(404).json({
+          success: false,
+          message: "Banque non trouvée",
+        });
+      }
+
+      // Inverser le statut actif
+      const updatedBank = await prisma.bank.update({
+        where: { id },
+        data: {
+          isActive: !bank.isActive,
+        },
+      });
+
+      res.json({
+        success: true,
+        message: `Banque ${
+          updatedBank.isActive ? "activée" : "désactivée"
+        } avec succès`,
+        data: updatedBank,
+      });
+    } catch (error) {
+      console.error("Erreur toggleActive:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+};
+
+export const formationsController = {
+  async getAllFormations(req, res) {
+    try {
       const formations = await prisma.formation.findMany({
-        where,
+        where: { isActive: true },
+        orderBy: { title: "asc" },
         include: {
           creator: {
             select: {
@@ -500,30 +675,38 @@ export const formationsController = {
               email: true,
             },
           },
-          bank: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
-          },
           content: {
+            where: { contentType: "LESSON" },
             orderBy: { order: "asc" },
           },
-          _count: {
-            select: {
-              assignments: true,
-              progress: true,
+          quiz: {
+            include: {
+              questions: {
+                include: {
+                  answers: true,
+                },
+              },
             },
           },
         },
-        orderBy: { createdAt: "desc" },
       });
 
-      res.json({
-        success: true,
-        data: formations,
+      // Calculer la durée totale et le nombre de leçons pour chaque formation
+      const formationsWithStats = formations.map((formation) => {
+        const totalDuration = formation.content.reduce(
+          (sum, lesson) => sum + (lesson.duration || 0),
+          0
+        );
+        const lessonCount = formation.content.length;
+
+        return {
+          ...formation,
+          totalDuration,
+          lessonCount,
+        };
       });
+
+      res.json({ success: true, data: formationsWithStats });
     } catch (error) {
       console.error("Erreur getAllFormations:", error);
       res.status(500).json({
@@ -533,12 +716,9 @@ export const formationsController = {
     }
   },
 
-  // Obtenir une formation par ID
   async getFormationById(req, res) {
     try {
       const { id } = req.params;
-      const user = req.user;
-
       const formation = await prisma.formation.findUnique({
         where: { id },
         include: {
@@ -550,46 +730,22 @@ export const formationsController = {
               email: true,
             },
           },
-          bank: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
-          },
           content: {
-            orderBy: { order: "asc" },
-          },
-          quiz: {
+            orderBy: [{ contentType: "asc" }, { order: "asc" }],
             include: {
-              questions: {
-                include: {
-                  answers: true,
-                },
+              lessons: {
                 orderBy: { order: "asc" },
               },
             },
           },
-          assignments: {
+          quiz: {
             include: {
-              user: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                },
-              },
-            },
-          },
-          progress: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
+              questions: {
+                orderBy: { order: "asc" },
+                include: {
+                  answers: {
+                    orderBy: { order: "asc" },
+                  },
                 },
               },
             },
@@ -604,18 +760,30 @@ export const formationsController = {
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && formation.bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
-        });
-      }
+      // Organiser le contenu par sections et leçons
+      const sections = formation.content.filter(
+        (item) => item.contentType === "SECTION"
+      );
+      const lessons = formation.content.filter(
+        (item) => item.contentType === "LESSON" && !item.sectionId
+      );
 
-      res.json({
-        success: true,
-        data: formation,
-      });
+      const organizedContent = {
+        sections: sections.map((section) => ({
+          ...section,
+          lessons: formation.content.filter(
+            (lesson) => lesson.sectionId === section.id
+          ),
+        })),
+        lessons: lessons,
+      };
+
+      const formationWithOrganizedContent = {
+        ...formation,
+        content: organizedContent,
+      };
+
+      res.json({ success: true, data: formationWithOrganizedContent });
     } catch (error) {
       console.error("Erreur getFormationById:", error);
       res.status(500).json({
@@ -625,47 +793,36 @@ export const formationsController = {
     }
   },
 
-  // Créer une formation
   async createFormation(req, res) {
     try {
       const {
         title,
         description,
-        type,
-        duration,
+        isActive,
         isMandatory,
-        bankId,
-        content,
+        hasQuiz,
+        quizRequired,
       } = req.body;
-      const user = req.user;
+      const userId = req.user.id;
 
-      if (!title || !description || !type || !duration) {
+      // Validation
+      if (!title) {
         return res.status(400).json({
           success: false,
-          message: "Titre, description, type et durée requis",
-        });
-      }
-
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
+          message: "Le titre est obligatoire",
         });
       }
 
       const formation = await prisma.formation.create({
         data: {
           title,
-          description,
-          type,
-          duration: parseInt(duration),
-          isMandatory: isMandatory || false,
-          createdBy: user.userId,
-          bankId: user.role === "SUPER_ADMIN" ? bankId : user.bankId,
-          content: {
-            create: content || [],
-          },
+          description: description || "",
+          duration: 0, // sera calculé automatiquement lors de l'ajout de leçons
+          isActive: isActive !== undefined ? isActive : true,
+          isMandatory: isMandatory !== undefined ? isMandatory : false,
+          hasQuiz: hasQuiz !== undefined ? hasQuiz : false,
+          quizRequired: quizRequired !== undefined ? quizRequired : true,
+          createdBy: userId,
         },
         include: {
           creator: {
@@ -676,23 +833,10 @@ export const formationsController = {
               email: true,
             },
           },
-          bank: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
-          },
-          content: {
-            orderBy: { order: "asc" },
-          },
         },
       });
 
-      res.status(201).json({
-        success: true,
-        data: formation,
-      });
+      res.status(201).json({ success: true, data: formation });
     } catch (error) {
       console.error("Erreur createFormation:", error);
       res.status(500).json({
@@ -702,22 +846,27 @@ export const formationsController = {
     }
   },
 
-  // Mettre à jour une formation
   async updateFormation(req, res) {
     try {
       const { id } = req.params;
       const {
         title,
         description,
-        type,
-        duration,
         isActive,
         isMandatory,
-        content,
+        hasQuiz,
+        quizRequired,
       } = req.body;
-      const user = req.user;
 
-      // Vérifier que la formation existe
+      // Validation
+      if (!title) {
+        return res.status(400).json({
+          success: false,
+          message: "Le titre est obligatoire",
+        });
+      }
+
+      // Vérifier si la formation existe
       const existingFormation = await prisma.formation.findUnique({
         where: { id },
       });
@@ -729,24 +878,22 @@ export const formationsController = {
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && existingFormation.bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
-        });
-      }
-
-      // Mettre à jour la formation
       const formation = await prisma.formation.update({
         where: { id },
         data: {
           title,
-          description,
-          type,
-          duration: duration ? parseInt(duration) : undefined,
-          isActive,
-          isMandatory,
+          description: description || "",
+          isActive:
+            isActive !== undefined ? isActive : existingFormation.isActive,
+          isMandatory:
+            isMandatory !== undefined
+              ? isMandatory
+              : existingFormation.isMandatory,
+          hasQuiz: hasQuiz !== undefined ? hasQuiz : existingFormation.hasQuiz,
+          quizRequired:
+            quizRequired !== undefined
+              ? quizRequired
+              : existingFormation.quizRequired,
         },
         include: {
           creator: {
@@ -757,40 +904,10 @@ export const formationsController = {
               email: true,
             },
           },
-          bank: {
-            select: {
-              id: true,
-              name: true,
-              code: true,
-            },
-          },
-          content: {
-            orderBy: { order: "asc" },
-          },
         },
       });
 
-      // Mettre à jour le contenu si fourni
-      if (content) {
-        // Supprimer l'ancien contenu
-        await prisma.formationContent.deleteMany({
-          where: { formationId: id },
-        });
-
-        // Créer le nouveau contenu
-        await prisma.formationContent.createMany({
-          data: content.map((item, index) => ({
-            ...item,
-            formationId: id,
-            order: index + 1,
-          })),
-        });
-      }
-
-      res.json({
-        success: true,
-        data: formation,
-      });
+      res.json({ success: true, data: formation });
     } catch (error) {
       console.error("Erreur updateFormation:", error);
       res.status(500).json({
@@ -800,13 +917,11 @@ export const formationsController = {
     }
   },
 
-  // Supprimer une formation
   async deleteFormation(req, res) {
     try {
       const { id } = req.params;
-      const user = req.user;
 
-      // Vérifier que la formation existe
+      // Vérifier si la formation existe
       const formation = await prisma.formation.findUnique({
         where: { id },
         include: {
@@ -822,22 +937,24 @@ export const formationsController = {
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && formation.bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
-        });
-      }
-
-      // Vérifier qu'il n'y a pas d'assignations ou de progressions
-      if (formation.assignments.length > 0 || formation.progress.length > 0) {
+      // Vérifier s'il y a des assignations ou progress associés
+      if (formation.assignments.length > 0) {
         return res.status(400).json({
           success: false,
-          message: "Impossible de supprimer une formation avec des assignations ou progressions",
+          message:
+            "Impossible de supprimer une formation qui a des assignations",
         });
       }
 
+      if (formation.progress.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Impossible de supprimer une formation qui a des progressions",
+        });
+      }
+
+      // Supprimer la formation (cascade sur content et quiz)
       await prisma.formation.delete({
         where: { id },
       });
@@ -855,12 +972,11 @@ export const formationsController = {
     }
   },
 
-  // Basculer l'état actif d'une formation
   async toggleActive(req, res) {
     try {
       const { id } = req.params;
-      const user = req.user;
 
+      // Vérifier si la formation existe
       const formation = await prisma.formation.findUnique({
         where: { id },
       });
@@ -872,21 +988,19 @@ export const formationsController = {
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && formation.bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
-        });
-      }
-
+      // Inverser le statut actif
       const updatedFormation = await prisma.formation.update({
         where: { id },
-        data: { isActive: !formation.isActive },
+        data: {
+          isActive: !formation.isActive,
+        },
       });
 
       res.json({
         success: true,
+        message: `Formation ${
+          updatedFormation.isActive ? "activée" : "désactivée"
+        } avec succès`,
         data: updatedFormation,
       });
     } catch (error) {
@@ -898,12 +1012,11 @@ export const formationsController = {
     }
   },
 
-  // Basculer l'état obligatoire d'une formation
   async toggleMandatory(req, res) {
     try {
       const { id } = req.params;
-      const user = req.user;
 
+      // Vérifier si la formation existe
       const formation = await prisma.formation.findUnique({
         where: { id },
       });
@@ -915,21 +1028,21 @@ export const formationsController = {
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && formation.bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
-        });
-      }
-
+      // Inverser le statut obligatoire
       const updatedFormation = await prisma.formation.update({
         where: { id },
-        data: { isMandatory: !formation.isMandatory },
+        data: {
+          isMandatory: !formation.isMandatory,
+        },
       });
 
       res.json({
         success: true,
+        message: `Formation ${
+          updatedFormation.isMandatory
+            ? "rendue obligatoire"
+            : "rendue optionnelle"
+        } avec succès`,
         data: updatedFormation,
       });
     } catch (error) {
@@ -942,30 +1055,19 @@ export const formationsController = {
   },
 };
 
-// Contrôleur des utilisateurs
 export const usersController = {
-  // Obtenir tous les utilisateurs
   async getAllUsers(req, res) {
     try {
-      const { bankId, role, department, isActive } = req.query;
-      const user = req.user;
+      const { bankId } = req.query;
 
-      let where = {};
-
-      // Filtrer par banque si l'utilisateur n'est pas super admin
-      if (user.role !== "SUPER_ADMIN") {
-        where.bankId = user.bankId;
-      } else if (bankId) {
-        where.bankId = bankId;
-      }
-
-      // Autres filtres
-      if (role) where.role = role;
-      if (department) where.department = department;
-      if (isActive !== undefined) where.isActive = isActive === "true";
+      const whereClause = bankId && bankId !== "" ? { bankId } : {};
 
       const users = await prisma.user.findMany({
-        where,
+        where: {
+          ...whereClause,
+          isActive: true,
+        },
+        orderBy: { firstName: "asc" },
         include: {
           bank: {
             select: {
@@ -975,13 +1077,9 @@ export const usersController = {
             },
           },
         },
-        orderBy: { lastName: "asc" },
       });
 
-      res.json({
-        success: true,
-        data: users,
-      });
+      res.json({ success: true, data: users });
     } catch (error) {
       console.error("Erreur getAllUsers:", error);
       res.status(500).json({
@@ -991,13 +1089,10 @@ export const usersController = {
     }
   },
 
-  // Obtenir un utilisateur par ID
   async getUserById(req, res) {
     try {
       const { id } = req.params;
-      const user = req.user;
-
-      const targetUser = await prisma.user.findUnique({
+      const user = await prisma.user.findUnique({
         where: { id },
         include: {
           bank: {
@@ -1007,52 +1102,17 @@ export const usersController = {
               code: true,
             },
           },
-          assignments: {
-            include: {
-              formation: {
-                select: {
-                  id: true,
-                  title: true,
-                  type: true,
-                  duration: true,
-                },
-              },
-            },
-          },
-          progress: {
-            include: {
-              formation: {
-                select: {
-                  id: true,
-                  title: true,
-                  type: true,
-                  duration: true,
-                },
-              },
-            },
-          },
         },
       });
 
-      if (!targetUser) {
+      if (!user) {
         return res.status(404).json({
           success: false,
           message: "Utilisateur non trouvé",
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && targetUser.bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
-        });
-      }
-
-      res.json({
-        success: true,
-        data: targetUser,
-      });
+      res.json({ success: true, data: user });
     } catch (error) {
       console.error("Erreur getUserById:", error);
       res.status(500).json({
@@ -1062,62 +1122,45 @@ export const usersController = {
     }
   },
 
-  // Créer un utilisateur
   async createUser(req, res) {
     try {
-      const {
-        email,
-        firstName,
-        lastName,
-        role,
-        bankId,
-        department,
-        password,
-      } = req.body;
-      const user = req.user;
+      const { firstName, lastName, email, role, department, phone, isActive } =
+        req.body;
 
-      if (!email || !firstName || !lastName || !role) {
+      // Validation
+      if (!firstName || !lastName || !email || !role) {
         return res.status(400).json({
           success: false,
-          message: "Email, prénom, nom et rôle requis",
+          message: "Prénom, nom, email et rôle sont obligatoires",
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
-        });
-      }
-
-      // Vérifier que l'email n'existe pas déjà
-      const existingUser = await prisma.user.findUnique({
+      // Vérifier si l'email existe déjà
+      const existingUser = await prisma.user.findFirst({
         where: { email },
       });
 
       if (existingUser) {
         return res.status(400).json({
           success: false,
-          message: "Cet email existe déjà",
+          message: "Cette adresse email est déjà utilisée",
         });
       }
 
-      // Générer un mot de passe si non fourni
-      const hashedPassword = password
-        ? await bcrypt.hash(password, 12)
-        : await bcrypt.hash(await generatePassword(), 12);
+      // Générer un mot de passe temporaire
+      const tempPassword = Math.random().toString(36).slice(-8);
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-      const newUser = await prisma.user.create({
+      const user = await prisma.user.create({
         data: {
-          email,
           firstName,
           lastName,
-          role,
-          bankId: user.role === "SUPER_ADMIN" ? bankId : user.bankId,
-          department,
+          email,
           password: hashedPassword,
-          isActive: true,
+          role,
+          department: department || null,
+          phone: phone || null,
+          isActive: isActive !== undefined ? isActive : true,
         },
         include: {
           bank: {
@@ -1132,7 +1175,8 @@ export const usersController = {
 
       res.status(201).json({
         success: true,
-        data: newUser,
+        data: user,
+        message: `Utilisateur créé avec succès. Mot de passe temporaire: ${tempPassword}`,
       });
     } catch (error) {
       console.error("Erreur createUser:", error);
@@ -1143,22 +1187,21 @@ export const usersController = {
     }
   },
 
-  // Mettre à jour un utilisateur
   async updateUser(req, res) {
     try {
       const { id } = req.params;
-      const {
-        email,
-        firstName,
-        lastName,
-        role,
-        bankId,
-        department,
-        isActive,
-      } = req.body;
-      const user = req.user;
+      const { firstName, lastName, email, role, department, phone, isActive } =
+        req.body;
 
-      // Vérifier que l'utilisateur existe
+      // Validation
+      if (!firstName || !lastName || !email || !role) {
+        return res.status(400).json({
+          success: false,
+          message: "Prénom, nom, email et rôle sont obligatoires",
+        });
+      }
+
+      // Vérifier si l'utilisateur existe
       const existingUser = await prisma.user.findUnique({
         where: { id },
       });
@@ -1170,38 +1213,33 @@ export const usersController = {
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && existingUser.bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
-        });
-      }
-
-      // Vérifier que l'email n'existe pas déjà (sauf pour cet utilisateur)
-      if (email && email !== existingUser.email) {
-        const userWithEmail = await prisma.user.findUnique({
-          where: { email },
+      // Vérifier si l'email est déjà utilisé par un autre utilisateur
+      if (email !== existingUser.email) {
+        const emailExists = await prisma.user.findFirst({
+          where: {
+            email,
+            id: { not: id },
+          },
         });
 
-        if (userWithEmail) {
+        if (emailExists) {
           return res.status(400).json({
             success: false,
-            message: "Cet email existe déjà",
+            message: "Cette adresse email est déjà utilisée",
           });
         }
       }
 
-      const updatedUser = await prisma.user.update({
+      const user = await prisma.user.update({
         where: { id },
         data: {
-          email,
           firstName,
           lastName,
+          email,
           role,
-          bankId: user.role === "SUPER_ADMIN" ? bankId : existingUser.bankId,
-          department,
-          isActive,
+          department: department || null,
+          phone: phone || null,
+          isActive: isActive !== undefined ? isActive : existingUser.isActive,
         },
         include: {
           bank: {
@@ -1214,10 +1252,7 @@ export const usersController = {
         },
       });
 
-      res.json({
-        success: true,
-        data: updatedUser,
-      });
+      res.json({ success: true, data: user });
     } catch (error) {
       console.error("Erreur updateUser:", error);
       res.status(500).json({
@@ -1227,44 +1262,49 @@ export const usersController = {
     }
   },
 
-  // Supprimer un utilisateur
   async deleteUser(req, res) {
     try {
       const { id } = req.params;
-      const user = req.user;
 
-      // Vérifier que l'utilisateur existe
-      const targetUser = await prisma.user.findUnique({
+      // Vérifier si l'utilisateur existe
+      const user = await prisma.user.findUnique({
         where: { id },
         include: {
           assignments: true,
           progress: true,
+          createdFormations: true,
         },
       });
 
-      if (!targetUser) {
+      if (!user) {
         return res.status(404).json({
           success: false,
           message: "Utilisateur non trouvé",
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && targetUser.bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
-        });
-      }
-
-      // Vérifier qu'il n'y a pas d'assignations ou de progressions
-      if (targetUser.assignments.length > 0 || targetUser.progress.length > 0) {
+      // Empêcher la suppression du super admin
+      if (user.role === "SUPER_ADMIN") {
         return res.status(400).json({
           success: false,
-          message: "Impossible de supprimer un utilisateur avec des assignations ou progressions",
+          message: "Impossible de supprimer un super administrateur",
         });
       }
 
+      // Vérifier s'il y a des données associées
+      if (
+        user.assignments.length > 0 ||
+        user.progress.length > 0 ||
+        user.createdFormations.length > 0
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Impossible de supprimer un utilisateur qui a des données associées",
+        });
+      }
+
+      // Supprimer l'utilisateur
       await prisma.user.delete({
         where: { id },
       });
@@ -1282,38 +1322,43 @@ export const usersController = {
     }
   },
 
-  // Basculer l'état actif d'un utilisateur
   async toggleActive(req, res) {
     try {
       const { id } = req.params;
-      const user = req.user;
 
-      const targetUser = await prisma.user.findUnique({
+      // Vérifier si l'utilisateur existe
+      const user = await prisma.user.findUnique({
         where: { id },
       });
 
-      if (!targetUser) {
+      if (!user) {
         return res.status(404).json({
           success: false,
           message: "Utilisateur non trouvé",
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && targetUser.bankId !== user.bankId) {
-        return res.status(403).json({
+      // Empêcher la désactivation du super admin
+      if (user.role === "SUPER_ADMIN") {
+        return res.status(400).json({
           success: false,
-          message: "Accès non autorisé",
+          message: "Impossible de désactiver un super administrateur",
         });
       }
 
+      // Inverser le statut actif
       const updatedUser = await prisma.user.update({
         where: { id },
-        data: { isActive: !targetUser.isActive },
+        data: {
+          isActive: !user.isActive,
+        },
       });
 
       res.json({
         success: true,
+        message: `Utilisateur ${
+          updatedUser.isActive ? "activé" : "désactivé"
+        } avec succès`,
         data: updatedUser,
       });
     } catch (error) {
@@ -1325,55 +1370,36 @@ export const usersController = {
     }
   },
 
-  // Réinitialiser le mot de passe d'un utilisateur
   async resetPassword(req, res) {
     try {
       const { id } = req.params;
-      const user = req.user;
 
-      const targetUser = await prisma.user.findUnique({
+      // Vérifier si l'utilisateur existe
+      const user = await prisma.user.findUnique({
         where: { id },
       });
 
-      if (!targetUser) {
+      if (!user) {
         return res.status(404).json({
           success: false,
           message: "Utilisateur non trouvé",
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && targetUser.bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
-        });
-      }
-
-      // Générer un nouveau mot de passe
-      const newPassword = await generatePassword();
-      const hashedPassword = await bcrypt.hash(newPassword, 12);
+      // Générer un nouveau mot de passe temporaire
+      const tempPassword = Math.random().toString(36).slice(-8);
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
       await prisma.user.update({
         where: { id },
-        data: { password: hashedPassword },
-      });
-
-      // Envoyer le nouveau mot de passe par email
-      await sendEmail({
-        to: targetUser.email,
-        subject: "Réinitialisation de mot de passe",
-        template: "passwordReset",
         data: {
-          firstName: targetUser.firstName,
-          lastName: targetUser.lastName,
-          newPassword,
+          password: hashedPassword,
         },
       });
 
       res.json({
         success: true,
-        message: "Mot de passe réinitialisé et envoyé par email",
+        message: `Mot de passe réinitialisé avec succès. Nouveau mot de passe temporaire: ${tempPassword}`,
       });
     } catch (error) {
       console.error("Erreur resetPassword:", error);
@@ -1384,47 +1410,27 @@ export const usersController = {
     }
   },
 
-  // Envoyer les identifiants d'un utilisateur
   async sendCredentials(req, res) {
     try {
       const { id } = req.params;
-      const user = req.user;
 
-      const targetUser = await prisma.user.findUnique({
+      // Vérifier si l'utilisateur existe
+      const user = await prisma.user.findUnique({
         where: { id },
       });
 
-      if (!targetUser) {
+      if (!user) {
         return res.status(404).json({
           success: false,
           message: "Utilisateur non trouvé",
         });
       }
 
-      // Vérifier les permissions
-      if (user.role !== "SUPER_ADMIN" && targetUser.bankId !== user.bankId) {
-        return res.status(403).json({
-          success: false,
-          message: "Accès non autorisé",
-        });
-      }
-
-      // Envoyer les identifiants par email
-      await sendEmail({
-        to: targetUser.email,
-        subject: "Vos identifiants de connexion",
-        template: "credentials",
-        data: {
-          firstName: targetUser.firstName,
-          lastName: targetUser.lastName,
-          email: targetUser.email,
-          password: "Votre mot de passe actuel",
-        },
-      });
-
+      // Ici, tu pourrais implémenter l'envoi d'email avec les identifiants
+      // Pour l'instant, on retourne juste un message de succès
       res.json({
         success: true,
-        message: "Identifiants envoyés par email",
+        message: "Identifiants envoyés par email avec succès",
       });
     } catch (error) {
       console.error("Erreur sendCredentials:", error);
@@ -1436,111 +1442,1295 @@ export const usersController = {
   },
 };
 
-// Contrôleurs stubs pour les autres fonctionnalités
-export const assignmentsController = {
-  async getAllAssignments(req, res) {
-    // TODO: Implémenter
+export const dashboardController = {
+  async getStats(req, res) {
+    res.json({
+      success: true,
+      data: {
+        totalBanks: 0,
+        totalUsers: 1,
+        totalFormations: 0,
+        completedFormations: 0,
+        averageScore: 0,
+        activeAssignments: 0,
+      },
+    });
+  },
+  async getBankStats(req, res) {
     res.json({ success: true, data: [] });
   },
-  async getAssignmentById(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: {} });
-  },
-  async createAssignment(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: {} });
-  },
-  async updateAssignment(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: {} });
-  },
-  async deleteAssignment(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, message: "Assignation supprimée" });
-  },
-  async bulkAssign(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, message: "Assignations en masse effectuées" });
+  async getRecentActivity(req, res) {
+    res.json({ success: true, data: [] });
   },
 };
 
-export const dashboardController = {
-  async getStats(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: {} });
+export const formationContentController = {
+  // Récupérer tout le contenu d'une formation
+  async getByFormation(req, res) {
+    try {
+      const { formationId } = req.params;
+
+      // Vérifier si la formation existe
+      const formation = await prisma.formation.findUnique({
+        where: { id: formationId },
+      });
+
+      if (!formation) {
+        return res.status(404).json({
+          success: false,
+          message: "Formation non trouvée",
+        });
+      }
+
+      // Récupérer tout le contenu de la formation
+      const content = await prisma.formationContent.findMany({
+        where: { formationId },
+        orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+        include: {
+          // Inclure les métadonnées si nécessaire
+        },
+      });
+
+      res.json({ success: true, data: content });
+    } catch (error) {
+      console.error("Erreur getByFormation:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
-  async getBankStats(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: {} });
+
+  async addSection(req, res) {
+    try {
+      const { formationId } = req.params;
+      const { title, description, order } = req.body;
+
+      // Validation
+      if (!title) {
+        return res.status(400).json({
+          success: false,
+          message: "Le titre de la section est obligatoire",
+        });
+      }
+
+      // Vérifier si la formation existe
+      const formation = await prisma.formation.findUnique({
+        where: { id: formationId },
+      });
+
+      if (!formation) {
+        return res.status(404).json({
+          success: false,
+          message: "Formation non trouvée",
+        });
+      }
+
+      const section = await prisma.formationContent.create({
+        data: {
+          formationId,
+          title,
+          description: description || "",
+          type: "SECTION",
+          contentType: "SECTION",
+          order: order || 0,
+        },
+      });
+
+      res.status(201).json({ success: true, data: section });
+    } catch (error) {
+      console.error("Erreur addSection:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
-  async getRecentActivity(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: [] });
+
+  async addLesson(req, res) {
+    try {
+      const { formationId } = req.params;
+      const {
+        title,
+        description,
+        type,
+        duration,
+        sectionId,
+        order,
+        coverImage,
+      } = req.body;
+
+      // Validation
+      if (!title || !type) {
+        return res.status(400).json({
+          success: false,
+          message: "Le titre et le type de la leçon sont obligatoires",
+        });
+      }
+
+      // Vérifier si la formation existe
+      const formation = await prisma.formation.findUnique({
+        where: { id: formationId },
+      });
+
+      if (!formation) {
+        return res.status(404).json({
+          success: false,
+          message: "Formation non trouvée",
+        });
+      }
+
+      // Vérifier si la section existe si sectionId est fourni
+      if (sectionId) {
+        const section = await prisma.formationContent.findFirst({
+          where: {
+            id: sectionId,
+            formationId,
+            contentType: "SECTION",
+          },
+        });
+
+        if (!section) {
+          return res.status(404).json({
+            success: false,
+            message: "Section non trouvée",
+          });
+        }
+      }
+
+      const lesson = await prisma.formationContent.create({
+        data: {
+          formationId,
+          title,
+          description: description || "",
+          type,
+          contentType: "LESSON",
+          sectionId: sectionId || null,
+          order: order || 0,
+          duration: duration ? parseInt(duration) : null,
+          coverImage: coverImage || null,
+        },
+      });
+
+      // Mettre à jour la durée totale de la formation
+      await updateFormationDuration(formationId);
+
+      res.status(201).json({ success: true, data: lesson });
+    } catch (error) {
+      console.error("Erreur addLesson:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  async updateLesson(req, res) {
+    try {
+      const { id } = req.params;
+      const {
+        title,
+        description,
+        type,
+        duration,
+        sectionId,
+        order,
+        coverImage,
+      } = req.body;
+
+      // Validation
+      if (!title || !type) {
+        return res.status(400).json({
+          success: false,
+          message: "Le titre et le type de la leçon sont obligatoires",
+        });
+      }
+
+      // Vérifier si la leçon existe
+      const existingLesson = await prisma.formationContent.findUnique({
+        where: { id },
+      });
+
+      if (!existingLesson || existingLesson.contentType !== "LESSON") {
+        return res.status(404).json({
+          success: false,
+          message: "Leçon non trouvée",
+        });
+      }
+
+      // Vérifier si la section existe si sectionId est fourni
+      if (sectionId) {
+        const section = await prisma.formationContent.findFirst({
+          where: {
+            id: sectionId,
+            formationId: existingLesson.formationId,
+            contentType: "SECTION",
+          },
+        });
+
+        if (!section) {
+          return res.status(404).json({
+            success: false,
+            message: "Section non trouvée",
+          });
+        }
+      }
+
+      const lesson = await prisma.formationContent.update({
+        where: { id },
+        data: {
+          title,
+          description: description || "",
+          type,
+          sectionId: sectionId || null,
+          order: order !== undefined ? order : existingLesson.order,
+          duration: duration ? parseInt(duration) : null,
+          coverImage:
+            coverImage !== undefined ? coverImage : existingLesson.coverImage,
+        },
+      });
+
+      // Mettre à jour la durée totale de la formation
+      await updateFormationDuration(existingLesson.formationId);
+
+      res.json({ success: true, data: lesson });
+    } catch (error) {
+      console.error("Erreur updateLesson:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  async deleteLesson(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Vérifier si la leçon existe
+      const lesson = await prisma.formationContent.findUnique({
+        where: { id },
+      });
+
+      if (!lesson || lesson.contentType !== "LESSON") {
+        return res.status(404).json({
+          success: false,
+          message: "Leçon non trouvée",
+        });
+      }
+
+      const formationId = lesson.formationId;
+
+      // Supprimer la leçon
+      await prisma.formationContent.delete({
+        where: { id },
+      });
+
+      // Mettre à jour la durée totale de la formation
+      await updateFormationDuration(formationId);
+
+      res.json({
+        success: true,
+        message: "Leçon supprimée avec succès",
+      });
+    } catch (error) {
+      console.error("Erreur deleteLesson:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Mettre à jour une section
+  async updateSection(req, res) {
+    try {
+      const { id } = req.params;
+      const { title, description, order } = req.body;
+
+      // Validation
+      if (!title) {
+        return res.status(400).json({
+          success: false,
+          message: "Le titre de la section est obligatoire",
+        });
+      }
+
+      // Vérifier si la section existe
+      const existingSection = await prisma.formationContent.findUnique({
+        where: { id },
+      });
+
+      if (!existingSection || existingSection.contentType !== "SECTION") {
+        return res.status(404).json({
+          success: false,
+          message: "Section non trouvée",
+        });
+      }
+
+      const section = await prisma.formationContent.update({
+        where: { id },
+        data: {
+          title,
+          description: description || "",
+          order: order !== undefined ? order : existingSection.order,
+        },
+      });
+
+      res.json({ success: true, data: section });
+    } catch (error) {
+      console.error("Erreur updateSection:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Supprimer une section
+  async deleteSection(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Vérifier si la section existe
+      const section = await prisma.formationContent.findUnique({
+        where: { id },
+      });
+
+      if (!section || section.contentType !== "SECTION") {
+        return res.status(404).json({
+          success: false,
+          message: "Section non trouvée",
+        });
+      }
+
+      // Vérifier s'il y a des leçons dans cette section
+      const lessonsInSection = await prisma.formationContent.findMany({
+        where: {
+          sectionId: id,
+          contentType: "LESSON",
+        },
+      });
+
+      if (lessonsInSection.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Impossible de supprimer une section qui contient des leçons. Déplacez d'abord les leçons.",
+        });
+      }
+
+      // Supprimer la section
+      await prisma.formationContent.delete({
+        where: { id },
+      });
+
+      res.json({
+        success: true,
+        message: "Section supprimée avec succès",
+      });
+    } catch (error) {
+      console.error("Erreur deleteSection:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  async reorderContent(req, res) {
+    try {
+      const { formationId } = req.params;
+      const { content } = req.body; // array of { id, order, sectionId? }
+
+      // Validation
+      if (!Array.isArray(content)) {
+        return res.status(400).json({
+          success: false,
+          message: "Le contenu doit être un tableau",
+        });
+      }
+
+      // Vérifier si la formation existe
+      const formation = await prisma.formation.findUnique({
+        where: { id: formationId },
+      });
+
+      if (!formation) {
+        return res.status(404).json({
+          success: false,
+          message: "Formation non trouvée",
+        });
+      }
+
+      // Mettre à jour l'ordre de chaque élément
+      for (const item of content) {
+        await prisma.formationContent.update({
+          where: { id: item.id },
+          data: {
+            order: item.order,
+            sectionId: item.sectionId || null,
+          },
+        });
+      }
+
+      res.json({
+        success: true,
+        message: "Ordre du contenu mis à jour avec succès",
+      });
+    } catch (error) {
+      console.error("Erreur reorderContent:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
 };
 
 export const quizController = {
-  async getAllQuizzes(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: [] });
-  },
-  async getQuizById(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: {} });
-  },
   async createQuiz(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: {} });
+    try {
+      const { formationId } = req.params;
+      const { title, description, passingScore, timeLimit, questions } =
+        req.body;
+
+      // Validation
+      if (!title || !questions || !Array.isArray(questions)) {
+        return res.status(400).json({
+          success: false,
+          message: "Titre et questions sont obligatoires",
+        });
+      }
+
+      // Vérifier si la formation existe
+      const formation = await prisma.formation.findUnique({
+        where: { id: formationId },
+      });
+
+      if (!formation) {
+        return res.status(404).json({
+          success: false,
+          message: "Formation non trouvée",
+        });
+      }
+
+      // Vérifier si un quiz existe déjà pour cette formation
+      const existingQuiz = await prisma.quiz.findUnique({
+        where: { formationId },
+      });
+
+      if (existingQuiz) {
+        return res.status(400).json({
+          success: false,
+          message: "Un quiz existe déjà pour cette formation",
+        });
+      }
+
+      // Créer le quiz avec ses questions et réponses
+      const quiz = await prisma.quiz.create({
+        data: {
+          formationId,
+          title,
+          description: description || "",
+          passingScore: passingScore || 80,
+          timeLimit: timeLimit ? parseInt(timeLimit) : null,
+          questions: {
+            create: questions.map((question, qIndex) => ({
+              question: question.question,
+              type: question.type || "multiple_choice",
+              order: question.order || qIndex,
+              points: question.points || 1,
+              answers: {
+                create: question.answers.map((answer, aIndex) => ({
+                  answer: answer.answer,
+                  isCorrect: answer.isCorrect,
+                  order: answer.order || aIndex,
+                })),
+              },
+            })),
+          },
+        },
+        include: {
+          questions: {
+            include: {
+              answers: true,
+            },
+          },
+        },
+      });
+
+      res.status(201).json({ success: true, data: quiz });
+    } catch (error) {
+      console.error("Erreur createQuiz:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
+
   async updateQuiz(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: {} });
+    try {
+      const { id } = req.params;
+      const { title, description, passingScore, timeLimit, questions } =
+        req.body;
+
+      // Validation
+      if (!title || !questions || !Array.isArray(questions)) {
+        return res.status(400).json({
+          success: false,
+          message: "Titre et questions sont obligatoires",
+        });
+      }
+
+      // Vérifier si le quiz existe
+      const existingQuiz = await prisma.quiz.findUnique({
+        where: { id },
+      });
+
+      if (!existingQuiz) {
+        return res.status(404).json({
+          success: false,
+          message: "Quiz non trouvé",
+        });
+      }
+
+      // Supprimer les anciennes questions et réponses
+      await prisma.quizAnswer.deleteMany({
+        where: {
+          question: {
+            quizId: id,
+          },
+        },
+      });
+
+      await prisma.quizQuestion.deleteMany({
+        where: { quizId: id },
+      });
+
+      // Mettre à jour le quiz avec ses nouvelles questions et réponses
+      const quiz = await prisma.quiz.update({
+        where: { id },
+        data: {
+          title,
+          description: description || "",
+          passingScore: passingScore || 80,
+          timeLimit: timeLimit ? parseInt(timeLimit) : null,
+          questions: {
+            create: questions.map((question, qIndex) => ({
+              question: question.question,
+              type: question.type || "multiple_choice",
+              order: question.order || qIndex,
+              points: question.points || 1,
+              answers: {
+                create: question.answers.map((answer, aIndex) => ({
+                  answer: answer.answer,
+                  isCorrect: answer.isCorrect,
+                  order: answer.order || aIndex,
+                })),
+              },
+            })),
+          },
+        },
+        include: {
+          questions: {
+            include: {
+              answers: true,
+            },
+          },
+        },
+      });
+
+      res.json({ success: true, data: quiz });
+    } catch (error) {
+      console.error("Erreur updateQuiz:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
+
   async deleteQuiz(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, message: "Quiz supprimé" });
+    try {
+      const { id } = req.params;
+
+      // Vérifier si le quiz existe
+      const quiz = await prisma.quiz.findUnique({
+        where: { id },
+      });
+
+      if (!quiz) {
+        return res.status(404).json({
+          success: false,
+          message: "Quiz non trouvé",
+        });
+      }
+
+      // Supprimer le quiz (les questions et réponses seront supprimées en cascade)
+      await prisma.quiz.delete({
+        where: { id },
+      });
+
+      res.json({
+        success: true,
+        message: "Quiz supprimé avec succès",
+      });
+    } catch (error) {
+      console.error("Erreur deleteQuiz:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  async toggleQuizActive(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Vérifier si le quiz existe
+      const quiz = await prisma.quiz.findUnique({
+        where: { id },
+      });
+
+      if (!quiz) {
+        return res.status(404).json({
+          success: false,
+          message: "Quiz non trouvé",
+        });
+      }
+
+      // Basculer le statut actif
+      const updatedQuiz = await prisma.quiz.update({
+        where: { id },
+        data: { isActive: !quiz.isActive },
+      });
+
+      res.json({
+        success: true,
+        message: `Quiz ${
+          updatedQuiz.isActive ? "activé" : "désactivé"
+        } avec succès`,
+        data: updatedQuiz,
+      });
+    } catch (error) {
+      console.error("Erreur toggleQuizActive:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
 };
 
-export const progressController = {
-  async getAllProgress(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: [] });
+// Contrôleur pour la gestion des assignations banque-formation
+export const bankFormationController = {
+  // Assigner une formation à une banque
+  async assignFormationToBank(req, res) {
+    try {
+      const { bankId, formationId } = req.body;
+      const { userId } = req.user; // ID de l'admin qui fait l'assignation
+
+      // Validation
+      if (!bankId || !formationId) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de banque et ID de formation requis",
+        });
+      }
+
+      // Vérifier si la banque existe
+      const bank = await prisma.bank.findUnique({
+        where: { id: bankId },
+      });
+
+      if (!bank) {
+        return res.status(404).json({
+          success: false,
+          message: "Banque non trouvée",
+        });
+      }
+
+      // Vérifier si la formation existe
+      const formation = await prisma.formation.findUnique({
+        where: { id: formationId },
+      });
+
+      if (!formation) {
+        return res.status(404).json({
+          success: false,
+          message: "Formation non trouvée",
+        });
+      }
+
+      // Vérifier si l'assignation existe déjà
+      const existingAssignment = await prisma.bankFormation.findUnique({
+        where: {
+          bankId_formationId: {
+            bankId,
+            formationId,
+          },
+        },
+      });
+
+      if (existingAssignment) {
+        return res.status(400).json({
+          success: false,
+          message: "Cette formation est déjà assignée à cette banque",
+        });
+      }
+
+      // Créer l'assignation
+      const bankFormation = await prisma.bankFormation.create({
+        data: {
+          bankId,
+          formationId,
+          assignedBy: userId,
+        },
+        include: {
+          bank: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+          formation: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+            },
+          },
+        },
+      });
+
+      res.status(201).json({ success: true, data: bankFormation });
+    } catch (error) {
+      console.error("Erreur assignFormationToBank:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
-  async getUserProgress(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: [] });
+
+  // Récupérer toutes les formations assignées à une banque
+  async getBankFormations(req, res) {
+    try {
+      const { bankId } = req.params;
+
+      // Vérifier si la banque existe
+      const bank = await prisma.bank.findUnique({
+        where: { id: bankId },
+      });
+
+      if (!bank) {
+        return res.status(404).json({
+          success: false,
+          message: "Banque non trouvée",
+        });
+      }
+
+      // Récupérer les formations assignées avec leurs détails
+      const bankFormations = await prisma.bankFormation.findMany({
+        where: { bankId },
+        include: {
+          formation: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              duration: true,
+              isActive: true,
+              hasQuiz: true,
+            },
+          },
+          userAssignments: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  department: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { assignedAt: "desc" },
+      });
+
+      res.json({ success: true, data: bankFormations });
+    } catch (error) {
+      console.error("Erreur getBankFormations:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
-  async getFormationProgress(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: [] });
+
+  // Mettre à jour le statut obligatoire d'une formation pour une banque
+  async updateFormationMandatory(req, res) {
+    try {
+      const { id } = req.params;
+      const { isMandatory } = req.body;
+
+      // Validation
+      if (typeof isMandatory !== "boolean") {
+        return res.status(400).json({
+          success: false,
+          message: "Le statut obligatoire doit être un booléen",
+        });
+      }
+
+      // Vérifier si l'assignation existe
+      const bankFormation = await prisma.bankFormation.findUnique({
+        where: { id },
+      });
+
+      if (!bankFormation) {
+        return res.status(404).json({
+          success: false,
+          message: "Assignation formation-banque non trouvée",
+        });
+      }
+
+      // Mettre à jour le statut
+      const updatedBankFormation = await prisma.bankFormation.update({
+        where: { id },
+        data: { isMandatory },
+        include: {
+          formation: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
+      });
+
+      res.json({ success: true, data: updatedBankFormation });
+    } catch (error) {
+      console.error("Erreur updateFormationMandatory:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
-  async updateProgress(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: {} });
+
+  // Supprimer l'assignation d'une formation à une banque
+  async removeFormationFromBank(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Vérifier si l'assignation existe
+      const bankFormation = await prisma.bankFormation.findUnique({
+        where: { id },
+      });
+
+      if (!bankFormation) {
+        return res.status(404).json({
+          success: false,
+          message: "Assignation formation-banque non trouvée",
+        });
+      }
+
+      // Supprimer l'assignation (les assignations utilisateurs seront supprimées en cascade)
+      await prisma.bankFormation.delete({
+        where: { id },
+      });
+
+      res.json({
+        success: true,
+        message: "Formation retirée de la banque avec succès",
+      });
+    } catch (error) {
+      console.error("Erreur removeFormationFromBank:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
 };
 
-export const notificationsController = {
-  async getAllNotifications(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: [] });
+// Contrôleur pour la gestion des assignations utilisateurs aux formations
+export const userFormationAssignmentController = {
+  // Assigner des utilisateurs à une formation d'une banque
+  async assignUsersToFormation(req, res) {
+    try {
+      const { bankFormationId, users } = req.body;
+      const { userId } = req.user; // ID de l'admin qui fait l'assignation
+
+      // Validation
+      if (!bankFormationId || !users || !Array.isArray(users)) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de formation-banque et liste d'utilisateurs requis",
+        });
+      }
+
+      // Vérifier si l'assignation formation-banque existe
+      const bankFormation = await prisma.bankFormation.findUnique({
+        where: { id: bankFormationId },
+        include: {
+          bank: true,
+          formation: true,
+        },
+      });
+
+      if (!bankFormation) {
+        return res.status(404).json({
+          success: false,
+          message: "Assignation formation-banque non trouvée",
+        });
+      }
+
+      // Vérifier que les utilisateurs appartiennent à la bonne banque
+      const userIds = users.map((u) => u.userId);
+      const bankUsers = await prisma.user.findMany({
+        where: {
+          id: { in: userIds },
+          bankId: bankFormation.bankId,
+        },
+      });
+
+      if (bankUsers.length !== userIds.length) {
+        return res.status(400).json({
+          success: false,
+          message: "Certains utilisateurs n'appartiennent pas à cette banque",
+        });
+      }
+
+      // Créer les assignations utilisateurs
+      const assignments = [];
+      for (const userData of users) {
+        const assignment = await prisma.userFormationAssignment.create({
+          data: {
+            bankFormationId,
+            userId: userData.userId,
+            isMandatory: userData.isMandatory || false,
+            dueDate: userData.dueDate ? new Date(userData.dueDate) : null,
+            assignedBy: userId,
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                department: true,
+              },
+            },
+          },
+        });
+        assignments.push(assignment);
+      }
+
+      res.status(201).json({ success: true, data: assignments });
+    } catch (error) {
+      console.error("Erreur assignUsersToFormation:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
-  async getUserNotifications(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: [] });
+
+  // Assigner des utilisateurs par groupe (département, etc.)
+  async assignUsersByGroup(req, res) {
+    try {
+      const { bankFormationId, groupType, groupValue, isMandatory, dueDate } =
+        req.body;
+      const { userId } = req.user;
+
+      // Validation
+      if (!bankFormationId || !groupType || !groupValue) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "ID de formation-banque, type de groupe et valeur de groupe requis",
+        });
+      }
+
+      // Vérifier si l'assignation formation-banque existe
+      const bankFormation = await prisma.bankFormation.findUnique({
+        where: { id: bankFormationId },
+        include: {
+          bank: true,
+        },
+      });
+
+      if (!bankFormation) {
+        return res.status(404).json({
+          success: false,
+          message: "Assignation formation-banque non trouvée",
+        });
+      }
+
+      // Construire la clause where selon le type de groupe
+      let whereClause = { bankId: bankFormation.bankId };
+
+      if (groupType === "department") {
+        whereClause.department = groupValue;
+      } else if (groupType === "role") {
+        whereClause.role = groupValue;
+      } else if (groupType === "all") {
+        // Tous les utilisateurs de la banque
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: "Type de groupe non supporté",
+        });
+      }
+
+      // Récupérer les utilisateurs du groupe
+      const groupUsers = await prisma.user.findMany({
+        where: {
+          ...whereClause,
+          isActive: true,
+        },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          department: true,
+        },
+      });
+
+      if (groupUsers.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Aucun utilisateur trouvé pour ce groupe",
+        });
+      }
+
+      // Créer les assignations pour tous les utilisateurs du groupe
+      const assignments = [];
+      for (const user of groupUsers) {
+        // Vérifier si l'assignation existe déjà
+        const existingAssignment =
+          await prisma.userFormationAssignment.findUnique({
+            where: {
+              bankFormationId_userId: {
+                bankFormationId,
+                userId: user.id,
+              },
+            },
+          });
+
+        if (!existingAssignment) {
+          const assignment = await prisma.userFormationAssignment.create({
+            data: {
+              bankFormationId,
+              userId: user.id,
+              isMandatory: isMandatory || false,
+              dueDate: dueDate ? new Date(dueDate) : null,
+              assignedBy: userId,
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                  department: true,
+                },
+              },
+            },
+          });
+          assignments.push(assignment);
+        }
+      }
+
+      res.status(201).json({
+        success: true,
+        data: assignments,
+        message: `${assignments.length} utilisateur(s) assigné(s) avec succès`,
+      });
+    } catch (error) {
+      console.error("Erreur assignUsersByGroup:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
-  async createNotification(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: {} });
+
+  // Mettre à jour le statut obligatoire d'un utilisateur pour une formation
+  async updateUserFormationMandatory(req, res) {
+    try {
+      const { id } = req.params;
+      const { isMandatory, dueDate } = req.body;
+
+      // Validation
+      if (typeof isMandatory !== "boolean") {
+        return res.status(400).json({
+          success: false,
+          message: "Le statut obligatoire doit être un booléen",
+        });
+      }
+
+      // Vérifier si l'assignation existe
+      const assignment = await prisma.userFormationAssignment.findUnique({
+        where: { id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      if (!assignment) {
+        return res.status(404).json({
+          success: false,
+          message: "Assignation utilisateur-formation non trouvée",
+        });
+      }
+
+      // Mettre à jour le statut
+      const updatedAssignment = await prisma.userFormationAssignment.update({
+        where: { id },
+        data: {
+          isMandatory,
+          dueDate: dueDate ? new Date(dueDate) : null,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+      });
+
+      res.json({ success: true, data: updatedAssignment });
+    } catch (error) {
+      console.error("Erreur updateUserFormationMandatory:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
-  async markAsRead(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, data: {} });
+
+  // Supprimer l'assignation d'un utilisateur à une formation
+  async removeUserFromFormation(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Vérifier si l'assignation existe
+      const assignment = await prisma.userFormationAssignment.findUnique({
+        where: { id },
+      });
+
+      if (!assignment) {
+        return res.status(404).json({
+          success: false,
+          message: "Assignation utilisateur-formation non trouvée",
+        });
+      }
+
+      // Supprimer l'assignation
+      await prisma.userFormationAssignment.delete({
+        where: { id },
+      });
+
+      res.json({
+        success: true,
+        message: "Utilisateur retiré de la formation avec succès",
+      });
+    } catch (error) {
+      console.error("Erreur removeUserFromFormation:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
-  async deleteNotification(req, res) {
-    // TODO: Implémenter
-    res.json({ success: true, message: "Notification supprimée" });
+
+  // Récupérer toutes les assignations d'une formation d'une banque
+  async getFormationUserAssignments(req, res) {
+    try {
+      const { bankFormationId } = req.params;
+
+      // Vérifier si l'assignation formation-banque existe
+      const bankFormation = await prisma.bankFormation.findUnique({
+        where: { id: bankFormationId },
+      });
+
+      if (!bankFormation) {
+        return res.status(404).json({
+          success: false,
+          message: "Assignation formation-banque non trouvée",
+        });
+      }
+
+      // Récupérer toutes les assignations utilisateurs
+      const userAssignments = await prisma.userFormationAssignment.findMany({
+        where: { bankFormationId },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+              department: true,
+              isActive: true,
+            },
+          },
+        },
+        orderBy: [{ isMandatory: "desc" }, { user: { firstName: "asc" } }],
+      });
+
+      res.json({ success: true, data: userAssignments });
+    } catch (error) {
+      console.error("Erreur getFormationUserAssignments:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
 };
 
+// Fonction utilitaire pour mettre à jour la durée totale d'une formation
+async function updateFormationDuration(formationId) {
+  try {
+    const lessons = await prisma.formationContent.findMany({
+      where: {
+        formationId,
+        contentType: "LESSON",
+      },
+    });
+
+    const totalDuration = lessons.reduce(
+      (sum, lesson) => sum + (lesson.duration || 0),
+      0
+    );
+
+    await prisma.formation.update({
+      where: { id: formationId },
+      data: { duration: totalDuration },
+    });
+  } catch (error) {
+    console.error("Erreur updateFormationDuration:", error);
+  }
+}

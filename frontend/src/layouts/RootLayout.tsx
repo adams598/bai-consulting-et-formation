@@ -4,6 +4,7 @@ import { Toaster } from "../components/ui/toaster";
 import { AuthProvider } from "../providers/auth-provider";
 import Chatbot from "../components/Chatbot";
 import { useTheme } from "../contexts/ThemeContext";
+import { useLocation } from 'react-router-dom';
 
 interface RootLayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,10 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   const { theme } = useTheme();
+  const location = useLocation();
+  
+  // Ne pas afficher la navbar sur les pages admin
+  const isAdminPage = location.pathname.startsWith('/admin');
 
   // Gestion du scroll fluide
   useEffect(() => {
@@ -38,12 +43,12 @@ export default function RootLayout({ children }: RootLayoutProps) {
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-200 ${theme === 'dark' ? 'dark' : ''}`}>
-      <Navbar />
+      {!isAdminPage && <Navbar />}
       <AuthProvider>
         <main className="flex-1">
           {children}
         </main>
-        <Chatbot />
+        {!isAdminPage && <Chatbot />}
         <Toaster />
       </AuthProvider>
     </div>

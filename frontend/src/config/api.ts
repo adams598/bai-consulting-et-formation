@@ -13,7 +13,7 @@ const api = axios.create({
 // Intercepteur pour ajouter le token d'authentification
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('bai_auth_token');
+    const token = localStorage.getItem('accessToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -32,8 +32,8 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Token expiré ou invalide
-      localStorage.removeItem('bai_auth_token');
-      localStorage.removeItem('bai_auth_user');
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('currentUser');
       window.location.href = '/admin/login';
     }
     return Promise.reject(error);

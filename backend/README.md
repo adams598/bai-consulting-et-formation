@@ -12,10 +12,10 @@ Backend API pour la plateforme de formation BAI Consulting.
 
 ### 1. Installation des dépendances
 
-```bash
-cd backend
-npm install
-```
+   ```bash
+   cd backend
+   npm install
+   ```
 
 ### 2. Configuration de l'environnement
 
@@ -440,7 +440,7 @@ Le schéma Prisma se trouve dans `prisma/schema.prisma`
 
 ### Commandes utiles
 
-```bash
+   ```bash
 # Générer le client Prisma
 npm run db:generate
 

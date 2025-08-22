@@ -1,10 +1,8 @@
-export interface Bank {
-  id: string;
-  name: string;
-  code: string;
-  createdAt: Date;
-  updatedAt: Date;
-  isActive: boolean;
+// Type générique pour les réponses API
+export interface ApiResponse<T> {
+  success: boolean;
+  data: T;
+  message?: string;
 }
 
 export interface User {
@@ -12,148 +10,211 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: UserRole;
+  role: string;
   bankId?: string;
+  bank?: Bank;
   department?: string;
+  phone?: string;
+  avatar?: string;
   isActive: boolean;
+  lastLogin?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export enum UserRole {
-  SUPER_ADMIN = 'SUPER_ADMIN',
-  BANK_ADMIN = 'BANK_ADMIN',
-  COLLABORATOR = 'COLLABORATOR'
+export interface Bank {
+  id: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+  isArchived?: boolean;
+  archivedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface Formation {
   id: string;
   title: string;
   description: string;
-  duration: number; // en minutes
-  type: FormationType;
-  content: FormationContent[];
+  duration: number;
   isActive: boolean;
-  isMandatory: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  hasQuiz: boolean;
+  quizRequired: boolean;
   createdBy: string;
-  bankId?: string; // null pour les formations globales
+  createdAt: string;
+  updatedAt: string;
+  totalDuration?: number;
+  lessonCount?: number;
+  bankCount?: number; // nombre de banques ayant accès
 }
 
-export enum FormationType {
-  VIDEO = 'VIDEO',
-  SLIDES = 'SLIDES',
-  DOCUMENT = 'DOCUMENT',
-  MIXED = 'MIXED'
-}
-
-export interface FormationContent {
+export interface BankFormation {
   id: string;
-  title: string;
-  type: ContentType;
-  order: number;
-  duration?: number;
-  url?: string;
-  filePath?: string;
-  description?: string;
+  bankId: string;
+  formationId: string;
+  isMandatory: boolean;
+  assignedAt: string;
+  assignedBy: string;
+  updatedAt: string;
+  bank?: {
+    id: string;
+    name: string;
+    code: string;
+  };
+  formation?: {
+    id: string;
+    title: string;
+    description: string;
+    duration: number;
+    isActive: boolean;
+    hasQuiz: boolean;
+  };
+  userAssignments?: UserFormationAssignment[];
 }
 
-export enum ContentType {
-  VIDEO = 'VIDEO',
-  SLIDE = 'SLIDE',
-  DOCUMENT = 'DOCUMENT',
-  QUIZ = 'QUIZ'
+export interface UserFormationAssignment {
+  id: string;
+  bankFormationId: string;
+  userId: string;
+  isMandatory: boolean;
+  dueDate?: string;
+  assignedAt: string;
+  assignedBy: string;
+  user?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    department?: string;
+    isActive: boolean;
+  };
 }
 
 export interface FormationAssignment {
   id: string;
-  formationId: string;
   userId: string;
+  formationId: string;
   assignedBy: string;
-  assignedAt: Date;
-  dueDate?: Date;
-  isMandatory: boolean;
-  status: AssignmentStatus;
+  status: string;
+  dueDate?: string;
+  assignedAt: string;
+  updatedAt: string;
 }
 
-export enum AssignmentStatus {
-  PENDING = 'PENDING',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  EXPIRED = 'EXPIRED'
+export interface FormationContent {
+  id: string;
+  formationId: string;
+  title: string;
+  description?: string;
+  type: string; // PRESENTATION, VIDEO, DOCUMENT, INTERACTIVE, etc.
+  contentType: 'SECTION' | 'LESSON';
+  sectionId?: string; // si contentType = LESSON, référence vers la section parente
+  order: number;
+  duration?: number; // en minutes
+  fileUrl?: string;
+  fileSize?: number;
+  coverImage?: string; // URL de l'image de couverture
+  metadata?: string; // données supplémentaires en JSON
+  createdAt: Date;
+  updatedAt: Date;
+  lessons?: FormationContent[]; // si contentType = SECTION
 }
 
 export interface Quiz {
   id: string;
   formationId: string;
+  title: string;
+  description?: string;
+  passingScore: number; // pourcentage minimum pour réussir (80 par défaut)
+  timeLimit?: number; // en minutes, null = pas de limite
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
   questions: QuizQuestion[];
-  passingScore: number; // 80 par défaut
-  timeLimit?: number; // en minutes
 }
 
 export interface QuizQuestion {
   id: string;
+  quizId: string;
   question: string;
-  type: QuestionType;
-  options?: string[];
-  correctAnswer: string | string[];
+  type: string; // multiple_choice, true_false, text
+  order: number;
   points: number;
+  createdAt: Date;
+  updatedAt: Date;
+  answers: QuizAnswer[];
 }
 
-export enum QuestionType {
-  SINGLE_CHOICE = 'SINGLE_CHOICE',
-  MULTIPLE_CHOICE = 'MULTIPLE_CHOICE',
-  TRUE_FALSE = 'TRUE_FALSE'
+export interface QuizAnswer {
+  id: string;
+  questionId: string;
+  answer: string;
+  isCorrect: boolean;
+  order: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface UserProgress {
   id: string;
   userId: string;
   formationId: string;
-  currentContentId?: string;
-  progress: number; // 0-100
-  startedAt: Date;
-  completedAt?: Date;
-  score?: number;
-  attempts: number;
+  contentId?: string;
+  progress: number; // pourcentage de progression (0-100)
+  timeSpent: number; // en secondes
+  lastAccessed: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  user?: User;
+  formation?: Formation;
 }
 
 export interface Notification {
   id: string;
   userId: string;
-  type: NotificationType;
+  type: string;
   title: string;
   message: string;
   isRead: boolean;
+  data?: string; // données supplémentaires en JSON string
   createdAt: Date;
-  relatedId?: string; // formationId, assignmentId, etc.
+  updatedAt: Date;
+  user?: User;
 }
 
-export enum NotificationType {
-  FORMATION_ASSIGNED = 'FORMATION_ASSIGNED',
-  FORMATION_MANDATORY = 'FORMATION_MANDATORY',
-  FORMATION_SCHEDULED = 'FORMATION_SCHEDULED',
-  FORMATION_COMPLETED = 'FORMATION_COMPLETED',
-  QUIZ_FAILED = 'QUIZ_FAILED',
-  REMINDER = 'REMINDER'
+export interface UserSession {
+  id: string;
+  userId: string;
+  token: string;
+  expiresAt: Date;
+  createdAt: Date;
+  user?: User;
 }
 
-export interface AdminDashboardStats {
-  totalBanks: number;
+// Types pour les statistiques
+export interface DashboardStats {
   totalUsers: number;
   totalFormations: number;
-  activeAssignments: number;
+  totalBanks: number;
   completedFormations: number;
-  averageScore: number;
+  activeUsers: number;
+  pendingAssignments: number;
 }
 
 export interface BankStats {
   bankId: string;
   bankName: string;
-  totalUsers: number;
-  totalFormations: number;
-  activeAssignments: number;
-  completedFormations: number;
-  averageScore: number;
+  userCount: number;
+  formationCount: number;
+  completionRate: number;
+}
+
+export interface RecentActivity {
+  id: string;
+  type: string;
+  description: string;
+  timestamp: Date;
+  userId?: string;
+  userName?: string;
 } 

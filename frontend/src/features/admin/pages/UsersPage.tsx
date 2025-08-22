@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { User, UserRole } from '../types';
 import { usersApi } from '../../../api/adminApi';
-import { AdminLayout } from '../components/AdminLayout';
+
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { useToast } from '../../../components/ui/use-toast';
@@ -185,32 +185,25 @@ export const UsersPage: React.FC = () => {
 
   if (!selectedBankId) {
     return (
-      <AdminLayout>
-        <div className="text-center py-12">
-          <UserPlus className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Sélectionnez une banque</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            Veuillez sélectionner une banque pour gérer ses utilisateurs.
-          </p>
-        </div>
-      </AdminLayout>
+      <div className="text-center py-12">
+        <UserPlus className="mx-auto h-12 w-12 text-gray-400" />
+        <h3 className="mt-2 text-sm font-medium text-gray-900">Sélectionnez une banque</h3>
+        <p className="mt-1 text-sm text-gray-500">
+          Veuillez sélectionner une banque pour gérer ses utilisateurs.
+        </p>
+      </div>
     );
   }
 
   return (
-    <AdminLayout>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Utilisateurs</h1>
-            <p className="text-gray-600">Gérez les collaborateurs de la banque</p>
-          </div>
-          <Button onClick={handleCreateUser} className="flex items-center space-x-2">
-            <Plus className="w-4 h-4" />
-            <span>Nouvel utilisateur</span>
-          </Button>
-        </div>
+    <div className="space-y-6">
+      {/* Bouton d'action */}
+      <div className="flex justify-end">
+        <Button onClick={handleCreateUser} className="flex items-center space-x-2">
+          <Plus className="w-4 h-4" />
+          <span>Nouvel utilisateur</span>
+        </Button>
+      </div>
 
         {/* Filtres */}
         <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
@@ -400,6 +393,5 @@ export const UsersPage: React.FC = () => {
           }}
         />
       )}
-    </AdminLayout>
   );
 }; 

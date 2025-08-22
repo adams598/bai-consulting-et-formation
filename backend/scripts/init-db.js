@@ -6,342 +6,122 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🚀 Initialisation de la base de données...");
 
-  // Créer les banques
-  console.log("📊 Création des banques...");
-  const banquePopulaire = await prisma.bank.upsert({
-    where: { code: "BP" },
-    update: {},
-    create: {
-      name: "Banque Populaire",
-      code: "BP",
-      isActive: true,
-    },
-  });
+  try {
+    // Nettoyer toutes les données existantes dans le bon ordre
+    console.log("🧹 Nettoyage de la base de données...");
 
-  const creditAgricole = await prisma.bank.upsert({
-    where: { code: "CA" },
-    update: {},
-    create: {
-      name: "Crédit Agricole",
-      code: "CA",
-      isActive: true,
-    },
-  });
+    // Supprimer dans l'ordre pour respecter les contraintes de clés étrangères
+    try {
+      await prisma.quizAnswer.deleteMany();
+      console.log("   ✅ QuizAnswer supprimées");
+    } catch (e) {
+      console.log("   ⚠️ QuizAnswer: modèle non trouvé");
+    }
 
-  const bnpParibas = await prisma.bank.upsert({
-    where: { code: "BNP" },
-    update: {},
-    create: {
-      name: "BNP Paribas",
-      code: "BNP",
-      isActive: true,
-    },
-  });
+    try {
+      await prisma.quizQuestion.deleteMany();
+      console.log("   ✅ QuizQuestion supprimées");
+    } catch (e) {
+      console.log("   ⚠️ QuizQuestion: modèle non trouvé");
+    }
 
-  console.log("✅ Banques créées");
+    try {
+      await prisma.quiz.deleteMany();
+      console.log("   ✅ Quiz supprimés");
+    } catch (e) {
+      console.log("   ⚠️ Quiz: modèle non trouvé");
+    }
 
-  // Créer l'utilisateur super admin
-  console.log("👤 Création de l'utilisateur super admin...");
-  const hashedPassword = await bcrypt.hash("admin123", 12);
+    try {
+      await prisma.userProgress.deleteMany();
+      console.log("   ✅ UserProgress supprimées");
+    } catch (e) {
+      console.log("   ⚠️ UserProgress: modèle non trouvé");
+    }
 
-  const superAdmin = await prisma.user.upsert({
-    where: { email: "admin@bai-consulting.com" },
-    update: {},
-    create: {
-      email: "admin@bai-consulting.com",
-      password: hashedPassword,
-      firstName: "Admin",
-      lastName: "BAI",
-      role: "SUPER_ADMIN",
-      isActive: true,
-    },
-  });
+    try {
+      await prisma.formationAssignment.deleteMany();
+      console.log("   ✅ FormationAssignment supprimées");
+    } catch (e) {
+      console.log("   ⚠️ FormationAssignment: modèle non trouvé");
+    }
 
-  console.log("✅ Super admin créé");
+    try {
+      await prisma.formationContent.deleteMany();
+      console.log("   ✅ FormationContent supprimées");
+    } catch (e) {
+      console.log("   ⚠️ FormationContent: modèle non trouvé");
+    }
 
-  // Créer un admin de banque
-  console.log("👤 Création d'un admin de banque...");
-  const bankAdmin = await prisma.user.upsert({
-    where: { email: "admin@banque-populaire.com" },
-    update: {},
-    create: {
-      email: "admin@banque-populaire.com",
-      password: hashedPassword,
-      firstName: "Jean",
-      lastName: "Dupont",
-      role: "BANK_ADMIN",
-      bankId: banquePopulaire.id,
-      department: "Direction",
-      isActive: true,
-    },
-  });
+    try {
+      await prisma.notification.deleteMany();
+      console.log("   ✅ Notification supprimées");
+    } catch (e) {
+      console.log("   ⚠️ Notification: modèle non trouvé");
+    }
 
-  console.log("✅ Admin de banque créé");
+    try {
+      await prisma.userSession.deleteMany();
+      console.log("   ✅ UserSession supprimées");
+    } catch (e) {
+      console.log("   ⚠️ UserSession: modèle non trouvé");
+    }
 
-  // Créer des collaborateurs
-  console.log("👥 Création des collaborateurs...");
-  const collaborator1 = await prisma.user.upsert({
-    where: { email: "marie.martin@banque-populaire.com" },
-    update: {},
-    create: {
-      email: "marie.martin@banque-populaire.com",
-      password: hashedPassword,
-      firstName: "Marie",
-      lastName: "Martin",
-      role: "COLLABORATOR",
-      bankId: banquePopulaire.id,
-      department: "Accueil",
-      isActive: true,
-    },
-  });
+    try {
+      await prisma.formation.deleteMany();
+      console.log("   ✅ Formation supprimées");
+    } catch (e) {
+      console.log("   ⚠️ Formation: modèle non trouvé");
+    }
 
-  const collaborator2 = await prisma.user.upsert({
-    where: { email: "pierre.durand@banque-populaire.com" },
-    update: {},
-    create: {
-      email: "pierre.durand@banque-populaire.com",
-      password: hashedPassword,
-      firstName: "Pierre",
-      lastName: "Durand",
-      role: "COLLABORATOR",
-      bankId: banquePopulaire.id,
-      department: "Conseil",
-      isActive: true,
-    },
-  });
+    try {
+      await prisma.user.deleteMany();
+      console.log("   ✅ User supprimés");
+    } catch (e) {
+      console.log("   ⚠️ User: modèle non trouvé");
+    }
 
-  console.log("✅ Collaborateurs créés");
+    try {
+      await prisma.bank.deleteMany();
+      console.log("   ✅ Bank supprimées");
+    } catch (e) {
+      console.log("   ⚠️ Bank: modèle non trouvé");
+    }
 
-  // Créer des formations
-  console.log("📚 Création des formations...");
-  const formation1 = await prisma.formation.create({
-    data: {
-      title: "Gestion des risques bancaires",
-      description:
-        "Formation complète sur la gestion des risques dans le secteur bancaire. Cette formation couvre les fondamentaux de la gestion des risques, les outils d'évaluation et les bonnes pratiques du secteur.",
-      type: "VIDEO",
-      duration: 120,
-      isActive: true,
-      isMandatory: false,
-      createdBy: superAdmin.id,
-      bankId: banquePopulaire.id,
-      content: {
-        create: [
-          {
-            title: "Introduction à la gestion des risques",
-            description: "Vue d'ensemble des concepts fondamentaux",
-            type: "VIDEO",
-            order: 1,
-            duration: 30,
-            fileUrl: "https://example.com/video1.mp4",
-            fileSize: 50000000,
-          },
-          {
-            title: "Outils d'évaluation des risques",
-            description: "Méthodes et outils pratiques",
-            type: "SLIDE",
-            order: 2,
-            duration: 45,
-            fileUrl: "https://example.com/slides1.pdf",
-            fileSize: 2000000,
-          },
-          {
-            title: "Cas pratiques",
-            description: "Études de cas concrets",
-            type: "DOCUMENT",
-            order: 3,
-            duration: 45,
-            fileUrl: "https://example.com/cas-pratiques.pdf",
-            fileSize: 1500000,
-          },
-        ],
+    console.log("✅ Base de données nettoyée");
+
+    // Créer UNIQUEMENT l'utilisateur super admin
+    console.log("👤 Création de l'utilisateur super admin...");
+    const hashedPassword = await bcrypt.hash("admin123", 12);
+
+    const superAdmin = await prisma.user.create({
+      data: {
+        email: "admin@bai-consulting.com",
+        password: hashedPassword,
+        firstName: "Admin",
+        lastName: "BAI",
+        role: "SUPER_ADMIN",
+        isActive: true,
       },
-    },
-  });
+    });
 
-  const formation2 = await prisma.formation.create({
-    data: {
-      title: "Compliance bancaire",
-      description:
-        "Formation sur les règles de conformité et les bonnes pratiques du secteur bancaire. Cette formation aborde les aspects réglementaires et les obligations légales.",
-      type: "SLIDES",
-      duration: 90,
-      isActive: true,
-      isMandatory: true,
-      createdBy: superAdmin.id,
-      bankId: banquePopulaire.id,
-      content: {
-        create: [
-          {
-            title: "Cadre réglementaire",
-            description: "Les principales réglementations",
-            type: "SLIDE",
-            order: 1,
-            duration: 30,
-            fileUrl: "https://example.com/reglementation.pdf",
-            fileSize: 3000000,
-          },
-          {
-            title: "Obligations de conformité",
-            description: "Les obligations légales et réglementaires",
-            type: "DOCUMENT",
-            order: 2,
-            duration: 30,
-            fileUrl: "https://example.com/obligations.pdf",
-            fileSize: 2500000,
-          },
-          {
-            title: "Bonnes pratiques",
-            description: "Mise en œuvre des bonnes pratiques",
-            type: "VIDEO",
-            order: 3,
-            duration: 30,
-            fileUrl: "https://example.com/bonnes-pratiques.mp4",
-            fileSize: 40000000,
-          },
-        ],
-      },
-    },
-  });
-
-  const formation3 = await prisma.formation.create({
-    data: {
-      title: "Relation client avancée",
-      description:
-        "Techniques avancées de relation client et de vente dans le secteur bancaire. Cette formation développe les compétences commerciales et relationnelles.",
-      type: "DOCUMENT",
-      duration: 60,
-      isActive: true,
-      isMandatory: false,
-      createdBy: superAdmin.id,
-      bankId: banquePopulaire.id,
-      content: {
-        create: [
-          {
-            title: "Techniques de vente",
-            description: "Méthodes et techniques de vente",
-            type: "DOCUMENT",
-            order: 1,
-            duration: 30,
-            fileUrl: "https://example.com/techniques-vente.pdf",
-            fileSize: 1800000,
-          },
-          {
-            title: "Gestion des objections",
-            description: "Comment gérer les objections clients",
-            type: "VIDEO",
-            order: 2,
-            duration: 30,
-            fileUrl: "https://example.com/objections.mp4",
-            fileSize: 35000000,
-          },
-        ],
-      },
-    },
-  });
-
-  console.log("✅ Formations créées");
-
-  // Créer des assignations
-  console.log("📋 Création des assignations...");
-  await prisma.formationAssignment.createMany({
-    data: [
-      {
-        formationId: formation1.id,
-        userId: collaborator1.id,
-        assignedBy: superAdmin.id,
-        status: "PENDING",
-      },
-      {
-        formationId: formation2.id,
-        userId: collaborator1.id,
-        assignedBy: superAdmin.id,
-        status: "IN_PROGRESS",
-      },
-      {
-        formationId: formation2.id,
-        userId: collaborator2.id,
-        assignedBy: superAdmin.id,
-        status: "COMPLETED",
-      },
-    ],
-  });
-
-  console.log("✅ Assignations créées");
-
-  // Créer des progressions
-  console.log("📈 Création des progressions...");
-  await prisma.userProgress.createMany({
-    data: [
-      {
-        userId: collaborator1.id,
-        formationId: formation1.id,
-        progress: 0,
-        timeSpent: 0,
-      },
-      {
-        userId: collaborator1.id,
-        formationId: formation2.id,
-        progress: 50,
-        timeSpent: 2700, // 45 minutes
-      },
-      {
-        userId: collaborator2.id,
-        formationId: formation2.id,
-        progress: 100,
-        timeSpent: 5400, // 90 minutes
-      },
-    ],
-  });
-
-  console.log("✅ Progressions créées");
-
-  // Créer des notifications
-  console.log("🔔 Création des notifications...");
-  await prisma.notification.createMany({
-    data: [
-      {
-        userId: collaborator1.id,
-        type: "FORMATION_ASSIGNED",
-        title: "Nouvelle formation assignée",
-        message:
-          'La formation "Gestion des risques bancaires" vous a été assignée.',
-        data: JSON.stringify({ formationId: formation1.id }),
-      },
-      {
-        userId: collaborator1.id,
-        type: "FORMATION_STARTED",
-        title: "Formation commencée",
-        message: 'Vous avez commencé la formation "Compliance bancaire".',
-        data: JSON.stringify({ formationId: formation2.id }),
-      },
-      {
-        userId: collaborator2.id,
-        type: "FORMATION_COMPLETED",
-        title: "Formation terminée",
-        message:
-          'Félicitations ! Vous avez terminé la formation "Compliance bancaire".',
-        data: JSON.stringify({ formationId: formation2.id }),
-      },
-    ],
-  });
-
-  console.log("✅ Notifications créées");
-
-  console.log("🎉 Initialisation terminée avec succès !");
-  console.log("\n📋 Données créées :");
-  console.log(`- ${await prisma.bank.count()} banques`);
-  console.log(`- ${await prisma.user.count()} utilisateurs`);
-  console.log(`- ${await prisma.formation.count()} formations`);
-  console.log(`- ${await prisma.formationAssignment.count()} assignations`);
-  console.log(`- ${await prisma.userProgress.count()} progressions`);
-  console.log(`- ${await prisma.notification.count()} notifications`);
-
-  console.log("\n🔑 Identifiants de test :");
-  console.log("Super Admin: admin@bai-consulting.com / admin123");
-  console.log("Admin Banque: admin@banque-populaire.com / admin123");
-  console.log("Collaborateur 1: marie.martin@banque-populaire.com / admin123");
-  console.log("Collaborateur 2: pierre.durand@banque-populaire.com / admin123");
+    console.log("✅ Super admin créé avec succès !");
+    console.log(`   Email: ${superAdmin.email}`);
+    console.log(`   Mot de passe: admin123`);
+    console.log(`   Rôle: ${superAdmin.role}`);
+    console.log("");
+    console.log("🎯 Instructions:");
+    console.log("   1. Connectez-vous avec ces identifiants");
+    console.log("   2. Créez vos premières banques");
+    console.log("   3. Créez les administrateurs de banque");
+    console.log("   4. Créez les formations");
+    console.log("   5. Créez les collaborateurs");
+    console.log("");
+    console.log("🚀 La plateforme est prête à être utilisée !");
+  } catch (error) {
+    console.error("❌ Erreur lors de l'initialisation:", error);
+    throw error;
+  }
 }
 
 main()

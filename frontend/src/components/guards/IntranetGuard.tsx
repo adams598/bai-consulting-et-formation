@@ -2,14 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { currentEnv } from '../../config/environments';
 import { authService } from '../../services/authService';
-import { UserRole } from '../../features/admin/types';
 import { Button } from '../ui/button';
 import { useToast } from '../ui/use-toast';
 import { Shield, Lock, AlertTriangle } from 'lucide-react';
 
 interface IntranetGuardProps {
   children: React.ReactNode;
-  requiredRole?: UserRole;
+  requiredRole?: string;
   fallback?: React.ReactNode;
 }
 
@@ -65,7 +64,7 @@ export const IntranetGuard: React.FC<IntranetGuardProps> = ({
       }
 
       // Vérifier si l'utilisateur peut accéder à l'admin
-      if (!authService.canAccessAdmin()) {
+      if (user.role !== 'SUPER_ADMIN' && user.role !== 'BANK_ADMIN') {
         setError('Accès administrateur requis');
         setHasAccess(false);
         return;
@@ -77,9 +76,6 @@ export const IntranetGuard: React.FC<IntranetGuardProps> = ({
         setHasAccess(false);
         return;
       }
-
-      // 4. Rafraîchir le token si nécessaire
-      await authService.ensureValidToken();
 
       setHasAccess(true);
     } catch (error) {
@@ -163,13 +159,6 @@ export const IntranetGuard: React.FC<IntranetGuardProps> = ({
               </p>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
-}; 
         </div>
       </div>
     );

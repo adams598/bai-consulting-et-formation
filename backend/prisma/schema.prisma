@@ -14,139 +14,155 @@ datasource db {
 
 // Modèles
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  firstName String
-  lastName  String
-  role      String @default("COLLABORATOR")
-  bankId    String?
+  id         String    @id @default(cuid())
+  email      String    @unique
+  password   String
+  firstName  String
+  lastName   String
+  role       String    @default("COLLABORATOR")
+  bankId     String?
   department String?
-  isActive  Boolean  @default(true)
-  lastLogin DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  phone      String?
+  avatar     String?
+  isActive   Boolean   @default(true)
+  lastLogin  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   // Relations
-  bank       Bank?                @relation(fields: [bankId], references: [id])
-  assignments FormationAssignment[]
-  progress   UserProgress[]
-  notifications Notification[]
-  createdFormations Formation[] @relation("FormationCreator")
-  assignedFormations FormationAssignment[] @relation("AssignmentCreator")
-  sessions   UserSession[]
+  bank                     Bank?                     @relation(fields: [bankId], references: [id])
+  assignments              FormationAssignment[]
+  progress                 UserProgress[]
+  notifications            Notification[]
+  createdFormations        Formation[]               @relation("FormationCreator")
+  assignedFormations       FormationAssignment[]     @relation("AssignmentCreator")
+  sessions                 UserSession[]
+  bankFormations           BankFormation[]
+  userAssignments          UserFormationAssignment[]
+  bankFormationAssignments BankFormation[]           @relation("BankFormationAssigner")
+  userFormationAssignments UserFormationAssignment[] @relation("UserFormationAssigner")
 
   @@map("users")
 }
 
 model Bank {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(cuid())
+  name       String
+  code       String    @unique
+  isActive   Boolean   @default(true)
+  isArchived Boolean   @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   // Relations
-  users     User[]
-  formations Formation[]
+  users          User[]
+  formations     Formation[]
+  bankFormations BankFormation[]
 
   @@map("banks")
 }
 
 model Formation {
-  id          String        @id @default(cuid())
-  title       String
-  description String
-  type        String
-  duration    Int           // en minutes
-  isActive    Boolean       @default(true)
-  isMandatory Boolean       @default(false)
-  createdBy   String
-  bankId      String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  duration     Int // durée totale en minutes (calculée automatiquement)
+  isActive     Boolean  @default(true)
+  hasQuiz      Boolean  @default(false) // indique si la formation a un quiz
+  quizRequired Boolean  @default(true) // si le quiz est obligatoire pour valider
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
-  creator     User                    @relation("FormationCreator", fields: [createdBy], references: [id])
-  bank        Bank?                   @relation(fields: [bankId], references: [id])
-  content     FormationContent[]
-  assignments FormationAssignment[]
-  progress    UserProgress[]
-  quiz        Quiz?
+  creator        User                  @relation("FormationCreator", fields: [createdBy], references: [id])
+  content        FormationContent[]
+  assignments    FormationAssignment[]
+  progress       UserProgress[]
+  quiz           Quiz?
+  bankFormations BankFormation[]
+  Bank           Bank?                 @relation(fields: [bankId], references: [id])
+  bankId         String?
 
   @@map("formations")
 }
 
 model FormationContent {
-  id           String      @id @default(cuid())
-  formationId  String
-  title        String
-  description  String?
-  type         String
-  order        Int
-  duration     Int?        // en minutes
-  fileUrl      String?
-  fileSize     Int?        // en bytes
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id          String   @id @default(cuid())
+  formationId String
+  title       String
+  description String?
+  type        String // PRESENTATION, VIDEO, DOCUMENT, INTERACTIVE, etc.
+  contentType String // SECTION ou LESSON
+  sectionId   String? // si contentType = LESSON, référence vers la section parente
+  order       Int // ordre dans la formation ou dans la section
+  duration    Int? // en minutes
+  fileUrl     String?
+  fileSize    Int? // en bytes
+  coverImage  String? // URL de l'image de couverture
+  metadata    String? // données supplémentaires en JSON (résolution vidéo, pages PPT, etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  formation    Formation   @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  formation Formation          @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  section   FormationContent?  @relation("SectionLessons", fields: [sectionId], references: [id])
+  lessons   FormationContent[] @relation("SectionLessons")
 
   @@map("formation_content")
 }
 
 model FormationAssignment {
-  id           String            @id @default(cuid())
-  userId       String
-  formationId  String
-  assignedBy   String
-  status       String  @default("PENDING")
-  dueDate      DateTime?
-  assignedAt   DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id          String    @id @default(cuid())
+  userId      String
+  formationId String
+  assignedBy  String
+  status      String    @default("PENDING")
+  dueDate     DateTime?
+  assignedAt  DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relations
-  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  formation    Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
-  assignedByUser User            @relation("AssignmentCreator", fields: [assignedBy], references: [id])
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  formation      Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  assignedByUser User      @relation("AssignmentCreator", fields: [assignedBy], references: [id])
 
   @@unique([userId, formationId])
   @@map("formation_assignments")
 }
 
 model Quiz {
-  id           String        @id @default(cuid())
-  formationId  String        @unique
+  id           String   @id @default(cuid())
+  formationId  String   @unique
   title        String
   description  String?
-  passingScore Int           @default(80) // pourcentage minimum pour réussir
-  timeLimit    Int?          // en minutes, null = pas de limite
-  isActive     Boolean       @default(true)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  passingScore Int      @default(80) // pourcentage minimum pour réussir
+  timeLimit    Int? // en minutes, null = pas de limite
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
-  formation    Formation     @relation(fields: [formationId], references: [id], onDelete: Cascade)
-  questions    QuizQuestion[]
+  formation Formation      @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
 
   @@map("quizzes")
 }
 
 model QuizQuestion {
-  id       String   @id @default(cuid())
-  quizId   String
-  question String
-  type     String   @default("multiple_choice") // multiple_choice, true_false, text
-  order    Int
-  points   Int      @default(1)
+  id        String   @id @default(cuid())
+  quizId    String
+  question  String
+  type      String   @default("multiple_choice") // multiple_choice, true_false, text
+  order     Int
+  points    Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
-  quiz     Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  answers  QuizAnswer[]
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
 
   @@map("quiz_questions")
 }
@@ -161,7 +177,7 @@ model QuizAnswer {
   updatedAt  DateTime @updatedAt
 
   // Relations
-  question   QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@map("quiz_answers")
 }
@@ -178,26 +194,26 @@ model UserProgress {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  formation    Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  formation Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
 
   @@unique([userId, formationId])
   @@map("user_progress")
 }
 
 model Notification {
-  id        String           @id @default(cuid())
+  id        String   @id @default(cuid())
   userId    String
   type      String
   title     String
   message   String
-  isRead    Boolean          @default(false)
-  data      String?          // données supplémentaires (formationId, etc.) en JSON string
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  isRead    Boolean  @default(false)
+  data      String? // données supplémentaires (formationId, etc.) en JSON string
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
 }
@@ -211,7 +227,47 @@ model UserSession {
   createdAt DateTime @default(now())
 
   // Relations
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_sessions")
+}
+
+model BankFormation {
+  id          String   @id @default(cuid())
+  bankId      String
+  formationId String
+  isMandatory Boolean  @default(false) // si la formation est obligatoire pour cette banque
+  assignedAt  DateTime @default(now())
+  assignedBy  String
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  bank            Bank                      @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  formation       Formation                 @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  assignedByUser  User                      @relation("BankFormationAssigner", fields: [assignedBy], references: [id])
+  userAssignments UserFormationAssignment[]
+  User            User?                     @relation(fields: [userId], references: [id])
+  userId          String?
+
+  @@unique([bankId, formationId])
+  @@map("bank_formations")
+}
+
+// Assignation Formation-Utilisateur avec règles d'obligation
+model UserFormationAssignment {
+  id              String    @id @default(cuid())
+  bankFormationId String
+  userId          String
+  isMandatory     Boolean   @default(false) // Obligatoire pour cet utilisateur spécifique
+  dueDate         DateTime? // Date limite de completion
+  assignedAt      DateTime  @default(now())
+  assignedBy      String // ID de l'admin qui a assigné
+
+  // Relations
+  bankFormation  BankFormation @relation(fields: [bankFormationId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedByUser User          @relation("UserFormationAssigner", fields: [assignedBy], references: [id])
+
+  @@unique([bankFormationId, userId])
+  @@map("user_formation_assignments")
 }

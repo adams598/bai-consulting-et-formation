@@ -3,198 +3,192 @@ import {
   Bank,
   User,
   Formation,
+  FormationContent,
   FormationAssignment,
   Quiz,
   UserProgress,
   Notification,
-  AdminDashboardStats,
+  DashboardStats,
   BankStats,
-  UserRole,
-  FormationType,
-  AssignmentStatus
+  ApiResponse,
+  BankFormation,
+  UserFormationAssignment
 } from '../features/admin/types';
 
 // ===== BANKS API =====
 export const banksApi = {
   // Récupérer toutes les banques
-  getAll: () => api.get<Bank[]>('/admin/banks'),
+  getAll: () => api.get<ApiResponse<Bank[]>>('/api/admin/banks'),
   
   // Récupérer une banque par ID
-  getById: (id: string) => api.get<Bank>(`/admin/banks/${id}`),
+  getById: (id: string) => api.get<ApiResponse<Bank>>(`/api/admin/banks/${id}`),
   
   // Créer une nouvelle banque
   create: (data: Omit<Bank, 'id' | 'createdAt' | 'updatedAt'>) => 
-    api.post<Bank>('/admin/banks', data),
+    api.post<Bank>('/api/admin/banks', data),
   
   // Mettre à jour une banque
   update: (id: string, data: Partial<Bank>) => 
-    api.put<Bank>(`/admin/banks/${id}`, data),
+    api.put<Bank>(`/api/admin/banks/${id}`, data),
   
   // Supprimer une banque
-  delete: (id: string) => api.delete(`/admin/banks/${id}`),
+  delete: (id: string) => api.delete(`/api/admin/banks/${id}`),
+  
+  // Archiver une banque
+  archive: (id: string) => api.patch<Bank>(`/api/admin/banks/${id}/archive`),
   
   // Activer/Désactiver une banque
-  toggleActive: (id: string) => api.patch<Bank>(`/admin/banks/${id}/toggle`),
+  toggleActive: (id: string) => api.patch<Bank>(`/api/admin/banks/${id}/toggle`),
   
   // Statistiques d'une banque
-  getStats: (id: string) => api.get<BankStats>(`/admin/banks/${id}/stats`)
+  getStats: (id: string) => api.get<BankStats>(`/api/admin/banks/${id}/stats`)
 };
 
 // ===== FORMATIONS API =====
 export const formationsApi = {
-  // Récupérer toutes les formations
-  getAll: (bankId?: string) => 
-    api.get<Formation[]>(`/admin/formations${bankId ? `?bankId=${bankId}` : ''}`),
+  getAllFormations: () => api.get<ApiResponse<Formation[]>>('/api/admin/formations'),
+  getFormationById: (id: string) => api.get<ApiResponse<Formation>>(`/api/admin/formations/${id}`),
+  createFormation: (data: Partial<Formation>) => api.post<ApiResponse<Formation>>('/api/admin/formations', data),
+  updateFormation: (id: string, data: Partial<Formation>) => api.put<ApiResponse<Formation>>(`/api/admin/formations/${id}`, data),
+  deleteFormation: (id: string) => api.delete<ApiResponse<void>>(`/api/admin/formations/${id}`),
+  toggleActive: (id: string) => api.patch<ApiResponse<Formation>>(`/api/admin/formations/${id}/toggle-active`),
+  toggleMandatory: (id: string) => api.patch<ApiResponse<Formation>>(`/api/admin/formations/${id}/toggle-mandatory`),
+};
+
+export const formationContentApi = {
+  // Récupérer tout le contenu d'une formation
+  getByFormation: (formationId: string) =>
+    api.get<ApiResponse<FormationContent[]>>(`/api/admin/formations/${formationId}/content`),
   
-  // Récupérer une formation par ID
-  getById: (id: string) => api.get<Formation>(`/admin/formations/${id}`),
+  // Gestion des sections
+  addSection: (formationId: string, data: { title: string; description?: string; order?: number }) =>
+    api.post<ApiResponse<FormationContent>>(`/api/admin/formations/${formationId}/sections`, data),
   
-  // Créer une nouvelle formation
-  create: (data: Omit<Formation, 'id' | 'createdAt' | 'updatedAt'>) => 
-    api.post<Formation>('/admin/formations', data),
+  updateSection: (id: string, data: { title: string; description?: string; order?: number }) =>
+    api.put<ApiResponse<FormationContent>>(`/api/admin/formations/sections/${id}`, data),
   
-  // Mettre à jour une formation
-  update: (id: string, data: Partial<Formation>) => 
-    api.put<Formation>(`/admin/formations/${id}`, data),
+  deleteSection: (id: string) => 
+    api.delete<ApiResponse<void>>(`/api/admin/formations/sections/${id}`),
   
-  // Supprimer une formation
-  delete: (id: string) => api.delete(`/admin/formations/${id}`),
+  // Gestion des leçons
+  addLesson: (formationId: string, data: { title: string; description?: string; type: string; duration?: number; sectionId?: string; order?: number; coverImage?: string }) =>
+    api.post<ApiResponse<FormationContent>>(`/api/admin/formations/${formationId}/lessons`, data),
   
-  // Activer/Désactiver une formation
-  toggleActive: (id: string) => api.patch<Formation>(`/admin/formations/${id}/toggle`),
+  updateLesson: (id: string, data: { title: string; description?: string; type: string; duration?: number; sectionId?: string; order?: number; coverImage?: string }) =>
+    api.put<ApiResponse<FormationContent>>(`/api/admin/formations/lessons/${id}`, data),
   
-  // Rendre une formation obligatoire
-  toggleMandatory: (id: string) => api.patch<Formation>(`/admin/formations/${id}/mandatory`),
+  deleteLesson: (id: string) => 
+    api.delete<ApiResponse<void>>(`/api/admin/formations/lessons/${id}`),
   
-  // Upload de contenu (vidéo, document, etc.)
-  uploadContent: (formationId: string, file: File, type: string) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('type', type);
-    return api.post(`/admin/formations/${formationId}/upload`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-  },
-  
-  // Supprimer un contenu
-  deleteContent: (formationId: string, contentId: string) => 
-    api.delete(`/admin/formations/${formationId}/content/${contentId}`)
+  // Réorganisation du contenu
+  reorderContent: (formationId: string, data: { content: Array<{ id: string; order: number; sectionId?: string }> }) =>
+    api.put<ApiResponse<void>>(`/api/admin/formations/${formationId}/reorder`, data),
+};
+
+export const quizApi = {
+  createQuiz: (formationId: string, data: { title: string; description?: string; passingScore?: number; timeLimit?: number; questions: any[] }) =>
+    api.post<ApiResponse<Quiz>>(`/api/admin/formations/${formationId}/quiz`, data),
+  updateQuiz: (id: string, data: { title: string; description?: string; passingScore?: number; timeLimit?: number; questions: any[] }) =>
+    api.put<ApiResponse<Quiz>>(`/api/admin/quiz/${id}`, data),
+  deleteQuiz: (id: string) => api.delete<ApiResponse<void>>(`/api/admin/quiz/${id}`),
+  toggleActive: (id: string) => api.patch<ApiResponse<Quiz>>(`/api/admin/quiz/${id}/toggle`),
 };
 
 // ===== USERS API =====
 export const usersApi = {
   // Récupérer tous les utilisateurs d'une banque
-  getAll: (bankId: string) => api.get<User[]>(`/admin/users?bankId=${bankId}`),
+  getAll: (bankId: string) => api.get<ApiResponse<User[]>>(`/api/admin/users?bankId=${bankId}`),
   
   // Récupérer un utilisateur par ID
-  getById: (id: string) => api.get<User>(`/admin/users/${id}`),
+  getById: (id: string) => api.get<ApiResponse<User>>(`/api/admin/users/${id}`),
   
   // Créer un nouveau collaborateur
   create: (data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>) => 
-    api.post<User>('/admin/users', data),
+    api.post<ApiResponse<User>>('/api/admin/users', data),
   
   // Mettre à jour un utilisateur
   update: (id: string, data: Partial<User>) => 
-    api.put<User>(`/admin/users/${id}`, data),
+    api.put<ApiResponse<User>>(`/api/admin/users/${id}`, data),
   
   // Supprimer un utilisateur
-  delete: (id: string) => api.delete(`/admin/users/${id}`),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/api/admin/users/${id}`),
   
   // Activer/Désactiver un utilisateur
-  toggleActive: (id: string) => api.patch<User>(`/admin/users/${id}/toggle`),
+  toggleActive: (id: string) => api.patch<ApiResponse<User>>(`/api/admin/users/${id}/toggle-active`),
   
   // Réinitialiser le mot de passe d'un utilisateur
-  resetPassword: (id: string) => api.post(`/admin/users/${id}/reset-password`),
+  resetPassword: (id: string) => api.post<ApiResponse<void>>(`/api/admin/users/${id}/reset-password`),
   
   // Envoyer les identifiants par email
-  sendCredentials: (id: string) => api.post(`/admin/users/${id}/send-credentials`),
+  sendCredentials: (id: string) => api.post<ApiResponse<void>>(`/api/admin/users/${id}/send-credentials`),
   
   // Récupérer les utilisateurs par département
   getByDepartment: (bankId: string, department: string) => 
-    api.get<User[]>(`/admin/users?bankId=${bankId}&department=${department}`)
+    api.get<ApiResponse<User[]>>(`/api/admin/users?bankId=${bankId}&department=${department}`)
 };
 
 // ===== ASSIGNMENTS API =====
 export const assignmentsApi = {
   // Récupérer toutes les assignations
   getAll: (bankId?: string) => 
-    api.get<FormationAssignment[]>(`/admin/assignments${bankId ? `?bankId=${bankId}` : ''}`),
+    api.get<ApiResponse<FormationAssignment[]>>(`/api/admin/assignments${bankId ? `?bankId=${bankId}` : ''}`),
   
-  // Assigner une formation à un utilisateur
-  assignToUser: (data: {
-    formationId: string;
-    userId: string;
-    isMandatory?: boolean;
-    dueDate?: Date;
-  }) => api.post<FormationAssignment>('/admin/assignments', data),
+  // Récupérer les assignations d'un utilisateur
+  getByUser: (userId: string) => 
+    api.get<ApiResponse<FormationAssignment[]>>(`/api/admin/assignments?userId=${userId}`),
   
-  // Assigner une formation à un département
-  assignToDepartment: (data: {
-    formationId: string;
-    bankId: string;
-    department: string;
-    isMandatory?: boolean;
-    dueDate?: Date;
-  }) => api.post<FormationAssignment[]>('/admin/assignments/department', data),
+  // Récupérer les assignations d'une formation
+  getByFormation: (formationId: string) => 
+    api.get<ApiResponse<FormationAssignment[]>>(`/api/admin/assignments?formationId=${formationId}`),
+  
+  // Créer une assignation
+  create: (data: Omit<FormationAssignment, 'id' | 'assignedAt' | 'updatedAt'>) => 
+    api.post<ApiResponse<FormationAssignment>>('/api/admin/assignments', data),
   
   // Assigner une formation à plusieurs utilisateurs
-  assignToMultiple: (data: {
+  assignMultiple: (data: {
     formationId: string;
     userIds: string[];
-    isMandatory?: boolean;
     dueDate?: Date;
-  }) => api.post<FormationAssignment[]>('/admin/assignments/multiple', data),
+    assignedBy: string;
+  }) => api.post<ApiResponse<FormationAssignment[]>>('/api/admin/assignments/multiple', data),
   
   // Supprimer une assignation
-  delete: (id: string) => api.delete(`/admin/assignments/${id}`),
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/api/admin/assignments/${id}`),
   
   // Mettre à jour le statut d'une assignation
-  updateStatus: (id: string, status: AssignmentStatus) => 
-    api.patch<FormationAssignment>(`/admin/assignments/${id}/status`, { status })
-};
-
-// ===== QUIZ API =====
-export const quizApi = {
-  // Récupérer le quiz d'une formation
-  getByFormation: (formationId: string) => 
-    api.get<Quiz>(`/admin/quiz/${formationId}`),
-  
-  // Créer ou mettre à jour un quiz
-  save: (formationId: string, data: Omit<Quiz, 'id' | 'formationId'>) => 
-    api.post<Quiz>(`/admin/quiz/${formationId}`, data),
-  
-  // Supprimer un quiz
-  delete: (formationId: string) => api.delete(`/admin/quiz/${formationId}`)
+  updateStatus: (id: string, status: any) => 
+    api.patch<ApiResponse<FormationAssignment>>(`/api/admin/assignments/${id}/status`, { status })
 };
 
 // ===== PROGRESS API =====
 export const progressApi = {
   // Récupérer les progressions d'une banque
   getByBank: (bankId: string) => 
-    api.get<UserProgress[]>(`/admin/progress?bankId=${bankId}`),
+    api.get<ApiResponse<UserProgress[]>>(`/api/admin/progress?bankId=${bankId}`),
   
   // Récupérer les progressions d'un utilisateur
   getByUser: (userId: string) => 
-    api.get<UserProgress[]>(`/admin/progress?userId=${userId}`),
+    api.get<ApiResponse<UserProgress[]>>(`/api/admin/progress?userId=${userId}`),
   
   // Récupérer les progressions d'une formation
   getByFormation: (formationId: string) => 
-    api.get<UserProgress[]>(`/admin/progress?formationId=${formationId}`),
+    api.get<ApiResponse<UserProgress[]>>(`/api/admin/progress?formationId=${formationId}`),
   
   // Statistiques de progression
   getStats: (bankId?: string) => 
-    api.get(`/admin/progress/stats${bankId ? `?bankId=${bankId}` : ''}`)
+    api.get<ApiResponse<any>>(`/api/admin/progress/stats${bankId ? `?bankId=${bankId}` : ''}`)
 };
 
 // ===== NOTIFICATIONS API =====
 export const notificationsApi = {
   // Récupérer les notifications d'un utilisateur
   getByUser: (userId: string) => 
-    api.get<Notification[]>(`/admin/notifications?userId=${userId}`),
+    api.get<ApiResponse<Notification[]>>(`/api/admin/notifications?userId=${userId}`),
   
   // Marquer une notification comme lue
   markAsRead: (id: string) => 
-    api.patch<Notification>(`/admin/notifications/${id}/read`),
+    api.patch<ApiResponse<Notification>>(`/api/admin/notifications/${id}/read`),
   
   // Envoyer une notification
   send: (data: {
@@ -203,35 +197,108 @@ export const notificationsApi = {
     title: string;
     message: string;
     relatedId?: string;
-  }) => api.post<Notification>('/admin/notifications', data)
+  }) => api.post<ApiResponse<Notification>>('/api/admin/notifications', data)
 };
 
 // ===== DASHBOARD API =====
 export const dashboardApi = {
   // Statistiques globales
-  getStats: () => api.get<AdminDashboardStats>('/admin/dashboard/stats'),
+  getStats: () => api.get<ApiResponse<DashboardStats>>('/api/admin/dashboard/stats'),
   
   // Statistiques par banque
-  getBankStats: () => api.get<BankStats[]>('/admin/dashboard/bank-stats'),
+  getBankStats: () => api.get<ApiResponse<BankStats[]>>('/api/admin/dashboard/bank-stats'),
   
   // Activité récente
   getRecentActivity: (bankId?: string) => 
-    api.get(`/admin/dashboard/recent-activity${bankId ? `?bankId=${bankId}` : ''}`)
+    api.get<ApiResponse<RecentActivity[]>>(`/api/admin/dashboard/recent-activity${bankId ? `?bankId=${bankId}` : ''}`)
 };
 
 // ===== AUTH API =====
 export const adminAuthApi = {
   // Connexion admin
   login: (email: string, password: string) => 
-    api.post('/admin/auth/login', { email, password }),
+    api.post<ApiResponse<any>>('/api/admin/auth/login', { email, password }),
   
   // Vérifier le statut de connexion
-  checkAuth: () => api.get('/admin/auth/me'),
+  checkAuth: () => api.get<ApiResponse<User>>('/api/admin/auth/me'),
   
   // Déconnexion
-  logout: () => api.post('/admin/auth/logout'),
+  logout: () => api.post<ApiResponse<void>>('/api/admin/auth/logout'),
   
   // Changer de banque active
   switchBank: (bankId: string) => 
-    api.post('/admin/auth/switch-bank', { bankId })
+    api.post<ApiResponse<void>>('/api/admin/auth/switch-bank', { bankId })
+}; 
+
+// API pour la gestion du profil utilisateur
+export const profileApi = {
+  // Mettre à jour le profil
+  updateProfile: (data: Partial<User>) => api.put<ApiResponse<User>>('/api/admin/profile', data),
+  
+  // Changer le mot de passe
+  changePassword: (data: { currentPassword: string; newPassword: string }) => 
+    api.put<ApiResponse<void>>('/api/admin/profile/password', data),
+  
+  // Obtenir le profil actuel
+  getProfile: () => api.get<ApiResponse<User>>('/api/admin/profile'),
+}; 
+
+// API pour les assignations banque-formation
+export const bankFormationApi = {
+  // Assigner une formation à une banque
+  assignFormationToBank: async (data: { bankId: string; formationId: string }): Promise<ApiResponse<BankFormation>> => {
+    const response = await api.post('/api/admin/bank-formations', data);
+    return response.data;
+  },
+
+  // Récupérer toutes les formations assignées à une banque
+  getBankFormations: async (bankId: string): Promise<ApiResponse<BankFormation[]>> => {
+    const response = await api.get(`/api/admin/banks/${bankId}/formations`);
+    return response.data;
+  },
+
+  // Mettre à jour le statut obligatoire d'une formation pour une banque
+  updateFormationMandatory: async (id: string, data: { isMandatory: boolean }): Promise<ApiResponse<BankFormation>> => {
+    const response = await api.patch(`/api/admin/bank-formations/${id}/mandatory`, data);
+    return response.data;
+  },
+
+  // Supprimer l'assignation d'une formation à une banque
+  removeFormationFromBank: async (id: string): Promise<ApiResponse<{ message: string }>> => {
+    const response = await api.delete(`/api/admin/bank-formations/${id}`);
+    return response.data;
+  },
+};
+
+// API pour les assignations utilisateurs aux formations
+export const userFormationAssignmentApi = {
+  // Assigner des utilisateurs à une formation d'une banque
+  assignUsersToFormation: async (bankFormationId: string, data: { users: Array<{ userId: string; isMandatory?: boolean; dueDate?: string }> }): Promise<ApiResponse<UserFormationAssignment[]>> => {
+    const response = await api.post(`/api/admin/bank-formations/${bankFormationId}/users`, data);
+    return response.data;
+  },
+
+  // Assigner des utilisateurs par groupe
+  assignUsersByGroup: async (bankFormationId: string, data: { groupType: string; groupValue: string; isMandatory?: boolean; dueDate?: string }): Promise<ApiResponse<UserFormationAssignment[]>> => {
+    const response = await api.post(`/api/admin/bank-formations/${bankFormationId}/users/group`, data);
+    return response.data;
+  },
+
+  // Mettre à jour le statut obligatoire d'un utilisateur pour une formation
+  updateUserFormationMandatory: async (id: string, data: { isMandatory: boolean; dueDate?: string }): Promise<ApiResponse<UserFormationAssignment>> => {
+    const response = await api.patch(`/api/admin/user-formation-assignments/${id}`, data);
+    return response.data;
+  },
+
+  // Supprimer l'assignation d'un utilisateur à une formation
+  removeUserFromFormation: async (id: string): Promise<ApiResponse<{ message: string }>> => {
+    const response = await api.delete(`/api/admin/user-formation-assignments/${id}`);
+    return response.data;
+  },
+
+  // Récupérer toutes les assignations d'une formation d'une banque
+  getFormationUserAssignments: async (bankFormationId: string): Promise<ApiResponse<UserFormationAssignment[]>> => {
+    const response = await api.get(`/api/admin/bank-formations/${bankFormationId}/users`);
+    return response.data;
+  },
 }; 
