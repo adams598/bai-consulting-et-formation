@@ -26,6 +26,7 @@ model User {
   avatar     String?
   isActive   Boolean   @default(true)
   lastLogin  DateTime?
+  passwordExpiresAt DateTime? // Expiration du mot de passe temporaire
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
 

@@ -42,6 +42,15 @@ export const authController = {
         });
       }
 
+      // Vérifier si le mot de passe a expiré
+      if (user.passwordExpiresAt && new Date() > user.passwordExpiresAt) {
+        return res.status(401).json({
+          success: false,
+          message:
+            "Mot de passe temporaire expiré. Veuillez contacter votre administrateur pour un nouveau mot de passe.",
+        });
+      }
+
       // Vérifier le mot de passe
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
@@ -1124,8 +1133,17 @@ export const usersController = {
 
   async createUser(req, res) {
     try {
-      const { firstName, lastName, email, role, department, phone, isActive } =
-        req.body;
+      console.log("🔍 createUser - Corps de la requête reçu:", req.body);
+      const {
+        firstName,
+        lastName,
+        email,
+        role,
+        department,
+        phone,
+        isActive,
+        bankId,
+      } = req.body;
 
       // Validation
       if (!firstName || !lastName || !email || !role) {
@@ -1133,6 +1151,20 @@ export const usersController = {
           success: false,
           message: "Prénom, nom, email et rôle sont obligatoires",
         });
+      }
+
+      // Validation du bankId si fourni
+      if (bankId) {
+        const bank = await prisma.bank.findUnique({
+          where: { id: bankId },
+        });
+
+        if (!bank) {
+          return res.status(400).json({
+            success: false,
+            message: "Banque invalide",
+          });
+        }
       }
 
       // Vérifier si l'email existe déjà
@@ -1151,6 +1183,10 @@ export const usersController = {
       const tempPassword = Math.random().toString(36).slice(-8);
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
+      // Définir l'expiration du mot de passe à 5 jours
+      const passwordExpiresAt = new Date();
+      passwordExpiresAt.setDate(passwordExpiresAt.getDate() + 5);
+
       const user = await prisma.user.create({
         data: {
           firstName,
@@ -1158,9 +1194,11 @@ export const usersController = {
           email,
           password: hashedPassword,
           role,
+          bankId: bankId || null,
           department: department || null,
           phone: phone || null,
           isActive: isActive !== undefined ? isActive : true,
+          passwordExpiresAt,
         },
         include: {
           bank: {
