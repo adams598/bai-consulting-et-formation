@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, BookOpen, Upload, Link, Loader2 } from 'lucide-react';
+import { X, Upload, Link, Save, Loader2, BookOpen } from 'lucide-react';
 import { FormationContent } from '../types';
 import { uploadService } from '../../../services/imageUploadService';
+import { getLessonImageUrl } from '../../../utils/imageUtils';
+import '../../../components/LessonModal.css';
+import LessonDuration from './LessonDuration';
 
 interface LessonModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: Partial<FormationContent>) => void;
   formationId: string;
+  formationTitle: string; // Nouveau : titre de la formation pour la structure des dossiers
   sectionId?: string | null;
   existingLesson?: FormationContent | null;
 }
@@ -17,6 +21,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
   onClose,
   onSave,
   formationId,
+  formationTitle,
   sectionId,
   existingLesson
 }) => {
@@ -24,10 +29,11 @@ const LessonModal: React.FC<LessonModalProps> = ({
     title: '',
     description: '',
     type: 'PRESENTATION',
-    duration: 30,
+    duration: '00:30' as string, // Format HH:MM au lieu de minutes
     order: 0,
     contentUrl: '',
     contentFile: null as File | null,
+    contentFileUrl: '', // URL du fichier joint uploadé
     coverImage: '',
     coverImageFile: null as File | null,
     coverImageUrl: '', // URL permanente de l'image
@@ -39,14 +45,22 @@ const LessonModal: React.FC<LessonModalProps> = ({
 
   useEffect(() => {
     if (existingLesson) {
+      // Convertir les minutes en format HH:MM
+      const convertMinutesToTime = (minutes: number): string => {
+        const hours = Math.floor(minutes / 60);
+        const mins = minutes % 60;
+        return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+      };
+      
       setFormData({
         title: existingLesson.title || '',
         description: existingLesson.description || '',
         type: existingLesson.type || 'PRESENTATION',
-        duration: existingLesson.duration || 30,
+        duration: convertMinutesToTime(existingLesson.duration || 30), // Convertir en HH:MM
         order: existingLesson.order || 0,
         contentUrl: (existingLesson.metadata as any)?.contentUrl || '',
         contentFile: null,
+        contentFileUrl: '', // Ajouter cette propriété manquante
         coverImage: existingLesson.coverImage || '',
         coverImageFile: null,
         coverImageUrl: existingLesson.coverImage || '', // URL permanente = aperçu actuel
@@ -57,10 +71,11 @@ const LessonModal: React.FC<LessonModalProps> = ({
         title: '',
         description: '',
         type: 'PRESENTATION',
-        duration: 30,
+        duration: '00:30', // Format HH:MM par défaut
         order: 0,
         contentUrl: '',
         contentFile: null,
+        contentFileUrl: '', // Ajouter cette propriété manquante
         coverImage: '',
         coverImageFile: null,
         coverImageUrl: '',
@@ -73,14 +88,23 @@ const LessonModal: React.FC<LessonModalProps> = ({
     e.preventDefault();
     if (!formData.title.trim()) return;
     
+    // Convertir le format HH:MM en minutes
+    const convertTimeToMinutes = (timeString: string): number => {
+      if (!timeString || typeof timeString !== 'string') return 0;
+      const [hours, minutes] = timeString.split(':').map(Number);
+      return (hours || 0) * 60 + (minutes || 0);
+    };
+    
     const lessonData = {
       ...formData,
+      duration: convertTimeToMinutes(formData.duration as string), // Convertir en minutes
       sectionId: sectionId || undefined,
       coverImage: formData.coverImageUrl || formData.coverImage, // Utiliser l'URL permanente si disponible
       metadata: JSON.stringify({
-        contentUrl: formData.contentUrl,
+        contentUrl: formData.contentUrl || formData.contentFileUrl, // Utiliser l'URL du fichier joint si disponible
         learningObjectives: formData.learningObjectives,
-        contentType: uploadMethod
+        contentType: uploadMethod,
+        attachedFile: formData.contentFileUrl // Ajouter l'URL du fichier joint
       })
     };
     
@@ -97,12 +121,22 @@ const LessonModal: React.FC<LessonModalProps> = ({
   const handleCoverImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Vérifier que le titre de la leçon est saisi avant l'upload
+      if (!formData.title || formData.title.trim() === '') {
+        alert('Veuillez d\'abord saisir le titre de la leçon avant d\'ajouter une image de couverture');
+        e.target.value = ''; // Réinitialiser l'input
+        return;
+      }
+      
       try {
         console.log('📸 Début de l\'upload de l\'image:', file.name, file.size, file.type);
+        console.log('🔍 Upload image - Titre leçon:', formData.title);
+        console.log('🔍 Upload image - Formation:', formationTitle);
+        
         setIsUploadingImage(true);
         setFormData({ ...formData, coverImageFile: file });
         
-        // Créer un aperçu immédiat avec FileReader (comme AvatarUpload)
+        // Créer un aperçu immédiat avec FileReader
         const reader = new FileReader();
         reader.onload = (e) => {
           const previewUrl = e.target?.result as string;
@@ -122,12 +156,44 @@ const LessonModal: React.FC<LessonModalProps> = ({
     }
   };
 
+  // Gestion de l'upload des fichiers joints
+  const handleContentFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Vérifier que le titre de la leçon est saisi avant l'upload
+      if (!formData.title || formData.title.trim() === '') {
+        alert('Veuillez d\'abord saisir le titre de la leçon avant d\'ajouter un fichier joint');
+        e.target.value = ''; // Réinitialiser l'input
+        return;
+      }
+      
+      try {
+        console.log('🔍 Upload fichier joint - Titre leçon:', formData.title);
+        console.log('🔍 Upload fichier joint - Formation:', formationTitle);
+        
+        // Upload du fichier joint avec la nouvelle structure
+        const fileUrl = await uploadService.uploadLessonFile(file, formationTitle, formData.title);
+        
+        setFormData(prev => ({
+          ...prev,
+          contentFile: file,
+          contentFileUrl: fileUrl
+        }));
+        
+        console.log('✅ Fichier joint uploadé:', fileUrl);
+      } catch (error) {
+        console.error('❌ Erreur upload fichier joint:', error);
+        alert('Erreur lors de l\'upload du fichier joint');
+      }
+    }
+  };
+
   // Fonction séparée pour l'upload en arrière-plan
   const uploadImageInBackground = async (file: File, previewUrl: string) => {
     try {
       // Upload de l'image et récupération de l'URL permanente
       console.log('🚀 Upload vers le serveur...');
-      const permanentImageUrl = await uploadService.uploadLessonImage(file, formData.title || 'sans-titre');
+      const permanentImageUrl = await uploadService.uploadLessonCoverImage(file, formationTitle, formData.title);
       console.log('✅ Image uploadée avec succès, URL permanente:', permanentImageUrl);
       
       // Stocker l'URL permanente séparément, garder l'aperçu visible
@@ -157,8 +223,8 @@ const LessonModal: React.FC<LessonModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 lesson-modal-overlay flex items-center justify-center z-50">
+      <div className="lesson-modal-content bg-white rounded-xl shadow-2xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-4 rounded-t-xl">
           <div className="flex items-center justify-between">
@@ -179,68 +245,94 @@ const LessonModal: React.FC<LessonModalProps> = ({
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Titre et Description */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                Titre de la leçon *
-              </label>
-              <input
-                type="text"
-                id="title"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all"
-                placeholder="Ex: Introduction aux concepts de base"
-                required
-              />
+          {/* Titre et description */}
+          <div className="lesson-section">
+            <h3>Informations de base</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label htmlFor="title" className="lesson-label">
+                  Titre de la leçon
+                </label>
+                <input
+                  type="text"
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  className="lesson-input"
+                  placeholder="Titre de la leçon"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="order" className="lesson-label">
+                  Ordre d'affichage
+                </label>
+                <input
+                  type="number"
+                  id="order"
+                  value={formData.order}
+                  onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
+                  className="lesson-input"
+                  min="0"
+                  placeholder="0"
+                />
+              </div>
             </div>
-
+            
             <div>
-              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
-                Type de contenu *
+              <label htmlFor="description" className="lesson-label">
+                Description
               </label>
-              <select
-                id="type"
-                value={formData.type}
-                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all"
-              >
-                {lessonTypes.map(type => (
-                  <option key={type.value} value={type.value}>
-                    {type.icon} {type.label}
-                  </option>
-                ))}
-              </select>
+              <textarea
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                rows={3}
+                className="lesson-input resize-none"
+                placeholder="Description de la leçon..."
+              />
             </div>
           </div>
 
-          {/* Description */}
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
-              Description
-            </label>
-            <textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all resize-none"
-              placeholder="Description détaillée de la leçon..."
+          {/* Durée */}
+          <div className="lesson-section">
+            <h3>Durée de la leçon</h3>
+            
+            <LessonDuration
+              value={formData.duration}
+              onChange={(value) => setFormData({ ...formData, duration: value })}
             />
           </div>
 
+          {/* Objectifs d'apprentissage */}
+          <div className="lesson-section">
+            <h3>Objectifs d'apprentissage</h3>
+            
+            <textarea
+              id="learningObjectives"
+              value={formData.learningObjectives}
+              onChange={(e) => setFormData({ ...formData, learningObjectives: e.target.value })}
+              rows={3}
+              className="lesson-input resize-none"
+              placeholder="Ce que l'apprenant saura faire à la fin de cette leçon..."
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Décrivez les compétences et connaissances que l'apprenant acquerra
+            </p>
+          </div>
+
           {/* Image de couverture */}
-          <div>
-            <label htmlFor="coverImage" className="block text-sm font-medium text-gray-700 mb-2">
-              Image de couverture
-            </label>
-            <div className="space-y-3">
+          <div className="lesson-section">
+            <h3>Image de couverture</h3>
+            
+            <div className="space-y-4">
               {/* Aperçu de l'image actuelle */}
               {formData.coverImage && (
-                <div className="relative">
+                <div className="relative inline-block">
                   <img 
-                    src={formData.coverImage} 
+                    src={getLessonImageUrl(formData.coverImage)} 
                     alt="Aperçu de la couverture" 
                     className="w-32 h-20 object-cover rounded-lg border border-gray-300"
                   />
@@ -256,8 +348,8 @@ const LessonModal: React.FC<LessonModalProps> = ({
               )}
               
               {/* Upload d'image */}
-              <div className="flex space-x-3">
-                <div className="flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
                   <input
                     type="file"
                     id="coverImageFile"
@@ -266,12 +358,12 @@ const LessonModal: React.FC<LessonModalProps> = ({
                     accept="image/*"
                     disabled={isUploadingImage}
                   />
-                  <label htmlFor="coverImageFile" className={`cursor-pointer ${isUploadingImage ? 'opacity-50' : ''}`}>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-green-400 transition-colors">
+                  <label htmlFor="coverImageFile" className={`cursor-pointer block ${isUploadingImage ? 'opacity-50' : ''}`}>
+                    <div className="lesson-drag-zone">
                       {isUploadingImage ? (
                         <>
-                          <Loader2 className="h-8 w-8 text-green-600 mx-auto mb-2 animate-spin" />
-                          <p className="text-green-600 text-sm font-medium">
+                          <Loader2 className="h-8 w-8 text-blue-600 mx-auto mb-2 animate-spin" />
+                          <p className="text-blue-600 text-sm font-medium">
                             Upload en cours...
                           </p>
                         </>
@@ -279,7 +371,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                         <>
                           <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
                           <p className="text-gray-600 text-sm">
-                            <span className="text-green-600 font-medium">Cliquez pour sélectionner</span> une image
+                            <span className="text-blue-600 font-medium">Cliquez pour sélectionner</span> une image
                           </p>
                         </>
                       )}
@@ -290,14 +382,17 @@ const LessonModal: React.FC<LessonModalProps> = ({
                   </label>
                 </div>
                 
-                <div className="flex-1">
+                <div>
+                  <label htmlFor="coverImageUrl" className="lesson-label">
+                    Ou entrez une URL d'image
+                  </label>
                   <input
                     type="url"
                     id="coverImageUrl"
                     value={formData.coverImage}
                     onChange={handleCoverImageUrlChange}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all"
-                    placeholder="Ou entrez une URL d'image..."
+                    className="lesson-input"
+                    placeholder="https://exemple.com/image.jpg"
                   />
                   <p className="text-xs text-gray-500 mt-1">
                     URL directe vers l'image
@@ -307,76 +402,16 @@ const LessonModal: React.FC<LessonModalProps> = ({
             </div>
           </div>
 
-          {/* Objectifs d'apprentissage */}
-          <div>
-            <label htmlFor="learningObjectives" className="block text-sm font-medium text-gray-700 mb-2">
-              Objectifs d'apprentissage
-            </label>
-            <textarea
-              id="learningObjectives"
-              value={formData.learningObjectives}
-              onChange={(e) => setFormData({ ...formData, learningObjectives: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all resize-none"
-              placeholder="Ce que l'apprenant saura faire à la fin de cette leçon..."
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Décrivez les compétences et connaissances que l'apprenant acquerra
-            </p>
-          </div>
-
-          {/* Durée et Ordre */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-2">
-                Durée estimée (minutes)
-              </label>
-              <input
-                type="number"
-                id="duration"
-                value={formData.duration}
-                onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 0 })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all"
-                min="1"
-                max="480"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Durée estimée pour compléter cette leçon
-              </p>
-            </div>
-
-            <div>
-              <label htmlFor="order" className="block text-sm font-medium text-gray-700 mb-2">
-                Ordre d'affichage
-              </label>
-              <input
-                type="number"
-                id="order"
-                value={formData.order}
-                onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all"
-                min="0"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Position de la leçon dans la section
-              </p>
-            </div>
-          </div>
-
           {/* Contenu de la leçon */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">Contenu de la leçon</h3>
+          <div className="lesson-section">
+            <h3>Contenu de la leçon</h3>
             
             {/* Méthode d'upload */}
             <div className="flex space-x-4 mb-4">
               <button
                 type="button"
                 onClick={() => setUploadMethod('file')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  uploadMethod === 'file'
-                    ? 'bg-green-600 text-white shadow-md'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
+                className={`upload-method-btn ${uploadMethod === 'file' ? 'active' : ''}`}
               >
                 <Upload className="h-4 w-4 inline mr-2" />
                 Fichier
@@ -384,11 +419,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
               <button
                 type="button"
                 onClick={() => setUploadMethod('url')}
-                className={`px-4 py-2 rounded-lg font-medium transition-all ${
-                  uploadMethod === 'url'
-                    ? 'bg-green-600 text-white shadow-md'
-                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                }`}
+                className={`upload-method-btn ${uploadMethod === 'url' ? 'active' : ''}`}
               >
                 <Link className="h-4 w-4 inline mr-2" />
                 URL
@@ -398,24 +429,24 @@ const LessonModal: React.FC<LessonModalProps> = ({
             {/* Upload de fichier */}
             {uploadMethod === 'file' && (
               <div>
-                <label htmlFor="contentFile" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="contentFile" className="lesson-label">
                   Fichier de la leçon
                 </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-green-400 transition-colors">
+                <div className="lesson-drag-zone">
                   <input
                     type="file"
                     id="contentFile"
-                    onChange={handleFileChange}
+                    onChange={handleContentFileChange}
                     className="hidden"
                     accept=".pdf,.ppt,.pptx,.doc,.docx,.mp4,.avi,.mov"
                   />
                   <label htmlFor="contentFile" className="cursor-pointer">
                     <Upload className="h-12 w-12 text-gray-400 mx-auto mb-2" />
                     <p className="text-gray-600">
-                      <span className="text-green-600 font-medium">Cliquez pour sélectionner</span> ou glissez-déposez
+                      <span className="text-blue-600 font-medium">Cliquez pour sélectionner</span> ou glissez-déposez
                     </p>
                     <p className="text-xs text-gray-500 mt-1">
-                      PDF, PowerPoint, Word, Vidéo (max 100MB)
+                      PDF, PowerPoint, Word, Vidéo (max 50MB)
                     </p>
                   </label>
                 </div>
@@ -424,13 +455,18 @@ const LessonModal: React.FC<LessonModalProps> = ({
                     ✓ Fichier sélectionné: {formData.contentFile.name}
                   </p>
                 )}
+                {formData.contentFileUrl && (
+                  <p className="text-sm text-blue-600 mt-2">
+                    ✓ Fichier uploadé: <a href={formData.contentFileUrl} target="_blank" rel="noopener noreferrer" className="underline hover:text-blue-800">{formData.contentFileUrl.split('/').pop()}</a>
+                  </p>
+                )}
               </div>
             )}
 
             {/* URL */}
             {uploadMethod === 'url' && (
               <div>
-                <label htmlFor="contentUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                <label htmlFor="contentUrl" className="lesson-label">
                   URL du contenu
                 </label>
                 <input
@@ -438,7 +474,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
                   id="contentUrl"
                   value={formData.contentUrl}
                   onChange={(e) => setFormData({ ...formData, contentUrl: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-600 focus:border-transparent transition-all"
+                  className="lesson-input"
                   placeholder="https://example.com/content"
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -453,13 +489,13 @@ const LessonModal: React.FC<LessonModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              className="lesson-btn lesson-btn-secondary flex-1"
             >
               Annuler
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center space-x-2"
+              className="lesson-btn lesson-btn-primary flex-1 flex items-center justify-center space-x-2"
             >
               <Save className="h-4 w-4" />
               <span>{existingLesson ? 'Modifier' : 'Créer'}</span>

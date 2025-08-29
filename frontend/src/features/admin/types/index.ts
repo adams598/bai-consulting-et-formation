@@ -47,6 +47,7 @@ export interface Formation {
   totalDuration?: number;
   lessonCount?: number;
   bankCount?: number; // nombre de banques ayant accès
+  coverImage?: string;
 }
 
 export interface BankFormation {

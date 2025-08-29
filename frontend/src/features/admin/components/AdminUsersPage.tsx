@@ -350,19 +350,12 @@ export default function AdminUsersPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      {/* <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Gestion des Collaborateurs</h2>
           <p className="text-gray-600">Gérez les collaborateurs de votre plateforme</p>
         </div>
-        <Button
-          onClick={handleCreateUser}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Nouveau Collaborateur
-        </Button>
-      </div>
+      </div> */}
 
       {/* Filtres */}
       <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -583,6 +576,13 @@ export default function AdminUsersPage() {
               ))}
             </tbody>
           </table>
+          <Button
+          onClick={handleCreateUser}
+          className="bg-blue-400 hover:bg-blue-700 mb-2 ml-4"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          Ajouter
+        </Button>
         </div>
 
         {filteredUsers.length === 0 && (

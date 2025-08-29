@@ -45,14 +45,54 @@ class UploadService {
     }
   }
 
+
+
+  // Upload d'image de couverture pour les formations
+  async uploadFormationCoverImage(file: File, formationTitle: string): Promise<string> {
+    try {
+      console.log('🔍 uploadFormationCoverImage - Paramètres reçus:');
+      console.log('  - file:', file);
+      console.log('  - formationTitle:', formationTitle);
+      
+      const formData = new FormData();
+      formData.append('image', file);
+      // formData.append('formationTitle', formationTitle); // Supprimé car maintenant dans l'URL
+
+      // Debug: Vérifier le contenu du FormData
+      console.log('🔍 uploadFormationCoverImage - FormData créé:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`  - ${key}:`, value);
+      }
+
+      // Utiliser formationTitle dans l'URL
+      const sanitizedFormationTitle = formationTitle.replace(/[^a-zA-Z0-9_-]/g, "_").toLowerCase();
+      const response = await api.post<UploadResponse>(`/api/admin/upload/cover-image/${sanitizedFormationTitle}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data.success) {
+        console.log('✅ Image de couverture uploadée avec succès:', response.data.data);
+        return response.data.data;
+      } else {
+        throw new Error(response.data.message || 'Erreur lors de l\'upload');
+      }
+    } catch (error) {
+      console.error('❌ Erreur uploadFormationCoverImage:', error);
+      throw error;
+    }
+  }
+
   // Upload d'image de couverture pour les leçons
-  async uploadLessonImage(file: File, lessonTitle: string): Promise<string> {
+  async uploadLessonCoverImage(file: File, formationTitle: string, lessonTitle: string): Promise<string> {
     try {
       const formData = new FormData();
       formData.append('image', file);
+      formData.append('formationTitle', formationTitle);
       formData.append('lessonTitle', lessonTitle);
 
-      const response = await api.post<UploadResponse>('/api/admin/upload/lesson-image', formData, {
+      const response = await api.post<UploadResponse>('/api/admin/upload/lesson-cover-image', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
@@ -70,7 +110,7 @@ class UploadService {
         throw new Error(response.data.message || 'Erreur lors de l\'upload de l\'image de leçon');
       }
     } catch (error) {
-      console.error('❌ Erreur uploadLessonImage:', error);
+      console.error('❌ Erreur uploadLessonCoverImage:', error);
       throw error;
     }
   }
@@ -129,6 +169,36 @@ class UploadService {
       }
     } catch (error) {
       console.error('❌ Erreur uploadFile:', error);
+      throw error;
+    }
+  }
+
+  // Upload de fichier joint pour une leçon
+  async uploadLessonFile(file: File, formationTitle: string, lessonTitle: string): Promise<string> {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      // formationTitle et lessonTitle sont maintenant dans l'URL
+
+      const response = await api.post<UploadResponse>(`/api/admin/upload/lesson-file/${encodeURIComponent(formationTitle)}/${encodeURIComponent(lessonTitle)}`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data.success && response.data.data.fileUrl) {
+        // Solution temporaire : utiliser directement l'URL du backend
+        const fileUrl = response.data.data.fileUrl;
+        const backendUrl = 'http://localhost:3000';
+        const fullFileUrl = fileUrl.startsWith('/') ? `${backendUrl}${fileUrl}` : fileUrl;
+        
+        console.log('🔗 URL fichier de leçon générée:', fullFileUrl);
+        return fullFileUrl;
+      } else {
+        throw new Error(response.data.message || 'Erreur lors de l\'upload du fichier de leçon');
+      }
+    } catch (error) {
+      console.error('❌ Erreur uploadLessonFile:', error);
       throw error;
     }
   }

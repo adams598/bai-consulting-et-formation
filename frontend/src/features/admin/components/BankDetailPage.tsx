@@ -8,6 +8,7 @@ import AssignFormationModal from './AssignFormationModal';
 import AssignUsersModal from './AssignUsersModal';
 import UserAssignmentsList from './UserAssignmentsList';
 import CreateUserModal from './CreateUserModal';
+import { Plus, Users, BookOpen, BarChart3 } from 'lucide-react';
 
 const BankDetailPage: React.FC = () => {
   const { bankId } = useParams<{ bankId: string }>();
@@ -321,255 +322,126 @@ const BankDetailPage: React.FC = () => {
       </div>
 
       {/* Contenu des onglets */}
+      {/* Vue d'ensemble */}
       {activeTab === 'overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Statistiques</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Collaborateurs</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{users.length}</span>
+        <div className="space-y-6">
+          {/* Informations de la banque */}
+          <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Informations de la banque</h2>
+              <button
+                onClick={() => setShowFormationModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Assigner une formation
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">{bank?.name}</h3>
+                <p className="text-gray-600">Code: {bank?.code}</p>
+                <p className="text-gray-600">Statut: {bank?.isActive ? 'Active' : 'Inactive'}</p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Formations assignées</span>
-                <span className="font-semibold text-gray-900 dark:text-white">{bankFormations.length}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Formations obligatoires</span>
-                <span className="font-semibold text-gray-900 dark:text-white">
-                  {bankFormations.filter(bf => bf.isMandatory).length}
-                </span>
+              <div>
+                <p className="text-gray-600">Utilisateurs: {users.length}</p>
+                <p className="text-gray-600">Formations: {bankFormations.length}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Informations</h3>
-            <div className="space-y-3">
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Code</span>
-                <span className="font-mono text-gray-900 dark:text-white">{bank.code}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Créée le</span>
-                <span className="text-gray-900 dark:text-white">
-                  {new Date(bank.createdAt).toLocaleDateString('fr-FR')}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Dernière mise à jour</span>
-                <span className="text-gray-900 dark:text-white">
-                  {new Date(bank.updatedAt).toLocaleDateString('fr-FR')}
-                </span>
+          {/* Statistiques */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <Users className="h-8 w-8 text-blue-600 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-500">Total utilisateurs</p>
+                  <p className="text-2xl font-bold text-gray-900">{users.length}</p>
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Actions rapides</h3>
-            <div className="space-y-3">
-              <button
-                onClick={() => setActiveTab('users')}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
-              >
-                Gérer les collaborateurs
-              </button>
-              <button
-                onClick={() => setActiveTab('formations')}
-                className="w-full bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
-              >
-                Gérer les formations
-              </button>
+            
+            <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <BookOpen className="h-8 w-8 text-green-600 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-500">Formations assignées</p>
+                  <p className="text-2xl font-bold text-gray-900">{bankFormations.length}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
+              <div className="flex items-center">
+                <BarChart3 className="h-8 w-8 text-purple-600 mr-3" />
+                <div>
+                  <p className="text-sm text-gray-500">Taux d'activité</p>
+                  <p className="text-2xl font-bold text-gray-900">85%</p>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* Gestion des utilisateurs */}
       {activeTab === 'users' && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Collaborateurs</h2>
-            <button
-              onClick={() => setShowCreateUserModal(true)}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors"
-            >
-              Nouveau collaborateur
-            </button>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Nom
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Département
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Statut
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {users.map((user) => (
-                  <tr key={user.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center">
-                        <div className="flex-shrink-0 h-10 w-10">
-                          {user.avatar ? (
-                            <img className="h-10 w-10 rounded-full" src={user.avatar} alt="" />
-                          ) : (
-                            <div className="h-10 w-10 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-                              <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                                {user.firstName.charAt(0)}{user.lastName.charAt(0)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        <div className="ml-4">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {user.firstName} {user.lastName}
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                      {user.email}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                      {user.department || 'Non défini'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        user.isActive
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                      }`}>
-                        {user.isActive ? 'Actif' : 'Inactif'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300">
-                        Modifier
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Utilisateurs de la banque</h2>
+              <button
+                onClick={() => setShowCreateUserModal(true)}
+                className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Créer un utilisateur
+              </button>
+            </div>
+            
+            <UserAssignmentsList 
+              users={users}
+              onAssignFormation={() => setShowUserAssignmentModal(true)}
+            />
           </div>
         </div>
       )}
 
+      {/* Gestion des formations */}
       {activeTab === 'formations' && (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Formations assignées</h2>
-            <button
-              onClick={() => setShowFormationModal(true)}
-              className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md transition-colors"
-            >
-              Assigner des formations
-            </button>
-          </div>
-
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-              <thead className="bg-gray-50 dark:bg-gray-700">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Formation
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Description
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Durée
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Obligatoire
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Utilisateurs assignés
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {bankFormations.map((bankFormation) => (
-                  <React.Fragment key={bankFormation.id}>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900 dark:text-white">
-                          {bankFormation.formation?.title}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {bankFormation.formation?.description}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {bankFormation.formation?.duration} min
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <button
-                          onClick={() => handleToggleFormationMandatory(bankFormation.id, !bankFormation.isMandatory)}
-                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full cursor-pointer ${
-                            bankFormation.isMandatory
-                              ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
-                              : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          }`}>
-                          {bankFormation.isMandatory ? 'Obligatoire' : 'Optionnelle'}
-                        </button>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {bankFormation.userAssignments?.length || 0} utilisateur(s)
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedFormation(bankFormation);
-                            setShowUserAssignmentModal(true);
-                          }}
-                          className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                        >
-                          Assigner des utilisateurs
-                        </button>
-                        <button
-                          onClick={() => handleRemoveFormation(bankFormation.id)}
-                          className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                        >
-                          Retirer
-                        </button>
-                      </td>
-                    </tr>
-                    {/* Ligne d'assignations utilisateurs */}
-                    {bankFormation.userAssignments && bankFormation.userAssignments.length > 0 && (
-                      <tr>
-                        <td colSpan={6} className="px-6 py-2 bg-gray-50 dark:bg-gray-700">
-                          <div className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-                            <strong>Utilisateurs assignés ({bankFormation.userAssignments.length})</strong>
-                          </div>
-                          <UserAssignmentsList
-                            bankFormationId={bankFormation.id}
-                            onUpdate={loadBankDetails}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
+          <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">Formations assignées</h2>
+              <button
+                onClick={() => setShowFormationModal(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Assigner une formation
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              {bankFormations.map((bankFormation) => (
+                <div key={bankFormation.id} className="border border-gray-200 rounded-lg p-4 bg-white">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-medium text-gray-900">{bankFormation.formation?.title}</h3>
+                      <p className="text-sm text-gray-600">{bankFormation.formation?.description}</p>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveFormation(bankFormation.id)}
+                      className="text-red-600 hover:text-red-800 transition-colors"
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}

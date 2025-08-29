@@ -13,9 +13,19 @@ const api = axios.create({
 // Intercepteur pour ajouter le token d'authentification
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('accessToken');
+    // Essayer d'abord la clé utilisée par AuthProvider
+    let token = localStorage.getItem('bai_auth_token');
+    
+    // Fallback vers la clé utilisée par authService
+    if (!token) {
+      token = localStorage.getItem('accessToken');
+    }
+    
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('🔑 Token envoyé dans la requête:', config.url);
+    } else {
+      console.warn('⚠️ Aucun token trouvé pour la requête:', config.url);
     }
     return config;
   },

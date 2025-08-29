@@ -16,6 +16,8 @@ import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Textarea } from '../../../components/ui/textarea';
 import { useToast } from '../../../components/ui/use-toast';
+import { getFormationCoverImageUrl } from '../../../utils/imageUtils';
+import { imageUploadService } from '../../../services/imageUploadService';
 
 interface FormationModalProps {
   formation?: Formation | null;
@@ -33,9 +35,12 @@ export const FormationModal: React.FC<FormationModalProps> = ({
     description: '',
     isActive: true,
     hasQuiz: false,
-    quizRequired: true
+    quizRequired: true,
+    coverImage: ''
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   
   const { toast } = useToast();
 
@@ -43,13 +48,26 @@ export const FormationModal: React.FC<FormationModalProps> = ({
 
   useEffect(() => {
     if (formation) {
+      // Mode édition : charger les données de la formation existante
       setFormData({
         title: formation.title,
         description: formation.description,
         isActive: formation.isActive,
         hasQuiz: formation.hasQuiz || false,
-        quizRequired: formation.quizRequired !== undefined ? formation.quizRequired : true
+        quizRequired: formation.quizRequired !== undefined ? formation.quizRequired : true,
+        coverImage: formation.coverImage || ''
       });
+    } else {
+      // Mode création : réinitialiser complètement l'état
+      setFormData({
+        title: '',
+        description: '',
+        isActive: true,
+        hasQuiz: false,
+        quizRequired: true,
+        coverImage: ''
+      });
+      setCoverImageFile(null);
     }
   }, [formation]);
 
@@ -60,23 +78,125 @@ export const FormationModal: React.FC<FormationModalProps> = ({
     }));
   };
 
+  const handleCoverImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Vérifier que le titre est saisi avant de permettre l'upload
+      if (!formData.title || formData.title.trim() === '') {
+        toast({
+          title: "Attention",
+          description: "Veuillez d'abord saisir le titre de la formation",
+          variant: "destructive",
+        });
+        e.target.value = ''; // Réinitialiser l'input
+        return;
+      }
+      
+      console.log('🔍 handleCoverImageChange - Titre de la formation:', formData.title);
+      
+      setCoverImageFile(file);
+      // Créer une URL temporaire pour l'aperçu
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setFormData(prev => ({
+          ...prev,
+          coverImage: e.target?.result as string
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const uploadCoverImage = async (file: File): Promise<string> => {
+    try {
+      // Vérifier que le titre est présent
+      if (!formData.title || formData.title.trim() === '') {
+        throw new Error('Le titre de la formation est requis avant l\'upload de l\'image');
+      }
+      
+      console.log('🔍 uploadCoverImage - Titre de la formation:', formData.title);
+      
+      // Utiliser le service d'upload avec le titre de la formation
+      const imageUrl = await imageUploadService.uploadFormationCoverImage(file, formData.title);
+      return imageUrl;
+    } catch (error) {
+      console.error('Erreur upload image:', error);
+      throw error;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
+      let finalFormData = { ...formData };
+      let createdFormationId: string | null = null;
+      
+      // Créer ou mettre à jour la formation d'abord
       if (isEditing && formation) {
-        await formationsApi.updateFormation(formation.id, formData);
+        // Mode édition : upload de l'image avant la mise à jour
+        if (coverImageFile) {
+          setIsUploadingImage(true);
+          try {
+            const imageUrl = await uploadCoverImage(coverImageFile);
+            finalFormData.coverImage = imageUrl;
+          } catch (error) {
+            toast({
+              title: "Erreur",
+              description: "Erreur lors de l'upload de l'image de couverture",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            setIsUploadingImage(false);
+            return;
+          } finally {
+            setIsUploadingImage(false);
+          }
+        }
+        
+        await formationsApi.updateFormation(formation.id, finalFormData);
         toast({
           title: "Succès",
           description: "Formation mise à jour avec succès",
         });
       } else {
-        await formationsApi.createFormation(formData);
-        toast({
-          title: "Succès",
-          description: "Formation créée avec succès",
-        });
+        // Mode création : créer la formation d'abord, puis uploader l'image
+        const newFormation = await formationsApi.createFormation(finalFormData);
+        createdFormationId = newFormation.id;
+        
+        // Upload de l'image de couverture après la création
+        if (coverImageFile) {
+          setIsUploadingImage(true);
+          try {
+            const imageUrl = await uploadCoverImage(coverImageFile);
+            
+            // Mettre à jour la formation avec l'image de couverture
+            await formationsApi.updateFormation(createdFormationId, {
+              ...finalFormData,
+              coverImage: imageUrl
+            });
+            
+            toast({
+              title: "Succès",
+              description: "Formation créée avec succès et image uploadée",
+            });
+          } catch (error) {
+            console.error('Erreur upload image après création:', error);
+            toast({
+              title: "Attention",
+              description: "Formation créée mais erreur lors de l'upload de l'image",
+              variant: "destructive",
+            });
+          } finally {
+            setIsUploadingImage(false);
+          }
+        } else {
+          toast({
+            title: "Succès",
+            description: "Formation créée avec succès",
+          });
+        }
       }
       
       onSave();
@@ -132,6 +252,51 @@ export const FormationModal: React.FC<FormationModalProps> = ({
               placeholder="Description de la formation"
               rows={3}
             />
+          </div>
+
+          {/* Image de couverture */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Image de couverture
+            </label>
+            <div className="space-y-3">
+              {/* Aperçu de l'image actuelle */}
+              {formData.coverImage && (
+                <div className="relative">
+                  <img
+                    src={getFormationCoverImageUrl(formData.coverImage)}
+                    alt="Aperçu de la couverture"
+                    className="w-32 h-24 object-cover rounded-lg border"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData(prev => ({ ...prev, coverImage: '' }));
+                      setCoverImageFile(null);
+                    }}
+                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+              
+              {/* Upload de nouvelle image */}
+              <div className="flex items-center space-x-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCoverImageChange}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+                {isUploadingImage && (
+                  <div className="text-sm text-blue-600">Upload en cours...</div>
+                )}
+              </div>
+              <p className="text-xs text-gray-500">
+                Formats acceptés : JPG, PNG, GIF. Taille recommandée : 800x600px
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

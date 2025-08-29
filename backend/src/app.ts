@@ -12,41 +12,161 @@ const app = express();
 const prisma = new PrismaClient();
 
 // Middleware de base
-app.use(cors()); // CORS
+app.use(cors({
+  origin: true, // Permettre toutes les origines pour les images
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With']
+})); // CORS
 app.use(morgan('dev')); // Logging
 app.use(express.json({ limit: '10mb' })); // Parse JSON avec limite
+app.use(express.urlencoded({ extended: true, limit: '10mb' })); // Parse FormData avec limite
 
 // Servir les fichiers statiques (images uploadées) AVANT Helmet
 const uploadsPath = path.resolve(__dirname, '..', 'uploads');
-console.log('📁 Chemin des uploads:', uploadsPath);
 app.use('/uploads', express.static(uploadsPath));
 
-// Configuration Helmet APRÈS les fichiers statiques
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://res.cloudinary.com"],
-      imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "/uploads/"],
-      mediaSrc: ["'self'", "https://res.cloudinary.com"],
-      connectSrc: ["'self'"],
-      frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: []
-    }
-  },
-  hsts: {
-    maxAge: 31536000,
-    includeSubDomains: true,
-    preload: true
-  },
-  noSniff: true,
-  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
-  frameguard: { action: 'deny' },
-  xssFilter: true
-}));
+// Configuration Helmet APRÈS les fichiers statiques (temporairement désactivé pour tester)
+// app.use(helmet({
+//   contentSecurityPolicy: {
+//     directives: {
+//       defaultSrc: ["'self'"],
+//       scriptSrc: ["'self'", "'unsafe-inline'"],
+//       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+//       fontSrc: ["'self'", "https://res.cloudinary.com"],
+//       imgSrc: ["'self'", "data:", "https://res.cloudinary.com", "http://localhost:3000", "http://localhost:3001", "blob:", "*"],
+//       mediaSrc: ["'self'", "https://res.cloudinary.com"],
+//       connectSrc: ["'self'"],
+//       frameSrc: ["'none'"],
+//       objectSrc: ["'none'"],
+//       upgradeInsecureRequests: []
+//     }
+//   },
+//   hsts: {
+//     maxAge: 31536000,
+//     includeSubDomains: true,
+//     preload: true
+//   },
+//   noSniff: true,
+//   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+//   frameguard: { action: 'deny' },
+//   xssFilter: true
+// }));
+
+// Route API pour servir les images (solution qui fonctionne)
+app.get('/api/images/:type/:userFolder/:filename(*)', (req, res) => {
+  const { type, userFolder, filename } = req.params;
+  const imagePath = path.join(__dirname, '..', 'uploads', type, userFolder, filename);
+  
+  console.log('🔍 Route /api/images appelée:');
+  console.log('  - type:', type);
+  console.log('  - userFolder:', userFolder);
+  console.log('  - filename:', filename);
+  console.log('  - imagePath:', imagePath);
+  console.log('  - exists:', require('fs').existsSync(imagePath));
+  
+  // Ajouter les en-têtes CORS explicites
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Cache-Control', 'public, max-age=31536000');
+  
+  if (require('fs').existsSync(imagePath)) {
+    // Déterminer le type MIME basé sur l'extension
+    const ext = require('path').extname(filename).toLowerCase();
+    let mimeType = 'image/jpeg'; // par défaut
+    
+    if (ext === '.png') mimeType = 'image/png';
+    else if (ext === '.gif') mimeType = 'image/gif';
+    else if (ext === '.webp') mimeType = 'image/webp';
+    
+    res.setHeader('Content-Type', mimeType);
+    res.sendFile(imagePath);
+  } else {
+    res.status(404).json({ error: 'Image non trouvée', path: imagePath });
+  }
+});
+
+// Route API spécifique pour les formations et leurs leçons
+app.get('/api/formations/:formationTitle/lessons/:lessonTitle/:filename', (req, res) => {
+  const { formationTitle, lessonTitle, filename } = req.params;
+  const imagePath = path.join(__dirname, '..', 'uploads', 'formations', formationTitle, 'lessons', lessonTitle, filename);
+  
+  console.log('🔍 Route /api/formations/lessons appelée:');
+  console.log('  - formationTitle:', formationTitle);
+  console.log('  - lessonTitle:', lessonTitle);
+  console.log('  - filename:', filename);
+  console.log('  - imagePath:', imagePath);
+  console.log('  - exists:', require('fs').existsSync(imagePath));
+  
+  // Ajouter les en-têtes CORS explicites
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Cache-Control', 'public, max-age=31536000');
+  
+  if (require('fs').existsSync(imagePath)) {
+    // Déterminer le type MIME basé sur l'extension
+    const ext = require('path').extname(filename).toLowerCase();
+    let mimeType = 'image/jpeg'; // par défaut
+    
+    if (ext === '.png') mimeType = 'image/png';
+    else if (ext === '.gif') mimeType = 'image/gif';
+    else if (ext === '.webp') mimeType = 'image/webp';
+    
+    res.setHeader('Content-Type', mimeType);
+    res.sendFile(imagePath);
+  } else {
+    res.status(404).json({ error: 'Image non trouvée', path: imagePath });
+  }
+});
+
+// Route API spécifique pour les images de couverture de formation
+app.options('/api/formations/:formationTitle/:filename', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.status(200).end();
+});
+
+app.get('/api/formations/:formationTitle/:filename', (req, res) => {
+  const { formationTitle, filename } = req.params;
+  const imagePath = path.join(__dirname, '..', 'uploads', 'formations', formationTitle, filename);
+  
+  console.log('🔍 Route /api/formations couverture appelée:');
+  console.log('  - formationTitle:', formationTitle);
+  console.log('  - filename:', filename);
+  console.log('  - imagePath:', imagePath);
+  console.log('  - exists:', require('fs').existsSync(imagePath));
+  
+  // Ajouter les en-têtes CORS explicites et permissifs
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', '*');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Cache-Control', 'public, max-age=31536000');
+  
+  // Gérer la requête OPTIONS (preflight CORS)
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
+  if (require('fs').existsSync(imagePath)) {
+    // Déterminer le type MIME basé sur l'extension
+    const ext = require('path').extname(filename).toLowerCase();
+    let mimeType = 'image/jpeg'; // par défaut
+    
+    if (ext === '.png') mimeType = 'image/png';
+    else if (ext === '.gif') mimeType = 'image/gif';
+    else if (ext === '.webp') mimeType = 'image/webp';
+    
+    res.setHeader('Content-Type', mimeType);
+    res.sendFile(imagePath);
+  } else {
+    res.status(404).json({ error: 'Image non trouvée', path: imagePath });
+  }
+});
 
 // Routes
 app.use('/api/learner', learnerRoutes);

@@ -5,53 +5,242 @@ import fs from "fs";
 // Configuration du stockage avec dossiers dynamiques
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    console.log("🔍 Multer destination - DEBUT");
+    console.log("🔍 Multer destination - req.uploadType:", req.uploadType);
+    console.log("🔍 Multer destination - req.params:", req.params);
+    console.log("🔍 Multer destination - req.body:", req.body);
+    console.log("🔍 Multer destination - file:", file.originalname);
+
     // Récupérer l'utilisateur depuis le token JWT
     const user = req.user;
+    console.log("🔍 Multer destination - user:", user);
 
     if (!user) {
       return cb(new Error("Utilisateur non authentifié"), null);
     }
 
-    // Déterminer le type de contenu (image ou vidéo)
-    const isImage = file.mimetype.startsWith("image/");
-    const isVideo = file.mimetype.startsWith("video/");
-
-    let contentType = "images"; // Par défaut
-    if (isVideo) {
-      contentType = "videos";
-    } else if (!isImage) {
-      return cb(new Error("Type de fichier non supporté"), null);
-    }
-
-    // Créer le chemin du dossier utilisateur
-    const userFolderName = `${user.firstName}_${user.lastName}`.replace(
-      /[^a-zA-Z0-9_-]/g,
-      "_"
+    console.log("🔍 Multer destination - APRÈS VÉRIFICATION USER");
+    console.log("🔍 Multer destination - req.uploadType:", req.uploadType);
+    console.log(
+      "🔍 Multer destination - req.uploadType === 'lesson-file':",
+      req.uploadType === "lesson-file"
+    );
+    console.log(
+      "🔍 Multer destination - req.uploadType === 'lesson-cover':",
+      req.uploadType === "lesson-cover"
+    );
+    console.log(
+      "🔍 Multer destination - req.body keys:",
+      Object.keys(req.body)
+    );
+    console.log(
+      "🔍 Multer destination - req.body.formationTitle:",
+      req.body.formationTitle
+    );
+    console.log(
+      "🔍 Multer destination - req.body.lessonTitle:",
+      req.body.lessonTitle
+    );
+    console.log(
+      "🔍 Multer destination - Type de req.uploadType:",
+      typeof req.uploadType
+    );
+    console.log(
+      "🔍 Multer destination - Longueur de req.uploadType:",
+      req.uploadType ? req.uploadType.length : "undefined"
+    );
+    console.log(
+      "🔍 Multer destination - req.uploadType === 'lesson-file' (string):",
+      req.uploadType === "lesson-file"
+    );
+    console.log(
+      "🔍 Multer destination - req.uploadType === 'lesson-file' (charCode):",
+      req.uploadType === "lesson-file"
+    );
+    console.log(
+      "🔍 Multer destination - req.uploadType charCodeAt(0):",
+      req.uploadType ? req.uploadType.charCodeAt(0) : "undefined"
+    );
+    console.log(
+      "🔍 Multer destination - 'lesson-file' charCodeAt(0):",
+      "lesson-file".charCodeAt(0)
+    );
+    console.log("🔍 Multer destination - AVANT LA CONDITION IF");
+    console.log(
+      "🔍 Multer destination - req.uploadType === 'profile':",
+      req.uploadType === "profile"
+    );
+    console.log(
+      "🔍 Multer destination - req.uploadType === 'lesson-cover' || req.uploadType === 'lesson-file':",
+      req.uploadType === "lesson-cover" || req.uploadType === "lesson-file"
     );
 
-    // Nouvelle arborescence organisée par type de contenu
+    // Déclarer uploadPath au bon endroit
     let uploadPath;
+
     if (req.uploadType === "profile") {
       // Images de profil : uploads/profiles/{user}/
       uploadPath = path.join("uploads", "profiles", userFolderName);
-    } else if (req.uploadType === "lesson") {
-      // Images de couverture des leçons : uploads/lessons/{user}/
-      uploadPath = path.join("uploads", "lessons", userFolderName);
+    } else if (
+      req.uploadType === "lesson-cover" ||
+      req.uploadType === "lesson-file"
+    ) {
+      // Images de couverture ET fichiers joints des leçons : uploads/formations/{formation}/lessons/{lesson}/
+      console.log("🔍 Middleware lesson - DEBUT - Type:", req.uploadType);
+
+      if (req.uploadType === "lesson-cover") {
+        // Pour lesson-cover, utiliser req.body
+        console.log("🔍 Middleware lesson-cover - req.body:", req.body);
+        console.log(
+          "🔍 Middleware lesson-cover - formationTitle reçu:",
+          req.body.formationTitle
+        );
+        console.log(
+          "🔍 Middleware lesson-cover - lessonTitle reçu:",
+          req.body.lessonTitle
+        );
+
+        if (!req.body.formationTitle || !req.body.lessonTitle) {
+          console.error(
+            "❌ ERREUR: formationTitle ou lessonTitle manquant dans req.body"
+          );
+          return cb(
+            new Error(
+              "Le titre de la formation et de la leçon sont requis pour l'upload"
+            ),
+            null
+          );
+        }
+
+        const formationTitle = req.body.formationTitle;
+        const lessonTitle = req.body.lessonTitle;
+        const sanitizedFormationTitle = formationTitle
+          .replace(/[^a-zA-Z0-9_-]/g, "_")
+          .toLowerCase();
+        const sanitizedLessonTitle = lessonTitle
+          .replace(/[^a-zA-Z0-9_-]/g, "_")
+          .toLowerCase();
+
+        console.log("🔍 Middleware lesson-cover - Titres sanitizés:");
+        console.log("  - formationTitle:", sanitizedFormationTitle);
+        console.log("  - lessonTitle:", sanitizedLessonTitle);
+
+        uploadPath = path.join(
+          "uploads",
+          "formations",
+          sanitizedFormationTitle,
+          "lessons",
+          sanitizedLessonTitle
+        );
+
+        console.log(
+          "🔍 Middleware lesson-cover - uploadPath final:",
+          uploadPath
+        );
+        console.log("🔍 Middleware lesson-cover - FIN");
+      } else if (req.uploadType === "lesson-file") {
+        // Pour lesson-file, utiliser req.params (car req.body n'est pas encore disponible)
+        console.log("🔍 Middleware lesson-file - req.params:", req.params);
+        console.log(
+          "🔍 Middleware lesson-file - formationTitle reçu:",
+          req.params.formationTitle
+        );
+        console.log(
+          "🔍 Middleware lesson-file - lessonTitle reçu:",
+          req.params.lessonTitle
+        );
+
+        if (!req.params.formationTitle || !req.params.lessonTitle) {
+          console.error(
+            "❌ ERREUR: formationTitle ou lessonTitle manquant dans req.params"
+          );
+          console.error("❌ formationTitle:", req.params.formationTitle);
+          console.error("❌ lessonTitle:", req.params.lessonTitle);
+          return cb(
+            new Error(
+              "Le titre de la formation et de la leçon sont requis pour l'upload"
+            ),
+            null
+          );
+        }
+
+        const formationTitle = req.params.formationTitle;
+        const lessonTitle = req.params.lessonTitle;
+        console.log(
+          "🔍 Middleware lesson-file - formationTitle:",
+          formationTitle
+        );
+        console.log("🔍 Middleware lesson-file - lessonTitle:", lessonTitle);
+
+        const sanitizedFormationTitle = formationTitle
+          .replace(/[^a-zA-Z0-9_-]/g, "_")
+          .toLowerCase();
+        const sanitizedLessonTitle = lessonTitle
+          .replace(/[^a-zA-Z0-9_-]/g, "_")
+          .toLowerCase();
+
+        console.log("🔍 Middleware lesson-file - Titres sanitizés:");
+        console.log("  - formationTitle:", sanitizedFormationTitle);
+        console.log("  - lessonTitle:", sanitizedLessonTitle);
+
+        uploadPath = path.join(
+          "uploads",
+          "formations",
+          sanitizedFormationTitle,
+          "lessons",
+          sanitizedLessonTitle
+        );
+
+        console.log(
+          "🔍 Middleware lesson-file - uploadPath final:",
+          uploadPath
+        );
+        console.log("🔍 Middleware lesson-file - FIN");
+      }
     } else if (req.uploadType === "formation") {
-      // Images des formations : uploads/formations/{user}/
-      uploadPath = path.join("uploads", "formations", userFolderName);
+      console.log("🔍 Middleware formation - req.params:", req.params);
+      console.log(
+        "🔍 Middleware formation - formationTitle reçu (from params):",
+        req.params.formationTitle
+      );
+
+      if (!req.params.formationTitle) {
+        console.error("❌ ERREUR: formationTitle manquant dans req.params");
+        return cb(
+          new Error(
+            "Le titre de la formation est requis dans l'URL pour l'upload"
+          ),
+          null
+        );
+      }
+
+      const formationTitle = req.params.formationTitle;
+      const sanitizedFormationTitle = formationTitle
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .toLowerCase();
+
+      console.log(
+        "🔍 Middleware formation - Titre sanitizé:",
+        sanitizedFormationTitle
+      );
+
+      uploadPath = path.join("uploads", "formations", sanitizedFormationTitle);
+      console.log("🔍 Middleware formation - uploadPath final:", uploadPath);
     } else {
       // Images génériques : uploads/images/{user}/
       uploadPath = path.join("uploads", contentType, userFolderName);
     }
 
-    // Créer le dossier s'il n'existe pas
+    // Créer le dossier s'il n'existe pas (pour tous les types)
     if (!fs.existsSync(uploadPath)) {
       fs.mkdirSync(uploadPath, { recursive: true });
       console.log(`📁 Dossier créé: ${uploadPath}`);
     }
 
+    console.log("🔍 Multer destination - FIN - uploadPath:", uploadPath);
+    console.log("🔍 Multer destination - Appel de cb(null, uploadPath)");
     cb(null, uploadPath);
+    console.log("🔍 Multer destination - Après cb()");
   },
 
   filename: (req, file, cb) => {
@@ -76,16 +265,15 @@ const storage = multer.diskStorage({
       if (req.uploadType === "profile") {
         // Images de profil : profil-{user}-{timestamp}.{ext}
         filename = `profil-${userFolderName}-${timestamp}${extension}`;
-      } else if (req.uploadType === "lesson") {
-        // Images de couverture des leçons : couverture-{titre_lecon}-{timestamp}.{ext}
-        const lessonTitle = req.lessonTitle || "sans-titre";
-        const sanitizedTitle = lessonTitle
-          .replace(/[^a-zA-Z0-9_-]/g, "_")
-          .toLowerCase();
-        filename = `couverture-${sanitizedTitle}-${timestamp}${extension}`;
+      } else if (req.uploadType === "lesson-cover") {
+        // Images de couverture des leçons : couverture-{timestamp}.{ext}
+        filename = `couverture-${timestamp}${extension}`;
+      } else if (req.uploadType === "lesson-file") {
+        // Fichiers joints des leçons : conserver le nom original
+        filename = file.originalname;
       } else if (req.uploadType === "formation") {
-        // Images des formations : formation-{user}-{timestamp}.{ext}
-        filename = `formation-${userFolderName}-${timestamp}${extension}`;
+        // Images des formations : couverture-{timestamp}.{ext}
+        filename = `couverture-${timestamp}${extension}`;
       } else {
         // Images génériques : image-{user}-{timestamp}.{ext}
         filename = `image-${userFolderName}-${timestamp}${extension}`;
@@ -152,6 +340,20 @@ const fileFilter = (req, file, cb) => {
   );
 };
 
+// Filtre spécial pour les fichiers de leçons (autorise tous les types)
+const lessonFileFilter = (req, file, cb) => {
+  console.log("�� lessonFileFilter - DEBUT");
+  console.log("🔍 lessonFileFilter - Type de fichier:", file.mimetype);
+  console.log("🔍 lessonFileFilter - Nom du fichier:", file.originalname);
+  console.log("🔍 lessonFileFilter - Taille du fichier:", file.size);
+  console.log("🔍 lessonFileFilter - Appel de cb(null, true)");
+
+  // Pour lesson-file, on autorise tous les types de fichiers
+  cb(null, true);
+
+  console.log("🔍 lessonFileFilter - Après cb()");
+};
+
 // Configuration de Multer avec middleware pour définir le type d'upload
 const createUploadMiddleware = (uploadType) => {
   return (req, res, next) => {
@@ -160,20 +362,34 @@ const createUploadMiddleware = (uploadType) => {
   };
 };
 
-// Middleware spécialisé pour les images de leçons avec titre
-const createLessonUploadMiddleware = () => {
+// Middleware spécialisé pour les images de couverture de leçons
+export const createLessonCoverUploadMiddleware = () => {
   return (req, res, next) => {
-    req.uploadType = "lesson";
-
-    // Récupérer le titre de la leçon depuis le body ou les query params
-    const lessonTitle =
-      req.body.lessonTitle ||
-      req.query.lessonTitle ||
-      req.headers["x-lesson-title"];
-    req.lessonTitle = lessonTitle;
-
-    console.log(`📚 Upload d'image pour la leçon: "${lessonTitle}"`);
+    req.uploadType = "lesson-cover";
     next();
+  };
+};
+
+// Middleware spécialisé pour les fichiers joints de leçons
+export const createLessonFileUploadMiddleware = () => {
+  return (req, res, next) => {
+    console.log("🔍 createLessonFileUploadMiddleware - DEBUT");
+    console.log("🔍 createLessonFileUploadMiddleware - req.body:", req.body);
+    console.log(
+      "🔍 createLessonFileUploadMiddleware - req.params:",
+      req.params
+    );
+    console.log(
+      "🔍 createLessonFileUploadMiddleware - req.uploadType sera défini à 'lesson-file'"
+    );
+    req.uploadType = "lesson-file";
+    console.log(
+      "🔍 createLessonFileUploadMiddleware - req.uploadType défini:",
+      req.uploadType
+    );
+    console.log("🔍 createLessonFileUploadMiddleware - Appel de next()");
+    next();
+    console.log("🔍 createLessonFileUploadMiddleware - Après next()");
   };
 };
 
@@ -188,7 +404,7 @@ export const uploadSingleImage = multer({
 
 export const uploadSingleVideo = multer({
   storage: storage,
-  fileFilter: fileFilter,
+  fileFilter: lessonFileFilter, // Utiliser le filtre spécial pour lesson-file
   limits: {
     fileSize: 100 * 1024 * 1024, // 100MB pour les vidéos
   },
@@ -196,7 +412,7 @@ export const uploadSingleVideo = multer({
 
 export const uploadSingleFile = multer({
   storage: storage,
-  fileFilter: fileFilter,
+  fileFilter: lessonFileFilter, // Utiliser le filtre spécial pour lesson-file
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB pour les autres fichiers
   },
@@ -207,12 +423,19 @@ export const uploadProfileImage = [
   createUploadMiddleware("profile"),
   uploadSingleImage,
 ];
-export const uploadLessonImage = [
-  createLessonUploadMiddleware(),
-  uploadSingleImage,
-];
+
 export const uploadFormationImage = [
   createUploadMiddleware("formation"),
+  uploadSingleImage,
+];
+
+export const uploadLessonFile = [
+  createLessonFileUploadMiddleware(),
+  uploadSingleFile,
+];
+
+export const uploadLessonCoverImage = [
+  createLessonCoverUploadMiddleware(),
   uploadSingleImage,
 ];
 

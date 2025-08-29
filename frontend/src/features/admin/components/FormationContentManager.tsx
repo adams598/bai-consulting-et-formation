@@ -8,6 +8,7 @@ import ConfirmModal from './ConfirmModal';
 import LessonPreview from './LessonPreview';
 import LessonSelectionManager from './LessonSelectionManager';
 import { toast } from '../../../components/ui/use-toast';
+import { getLessonImageUrl } from '../../../utils/imageUtils';
 
 interface FormationContentManagerProps {
   formation: Formation;
@@ -209,11 +210,11 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
   const getContentIcon = (type: string) => {
     switch (type) {
       case 'PRESENTATION':
-        return <FileText className="h-5 w-5 text-brand-blue" />;
+        return <FileText className="h-5 w-5 text-blue-600" />;
       case 'VIDEO':
         return <Video className="h-5 w-5 text-green-600" />;
       case 'DOCUMENT':
-        return <FileText className="h-5 w-5 text-brand-beige" />;
+        return <FileText className="h-5 w-5 text-blue-700" />;
       case 'INTERACTIVE':
         return <Image className="h-5 w-5 text-purple-600" />;
       default:
@@ -256,28 +257,28 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-blue"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header avec la charte graphique */}
-      <div className="bg-brand-blue text-white">
+    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50">
+      {/* Header avec style uniforme */}
+      <div className="bg-gradient-to-b from-white to-gray-100 border-b border-gray-200">
         <div className="px-8 py-8">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-3xl font-bold mb-3 font-sans">
+              <h1 className="text-3xl font-bold mb-3 text-gray-900">
                 {formation.title}
               </h1>
-              <p className="text-brand-beige text-lg font-medium">
+              <p className="text-gray-600 text-lg font-medium">
                 Gestion du contenu et des leçons
               </p>
             </div>
             <button
               onClick={onClose}
-              className="bg-brand-beige text-brand-blue px-6 py-3 rounded-lg hover:bg-brand-beige/90 transition-all duration-200 font-semibold shadow-lg"
+              className="bg-gray-800 text-white px-6 py-3 rounded-lg hover:bg-gray-700 transition-all duration-200 font-semibold shadow-lg"
             >
               Fermer
             </button>
@@ -288,17 +289,17 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
       {/* Contenu principal */}
       <div className="px-8 py-8">
         {/* Barre d'outils moderne */}
-        <div className="bg-white rounded-xl shadow-md border border-gray-200 p-6 mb-8">
+        <div className="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h2 className="text-xl font-semibold text-brand-blue font-sans">Contenu de la formation</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Contenu de la formation</h2>
               <div className="flex items-center space-x-1 bg-gray-100 rounded-lg p-1">
                 <button
                   onClick={() => setViewMode('grid')}
                   className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                     viewMode === 'grid' 
-                      ? 'bg-brand-blue text-white shadow-sm' 
-                      : 'text-gray-600 hover:text-brand-blue'
+                      ? 'bg-gray-800 text-white shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-800'
                   }`}
                 >
                   Grille
@@ -307,8 +308,8 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                   onClick={() => setViewMode('list')}
                   className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
                     viewMode === 'list' 
-                      ? 'bg-brand-blue text-white shadow-sm' 
-                      : 'text-gray-600 hover:text-brand-blue'
+                      ? 'bg-gray-800 text-white shadow-sm' 
+                      : 'text-gray-600 hover:text-gray-800'
                   }`}
                 >
                   Liste
@@ -318,7 +319,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
               {/* Indicateur de sélection */}
               {selectedLessons.size > 0 && (
                 <div className="flex items-center space-x-3 ml-4">
-                  <span className="text-sm text-brand-blue font-medium">
+                  <span className="text-sm text-gray-700 font-medium">
                     {selectedLessons.size} leçon(s) sélectionnée(s)
                   </span>
                   <button
@@ -337,7 +338,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                 <>
                   <button
                     onClick={() => setShowLessonSelection(true)}
-                    className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
                     title="Affecter les leçons sélectionnées à une section"
                   >
                     <Move className="h-4 w-4" />
@@ -366,7 +367,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                   setAction('edit');
                   setShowSectionModal(true);
                 }}
-                className="bg-brand-blue text-white px-6 py-3 rounded-lg hover:bg-brand-blue/90 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+                className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
               >
                 <Plus className="h-5 w-5" />
                 Nouvelle Section
@@ -377,7 +378,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                   setAction('edit');
                   setShowLessonModal(true);
                 }}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+                className="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
               >
                 <Plus className="h-5 w-5" />
                 Nouvelle Leçon
@@ -391,13 +392,13 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
           <div className="space-y-8">
             {/* Sections avec leurs leçons */}
             {sections.map((section) => (
-              <div key={section.id} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-brand-blue/5 to-brand-blue/10 px-6 py-4 border-b border-gray-200">
+              <div key={section.id} className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b border-gray-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <button
                         onClick={() => toggleSectionExpansion(section.id)}
-                        className="text-brand-blue hover:text-brand-blue/80 transition-colors"
+                        className="text-slate-700 hover:text-slate-800 transition-colors"
                       >
                         {expandedSections.has(section.id) ? (
                           <ChevronDown className="h-6 w-6" />
@@ -405,10 +406,10 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                           <ChevronRight className="h-6 w-6" />
                         )}
                       </button>
-                      <FolderOpen className="h-6 w-6 text-brand-blue" />
+                      <FolderOpen className="h-6 w-6 text-slate-600" />
                       <div>
-                        <h3 className="text-lg font-semibold text-brand-blue font-sans">{section.title}</h3>
-                        <p className="text-gray-600">{section.description}</p>
+                        <h3 className="text-lg font-semibold text-slate-900">{section.title}</h3>
+                        <p className="text-slate-600">{section.description}</p>
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -418,7 +419,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                           setAction('edit');
                           setShowSectionModal(true);
                         }}
-                        className="text-brand-blue hover:text-brand-blue/80 p-2 hover:bg-brand-blue/10 rounded-lg transition-colors"
+                        className="text-slate-600 hover:text-slate-800 p-2 hover:bg-slate-100 rounded-lg transition-colors"
                         title="Modifier la section"
                       >
                         <Edit className="h-4 w-4" />
@@ -448,10 +449,10 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                         .map((lesson) => (
                           <div 
                             key={lesson.id} 
-                            className={`group bg-white border-2 rounded-xl p-5 hover:shadow-lg transition-all duration-200 relative ${
+                            className={`group bg-white border-2 rounded-lg p-5 hover:shadow-lg transition-all duration-200 relative ${
                               selectedLessons.has(lesson.id) 
-                                ? 'border-brand-blue bg-brand-blue/5 shadow-md' 
-                                : 'border-gray-200 hover:border-brand-blue/30'
+                                ? 'border-indigo-500 bg-indigo-50 shadow-md' 
+                                : 'border-gray-200 hover:border-gray-300'
                             }`}
                             onMouseEnter={(e) => handleLessonMouseEnter(lesson, e)}
                             onMouseLeave={handleLessonMouseLeave}
@@ -459,7 +460,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                             {/* Badge de sélection */}
                             {selectedLessons.has(lesson.id) && (
                               <div className="absolute -top-2 -left-2 z-20">
-                                <div className="bg-brand-blue text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg">
+                                <div className="bg-indigo-600 text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg">
                                   Sélectionnée
                                 </div>
                               </div>
@@ -475,18 +476,18 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                                 className="flex-shrink-0 p-1 rounded-md hover:bg-gray-100 transition-colors"
                               >
                                 {selectedLessons.has(lesson.id) ? (
-                                  <CheckSquare className="h-5 w-5 text-brand-blue" />
+                                  <CheckSquare className="h-5 w-5 text-indigo-600" />
                                 ) : (
-                                  <Square className="h-5 w-5 text-gray-500 hover:text-brand-blue transition-colors" />
+                                  <Square className="h-5 w-5 text-gray-500 hover:text-indigo-600 transition-colors" />
                                 )}
                               </button>
                             </div>
 
                             {/* Zone d'image de couverture */}
                             {lesson.coverImage ? (
-                              <div className="mb-4 relative overflow-hidden rounded-lg border-2">
+                              <div className="mb-4 relative overflow-hidden rounded-lg border-2 border-gray-200">
                                 <img 
-                                  src={lesson.coverImage} 
+                                  src={getLessonImageUrl(lesson.coverImage)} 
                                   alt={`Couverture de ${lesson.title}`}
                                   className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-200"
   
@@ -500,21 +501,16 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                                   style={{ minHeight: '128px' }}
                                 />
                                 {/* Fallback si pas d'image */}
-                                <div className="hidden w-full h-32 bg-gradient-to-br from-brand-blue/10 to-brand-blue/20 flex items-center justify-center">
+                                <div className="hidden w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
                                   {getContentIcon(lesson.type)}
                                 </div>
-                                {/* Debug info */}
-                                {/* <div className="absolute top-0 left-0 bg-black bg-opacity-75 text-white text-xs p-1 rounded-br">
-                                  Debug: {lesson.coverImage ? 'Image présente' : 'Pas d\'image'}
-                                </div> */}
                               </div>
                             ) : (
                               // Placeholder si pas d'image de couverture
-                              <div className="mb-4 w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center border-2 border-blue-500">
+                              <div className="mb-4 w-full h-32 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg flex items-center justify-center border-2 border-gray-300">
                                 <div className="text-center">
                                   <div className="text-gray-500 mb-2">Pas d'image de couverture</div>
                                   {getContentIcon(lesson.type)}
-                                  <div className="text-xs text-gray-400 mt-1">coverImage: {lesson.coverImage || 'null'}</div>
                                 </div>
                               </div>
                             )}
@@ -528,7 +524,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                                     setAction('edit');
                                     setShowLessonModal(true);
                                   }}
-                                  className="text-brand-blue hover:text-brand-blue/80 p-1.5 hover:bg-brand-blue/10 rounded transition-colors"
+                                  className="text-slate-600 hover:text-slate-800 p-1.5 hover:bg-slate-100 rounded transition-colors"
                                   title="Modifier la leçon"
                                 >
                                   <Edit className="h-4 w-4" />
@@ -547,7 +543,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                               </div>
                             </div>
                             
-                            <h4 className="font-semibold text-brand-blue mb-2 line-clamp-2 font-sans">{lesson.title}</h4>
+                            <h4 className="font-semibold text-gray-900 mb-2 line-clamp-2">{lesson.title}</h4>
                             <p className="text-gray-600 text-sm mb-4 line-clamp-2">{lesson.description}</p>
                             
                             <div className="flex items-center justify-between text-xs text-gray-500">
@@ -555,7 +551,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                                 <Clock className="h-3 w-3" />
                                 <span>{formatDuration(lesson.duration || 0)}</span>
                               </div>
-                              <span className="px-2 py-1 bg-brand-blue/10 text-brand-blue rounded-full font-medium">
+                              <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full font-medium">
                                 {getContentTypeLabel(lesson.type)}
                               </span>
                             </div>
@@ -569,7 +565,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                           setAction('edit');
                           setShowLessonModal(true);
                         }}
-                        className="group border-2 border-dashed border-gray-300 rounded-xl p-6 hover:border-brand-blue/40 hover:bg-brand-blue/5 transition-all duration-200 flex flex-col items-center justify-center text-gray-500 hover:text-brand-blue"
+                        className="group border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-emerald-400 hover:bg-emerald-50 transition-all duration-200 flex flex-col items-center justify-center text-gray-500 hover:text-emerald-600"
                       >
                         <Plus className="h-8 w-8 mb-2 group-hover:scale-110 transition-transform" />
                         <span className="font-medium">Ajouter une leçon</span>
@@ -582,10 +578,10 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
 
             {/* Leçons sans section */}
             {lessonsWithoutSection.length > 0 && (
-              <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-brand-beige/10 to-brand-beige/20 px-6 py-4 border-b border-brand-beige/30">
-                  <h3 className="text-lg font-semibold text-brand-blue font-sans">Leçons sans section</h3>
-                  <p className="text-brand-blue/70 text-sm">Ces leçons ne sont pas organisées dans des sections</p>
+              <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-amber-50 to-amber-100 px-6 py-4 border-b border-amber-200">
+                  <h3 className="text-lg font-semibold text-amber-900">Leçons sans section</h3>
+                  <p className="text-amber-700 text-sm">Ces leçons ne sont pas organisées dans des sections</p>
                 </div>
                 <div className="p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -594,10 +590,10 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                       .map((lesson) => (
                         <div 
                           key={lesson.id} 
-                          className={`group bg-white border-2 rounded-xl p-5 hover:shadow-lg transition-all duration-200 relative ${
+                          className={`group bg-white border-2 rounded-lg p-5 hover:shadow-lg transition-all duration-200 relative ${
                             selectedLessons.has(lesson.id) 
-                              ? 'border-brand-blue bg-brand-blue/5 shadow-md' 
-                              : 'border-gray-200 hover:border-brand-beige/40'
+                              ? 'border-indigo-500 bg-indigo-50 shadow-md' 
+                              : 'border-gray-200 hover:border-amber-300'
                           }`}
                           onMouseEnter={(e) => handleLessonMouseEnter(lesson, e)}
                           onMouseLeave={handleLessonMouseLeave}
@@ -605,7 +601,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                           {/* Badge de sélection */}
                           {selectedLessons.has(lesson.id) && (
                             <div className="absolute -top-2 -left-2 z-20">
-                              <div className="bg-brand-blue text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg">
+                              <div className="bg-indigo-600 text-white text-xs px-2 py-1 rounded-full font-medium shadow-lg">
                                 Sélectionnée
                               </div>
                             </div>
@@ -621,18 +617,18 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                               className="flex-shrink-0 p-1 rounded-md hover:bg-gray-100 transition-colors"
                             >
                               {selectedLessons.has(lesson.id) ? (
-                                <CheckSquare className="h-5 w-5 text-brand-blue" />
+                                <CheckSquare className="h-5 w-5 text-indigo-600" />
                               ) : (
-                                <Square className="h-5 w-5 text-gray-500 hover:text-brand-blue transition-colors" />
+                                <Square className="h-5 w-5 text-gray-500 hover:text-indigo-600 transition-colors" />
                               )}
                             </button>
                           </div>
 
                           {/* Zone d'image de couverture */}
                           {lesson.coverImage ? (
-                            <div className="mb-4 relative overflow-hidden rounded-lg border-2 border-red-500">
+                            <div className="mb-4 relative overflow-hidden rounded-lg border-2 border-gray-200">
                               <img 
-                                src={lesson.coverImage} 
+                                src={getLessonImageUrl(lesson.coverImage)} 
                                 alt={`Couverture de ${lesson.title}`}
                                 className="w-full h-32 object-cover group-hover:scale-105 transition-transform duration-200"
                                 onError={(e) => {
@@ -644,18 +640,17 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                                 style={{ minHeight: '128px' }}
                               />
                               {/* Fallback si pas d'image */}
-                              <div className="hidden w-full h-32 bg-gradient-to-br from-brand-beige/10 to-brand-beige/20 flex items-center justify-center">
+                              <div className="hidden w-full h-32 bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center">
                                 {getContentIcon(lesson.type)}
                               </div>
                               
                             </div>
                           ) : (
                             // Placeholder si pas d'image de couverture
-                            <div className="mb-4 w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg flex items-center justify-center border-2 border-blue-500">
+                            <div className="mb-4 w-full h-32 bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg flex items-center justify-center border-2 border-amber-300">
                               <div className="text-center">
-                                <div className="text-gray-500 mb-2">Pas d'image de couverture</div>
+                                <div className="text-amber-600 mb-2">Pas d'image de couverture</div>
                                 {getContentIcon(lesson.type)}
-                                <div className="text-xs text-gray-400 mt-1">coverImage: {lesson.coverImage || 'null'}</div>
                               </div>
                             </div>
                           )}
@@ -669,7 +664,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                                   setAction('edit');
                                   setShowLessonModal(true);
                                 }}
-                                className="text-brand-blue hover:text-brand-blue/80 p-1.5 hover:bg-brand-blue/10 rounded transition-colors"
+                                className="text-slate-600 hover:text-slate-800 p-1.5 hover:bg-slate-100 rounded transition-colors"
                                 title="Modifier la leçon"
                               >
                                 <Edit className="h-4 w-4" />
@@ -688,7 +683,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                             </div>
                           </div>
                           
-                          <h4 className="font-semibold text-brand-blue mb-2 line-clamp-2 font-sans">{lesson.title}</h4>
+                          <h4 className="font-semibold text-gray-900 mb-2 line-clamp-2">{lesson.title}</h4>
                           <p className="text-gray-600 text-sm mb-4 line-clamp-2">{lesson.description}</p>
                           
                           <div className="flex items-center justify-between text-xs text-gray-500">
@@ -696,7 +691,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                               <Clock className="h-3 w-3" />
                               <span>{formatDuration(lesson.duration || 0)}</span>
                             </div>
-                            <span className="px-2 py-1 bg-brand-beige/20 text-brand-blue rounded-full font-medium">
+                            <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-full font-medium">
                               {getContentTypeLabel(lesson.type)}
                             </span>
                           </div>
@@ -710,14 +705,14 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
             {/* Message si aucun contenu */}
             {content.length === 0 && (
               <div className="text-center py-16">
-                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-12">
-                  <div className="w-24 h-24 bg-brand-blue/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <BookOpen className="h-12 w-12 text-brand-blue" />
+                <div className="bg-white rounded-lg shadow-md border border-gray-200 p-12">
+                  <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <BookOpen className="h-12 w-12 text-slate-600" />
                   </div>
-                  <h3 className="text-2xl font-bold text-brand-blue mb-3 font-sans">
+                  <h3 className="text-2xl font-bold text-slate-900 mb-3">
                     Commencez à créer du contenu
                   </h3>
-                  <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                  <p className="text-slate-600 mb-8 max-w-md mx-auto">
                     Ajoutez des sections pour organiser vos leçons et commencez à construire votre formation
                   </p>
                   <div className="flex justify-center space-x-4">
@@ -727,7 +722,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                         setAction('edit');
                         setShowSectionModal(true);
                       }}
-                      className="bg-brand-blue text-white px-6 py-3 rounded-lg hover:bg-brand-blue/90 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+                      className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
                     >
                       <Plus className="h-5 w-5" />
                       Créer une section
@@ -738,7 +733,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                         setAction('edit');
                         setShowLessonModal(true);
                       }}
-                      className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+                      className="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
                     >
                       <Plus className="h-5 w-5" />
                       Créer une leçon
@@ -752,9 +747,9 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
           // Vue liste moderne et organisée
           <div className="space-y-6">
             {/* En-tête de la liste */}
-            <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-              <div className="bg-gradient-to-r from-brand-blue/5 to-brand-blue/10 px-6 py-4 border-b border-gray-200">
-                <div className="grid grid-cols-12 gap-4 text-sm font-medium text-brand-blue">
+            <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+              <div className="bg-gradient-to-r from-slate-50 to-slate-100 px-6 py-4 border-b border-gray-200">
+                <div className="grid grid-cols-12 gap-4 text-sm font-medium text-slate-900">
                   <div className="col-span-4">Titre</div>
                   <div className="col-span-3">Type</div>
                   <div className="col-span-2">Durée</div>
@@ -766,14 +761,14 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
 
             {/* Sections avec leurs leçons */}
             {sections.map((section) => (
-              <div key={section.id} className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
+              <div key={section.id} className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
                 {/* En-tête de section */}
-                <div className="bg-gradient-to-r from-brand-blue/10 to-brand-blue/20 px-6 py-4 border-b border-brand-blue/30">
+                <div className="bg-gradient-to-r from-slate-100 to-slate-200 px-6 py-4 border-b border-gray-300">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-3">
                       <button
                         onClick={() => toggleSectionExpansion(section.id)}
-                        className="text-brand-blue hover:text-brand-blue/80 transition-colors"
+                        className="text-slate-700 hover:text-slate-800 transition-colors"
                       >
                         {expandedSections.has(section.id) ? (
                           <ChevronDown className="h-5 w-5" />
@@ -781,10 +776,10 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                           <ChevronRight className="h-5 w-5" />
                         )}
                       </button>
-                      <FolderOpen className="h-5 w-5 text-brand-blue" />
+                      <FolderOpen className="h-5 w-5 text-slate-600" />
                       <div>
-                        <h3 className="text-lg font-semibold text-brand-blue font-sans">{section.title}</h3>
-                        <p className="text-gray-600 text-sm">{section.description}</p>
+                        <h3 className="text-lg font-semibold text-slate-900">{section.title}</h3>
+                        <p className="text-slate-600 text-sm">{section.description}</p>
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -794,7 +789,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                           setAction('edit');
                           setShowSectionModal(true);
                         }}
-                        className="text-brand-blue hover:text-brand-blue/80 p-2 hover:bg-brand-blue/10 rounded-lg transition-colors"
+                        className="text-slate-600 hover:text-slate-800 p-2 hover:bg-slate-100 rounded-lg transition-colors"
                         title="Modifier la section"
                       >
                         <Edit className="h-4 w-4" />
@@ -821,7 +816,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                       .filter(item => item.contentType === 'LESSON' && item.sectionId === section.id)
                       .sort((a, b) => (a.order || 0) - (b.order || 0))
                       .map((lesson, index) => (
-                        <div key={lesson.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                        <div key={lesson.id} className="px-6 py-4 hover:bg-slate-50 transition-colors">
                           <div className="grid grid-cols-12 gap-4 items-center">
                             <div className="col-span-4">
                               <div className="flex items-center space-x-3">
@@ -833,7 +828,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                               </div>
                             </div>
                             <div className="col-span-3">
-                              <span className="px-3 py-1 bg-brand-blue/10 text-brand-blue rounded-full text-sm font-medium">
+                              <span className="px-3 py-1 bg-slate-100 text-slate-700 rounded-full text-sm font-medium">
                                 {getContentTypeLabel(lesson.type)}
                               </span>
                             </div>
@@ -856,7 +851,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                                     setAction('edit');
                                     setShowLessonModal(true);
                                   }}
-                                  className="text-brand-blue hover:text-brand-blue/80 p-1.5 hover:bg-brand-blue/10 rounded transition-colors"
+                                  className="text-slate-600 hover:text-slate-800 p-1.5 hover:bg-slate-100 rounded transition-colors"
                                   title="Modifier la leçon"
                                 >
                                   <Edit className="h-4 w-4" />
@@ -886,7 +881,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                           setAction('edit');
                           setShowLessonModal(true);
                         }}
-                        className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-brand-blue/40 hover:bg-brand-blue/5 transition-all duration-200 flex items-center justify-center text-gray-500 hover:text-brand-blue group"
+                        className="w-full border-2 border-dashed border-gray-300 rounded-lg p-4 hover:border-emerald-400 hover:bg-emerald-50 transition-all duration-200 flex items-center justify-center text-gray-500 hover:text-emerald-600 group"
                       >
                         <Plus className="h-5 w-5 mr-2 group-hover:scale-110 transition-transform" />
                         <span className="font-medium">Ajouter une leçon à cette section</span>
@@ -899,16 +894,16 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
 
             {/* Leçons sans section */}
             {lessonsWithoutSection.length > 0 && (
-              <div className="bg-white rounded-xl shadow-md border border-gray-200 overflow-hidden">
-                <div className="bg-gradient-to-r from-brand-beige/10 to-brand-beige/20 px-6 py-4 border-b border-brand-beige/30">
-                  <h3 className="text-lg font-semibold text-brand-blue font-sans">Leçons sans section</h3>
-                  <p className="text-brand-blue/70 text-sm">Ces leçons ne sont pas organisées dans des sections</p>
+              <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                <div className="bg-gradient-to-r from-amber-100 to-amber-200 px-6 py-4 border-b border-amber-300">
+                  <h3 className="text-lg font-semibold text-amber-900">Leçons sans section</h3>
+                  <p className="text-amber-700 text-sm">Ces leçons ne sont pas organisées dans des sections</p>
                 </div>
                 <div className="divide-y divide-gray-100">
                   {lessonsWithoutSection
                     .sort((a, b) => (a.order || 0) - (b.order || 0))
                     .map((lesson, index) => (
-                      <div key={lesson.id} className="px-6 py-4 hover:bg-gray-50 transition-colors">
+                      <div key={lesson.id} className="px-6 py-4 hover:bg-amber-50 transition-colors">
                         <div className="grid grid-cols-12 gap-4 items-center">
                           <div className="col-span-4">
                             <div className="flex items-center space-x-3">
@@ -920,7 +915,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                             </div>
                           </div>
                           <div className="col-span-3">
-                            <span className="px-3 py-1 bg-brand-beige/20 text-brand-blue rounded-full text-sm font-medium">
+                            <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
                               {getContentTypeLabel(lesson.type)}
                             </span>
                           </div>
@@ -943,7 +938,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                                   setAction('edit');
                                   setShowLessonModal(true);
                                 }}
-                                className="text-brand-blue hover:text-brand-blue/80 p-1.5 hover:bg-brand-blue/10 rounded transition-colors"
+                                className="text-slate-600 hover:text-slate-800 p-1.5 hover:bg-slate-100 rounded transition-colors"
                                 title="Modifier la leçon"
                               >
                                 <Edit className="h-4 w-4" />
@@ -971,14 +966,14 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
             {/* Message si aucun contenu */}
             {content.length === 0 && (
               <div className="text-center py-16">
-                <div className="bg-white rounded-xl shadow-md border border-gray-200 p-12">
-                  <div className="w-24 h-24 bg-brand-blue/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <BookOpen className="h-12 w-12 text-brand-blue" />
+                <div className="bg-white rounded-lg shadow-md border border-gray-200 p-12">
+                  <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <BookOpen className="h-12 w-12 text-slate-600" />
                   </div>
-                  <h3 className="text-2xl font-bold text-brand-blue mb-3 font-sans">
+                  <h3 className="text-2xl font-bold text-slate-900 mb-3">
                     Commencez à créer du contenu
                   </h3>
-                  <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                  <p className="text-slate-600 mb-8 max-w-md mx-auto">
                     Ajoutez des sections pour organiser vos leçons et commencez à construire votre formation
                   </p>
                   <div className="flex justify-center space-x-4">
@@ -988,7 +983,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                         setAction('edit');
                         setShowSectionModal(true);
                       }}
-                      className="bg-brand-blue text-white px-6 py-3 rounded-lg hover:bg-brand-blue/90 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+                      className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
                     >
                       <Plus className="h-5 w-5" />
                       Créer une section
@@ -999,7 +994,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                         setAction('edit');
                         setShowLessonModal(true);
                       }}
-                      className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
+                      className="bg-emerald-600 text-white px-6 py-3 rounded-lg hover:bg-emerald-700 transition-all duration-200 shadow-md hover:shadow-lg flex items-center gap-2 font-medium"
                     >
                       <Plus className="h-5 w-5" />
                       Créer une leçon
@@ -1029,6 +1024,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
           onClose={() => setShowLessonModal(false)}
           onSave={handleSaveLesson}
           formationId={formation.id}
+          formationTitle={formation.title}
           sectionId={selectedContent?.sectionId}
           existingLesson={selectedContent}
         />

@@ -1,6 +1,7 @@
 import React from 'react';
 import { FormationContent } from '../types';
 import { Clock, FileText, Video, Image } from 'lucide-react';
+import { getLessonImageUrl } from '../../../utils/imageUtils';
 
 interface LessonPreviewProps {
   lesson: FormationContent;
@@ -73,7 +74,7 @@ const LessonPreview: React.FC<LessonPreviewProps> = ({ lesson, isVisible, positi
       {lesson.coverImage && (
         <div className="mt-3">
           <img
-            src={lesson.coverImage}
+            src={getLessonImageUrl(lesson.coverImage)}
             alt={`Aperçu de ${lesson.title}`}
             className="w-full h-20 object-cover rounded"
           />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Archive, Eye, Users, BookOpen } from 'lucide-react';
+import { Plus, Edit, Archive, Eye, Users, BookOpen, Building2 } from 'lucide-react';
 import { banksApi } from '../../../api/adminApi';
 import { Bank } from '../types';
 import BankModal from './BankModal';
@@ -108,14 +108,6 @@ const AdminBanksPage: React.FC = () => {
     );
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* En-tête */}
@@ -141,86 +133,90 @@ const AdminBanksPage: React.FC = () => {
         />
       </div>
 
-      {/* Tableau des banques */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Banque
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Code
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Statut
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Collaborateurs
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Formations
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {(filteredBanks || []).map((bank) => (
-              <tr key={bank.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="text-sm font-medium text-gray-900">{bank.name}</div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{bank.code}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {getStatusIcon(bank.isActive)}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center text-sm text-gray-900">
-                    <Users className="h-4 w-4 mr-2" />
-                    {bank.userCount || 0}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center text-sm text-gray-900">
-                    <BookOpen className="h-4 w-4 mr-2" />
-                    {bank.formationCount || 0}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleViewBankDetails(bank)}
-                      className="text-blue-600 hover:text-blue-900 p-1"
-                      title="Voir les détails"
-                    >
-                      <Eye className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleEditBank(bank)}
-                      className="text-indigo-600 hover:text-indigo-900 p-1"
-                      title="Modifier"
-                    >
-                      <Edit className="h-4 w-4" />
-                    </button>
-                    <button
-                      onClick={() => handleArchiveBank(bank)}
-                      className="text-red-600 hover:text-red-900 p-1"
-                      title="Archiver"
-                    >
-                      <Archive className="h-4 w-4" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Liste des banques */}
+      <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">Banques</h2>
+          <span className="text-sm text-gray-500">{filteredBanks.length} banque(s)</span>
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Banque
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Code
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Utilisateurs
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Formations
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Statut
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {(filteredBanks || []).map((bank) => (
+                  <tr key={bank.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <Building2 className="h-8 w-8 text-blue-600 mr-3" />
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{bank.name}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{bank.code}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{bank.userCount || 0}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{bank.formationCount || 0}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {getStatusIcon(bank.isActive)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex space-x-2">
+                        <button
+                          onClick={() => handleViewBankDetails(bank)}
+                          className="text-blue-600 hover:text-blue-900 p-1"
+                          title="Voir les détails"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEditBank(bank)}
+                          className="text-indigo-600 hover:text-indigo-900 p-1"
+                          title="Modifier"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => handleArchiveBank(bank)}
+                          className="text-red-600 hover:text-red-900 p-1"
+                          title="Archiver"
+                        >
+                          <Archive className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Modal de création/édition */}

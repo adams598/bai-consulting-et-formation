@@ -8,7 +8,7 @@ export default function AdminUsersPage() {
         <p className="text-gray-600">Gérez les collaborateurs de votre plateforme</p>
       </div>
       
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md border border-gray-200 p-6">
         <p className="text-gray-500">Page en cours de développement...</p>
       </div>
     </div>

@@ -11,13 +11,44 @@ interface BankModalProps {
 const BankModal: React.FC<BankModalProps> = ({ bank, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     name: '',
+    code: '',
     isActive: true
   });
+
+  // Fonction pour générer le code de la banque
+  const generateBankCode = (bankName: string): string => {
+    if (!bankName.trim()) return '';
+    
+    // Prendre les 3 premières lettres du nom, en majuscules
+    const code = bankName
+      .trim()
+      .split(' ')
+      .map(word => word.charAt(0))
+      .join('')
+      .toUpperCase()
+      .slice(0, 3);
+    
+    // Ajouter un timestamp pour l'unicité
+    const timestamp = Date.now().toString().slice(-4);
+    
+    return `${code}${timestamp}`;
+  };
+
+  // Mettre à jour le code quand le nom change
+  const handleNameChange = (name: string) => {
+    const newCode = generateBankCode(name);
+    setFormData(prev => ({ 
+      ...prev, 
+      name,
+      code: newCode
+    }));
+  };
 
   useEffect(() => {
     if (bank) {
       setFormData({
         name: bank.name,
+        code: bank.code || '',
         isActive: bank.isActive
       });
     }
@@ -25,6 +56,13 @@ const BankModal: React.FC<BankModalProps> = ({ bank, onClose, onSave }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.name.trim() || !formData.code.trim()) {
+      alert('Veuillez remplir tous les champs obligatoires');
+      return;
+    }
+    
     onSave(formData);
   };
 
@@ -51,11 +89,27 @@ const BankModal: React.FC<BankModalProps> = ({ bank, onClose, onSave }) => {
             <input
               type="text"
               value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              onChange={(e) => handleNameChange(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Nom de la banque"
               required
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Code de la banque *
+            </label>
+            <input
+              type="text"
+              value={formData.code}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50 text-gray-600 cursor-not-allowed"
+              placeholder="Code généré automatiquement"
+              readOnly
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Le code est généré automatiquement à partir du nom de la banque
+            </p>
           </div>
 
           <div className="flex items-center space-x-2">

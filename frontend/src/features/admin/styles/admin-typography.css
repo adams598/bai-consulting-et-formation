@@ -1,0 +1,313 @@
+/* Typographie professionnelle pour la plateforme admin BAI Consulting */
+
+/* Hiérarchie des titres */
+.admin-title-xl {
+  font-family: 'Inter', sans-serif;
+  font-size: 2.25rem; /* 36px */
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  color: #111827;
+}
+
+.admin-title-lg {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.875rem; /* 30px */
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: #111827;
+}
+
+.admin-title-md {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.5rem; /* 24px */
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+  color: #111827;
+}
+
+.admin-title-sm {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.25rem; /* 20px */
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: #111827;
+}
+
+/* Corps de texte */
+.admin-text-xl {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.125rem; /* 18px */
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  color: #374151;
+}
+
+.admin-text-lg {
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem; /* 16px */
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: -0.005em;
+  color: #374151;
+}
+
+.admin-text-md {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
+  color: #6B7280;
+}
+
+.admin-text-sm {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem; /* 12px */
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  color: #9CA3AF;
+}
+
+/* Labels et boutons */
+.admin-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  color: #374151;
+}
+
+.admin-button {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+.admin-button-lg {
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem; /* 16px */
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-decoration: none;
+}
+
+/* Navigation */
+.admin-nav {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  color: #6B7280;
+}
+
+.admin-nav-active {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0;
+  color: #111827;
+}
+
+/* Tableaux */
+.admin-table-header {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem; /* 12px */
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.05em;
+  color: #374151;
+  text-transform: uppercase;
+}
+
+.admin-table-cell {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: #374151;
+}
+
+/* Formulaires */
+.admin-input {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: #111827;
+}
+
+.admin-input::placeholder {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: #9CA3AF;
+}
+
+/* Badges et étiquettes */
+.admin-badge {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem; /* 12px */
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.025em;
+  text-transform: none;
+}
+
+.admin-badge-sm {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.625rem; /* 10px */
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+/* Cartes et composants */
+.admin-card-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.125rem; /* 18px */
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: #111827;
+}
+
+.admin-card-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  color: #6B7280;
+}
+
+/* Modales */
+.admin-modal-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.25rem; /* 20px */
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: #111827;
+}
+
+.admin-modal-content {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
+  color: #374151;
+}
+
+/* Statistiques et métriques */
+.admin-stat-number {
+  font-family: 'Inter', sans-serif;
+  font-size: 2rem; /* 32px */
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: #111827;
+}
+
+.admin-stat-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.75rem; /* 12px */
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.05em;
+  color: #6B7280;
+  text-transform: uppercase;
+}
+
+/* Messages et notifications */
+.admin-message {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 400;
+  line-height: 1.6;
+  letter-spacing: 0;
+  color: #374151;
+}
+
+.admin-message-success {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0;
+  color: #059669;
+}
+
+.admin-message-error {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0;
+  color: #DC2626;
+}
+
+.admin-message-warning {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem; /* 14px */
+  font-weight: 500;
+  line-height: 1.6;
+  letter-spacing: 0;
+  color: #D97706;
+}
+
+/* Responsive typography */
+@media (max-width: 768px) {
+  .admin-title-xl {
+    font-size: 1.875rem; /* 30px */
+  }
+  
+  .admin-title-lg {
+    font-size: 1.5rem; /* 24px */
+  }
+  
+  .admin-title-md {
+    font-size: 1.25rem; /* 20px */
+  }
+  
+  .admin-stat-number {
+    font-size: 1.5rem; /* 24px */
+  }
+}
+
+/* Amélioration de la lisibilité sur tous les écrans */
+.admin-text-readable {
+  text-rendering: optimizeLegibility;
+  -webkit-font-feature-settings: "kern" 1;
+  font-feature-settings: "kern" 1;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Espacement des lettres pour les titres */
+.admin-title-spacing {
+  letter-spacing: -0.02em;
+}
+
+/* Espacement des lettres pour le corps de texte */
+.admin-body-spacing {
+  letter-spacing: -0.01em;
+}

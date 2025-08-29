@@ -392,7 +392,28 @@ export const banksController = {
         orderBy: { name: "asc" },
       });
 
-      res.json({ success: true, data: banks });
+      // Charger les statistiques pour chaque banque
+      const banksWithStats = await Promise.all(
+        banks.map(async (bank) => {
+          // Compter le nombre d'utilisateurs
+          const userCount = await prisma.user.count({
+            where: { bankId: bank.id },
+          });
+
+          // Compter le nombre de formations assignées
+          const formationCount = await prisma.bankFormation.count({
+            where: { bankId: bank.id },
+          });
+
+          return {
+            ...bank,
+            userCount,
+            formationCount,
+          };
+        })
+      );
+
+      res.json({ success: true, data: banksWithStats });
     } catch (error) {
       console.error("Erreur getAllBanks:", error);
       res.status(500).json({
@@ -712,15 +733,19 @@ export const formationsController = {
           ...formation,
           totalDuration,
           lessonCount,
+          coverImage: formation.coverImage || null, // Assurer la compatibilité
         };
       });
 
       res.json({ success: true, data: formationsWithStats });
     } catch (error) {
       console.error("Erreur getAllFormations:", error);
+      console.error("Stack trace:", error.stack);
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   },
@@ -808,9 +833,9 @@ export const formationsController = {
         title,
         description,
         isActive,
-        isMandatory,
         hasQuiz,
         quizRequired,
+        coverImage,
       } = req.body;
       const userId = req.user.id;
 
@@ -828,9 +853,9 @@ export const formationsController = {
           description: description || "",
           duration: 0, // sera calculé automatiquement lors de l'ajout de leçons
           isActive: isActive !== undefined ? isActive : true,
-          isMandatory: isMandatory !== undefined ? isMandatory : false,
           hasQuiz: hasQuiz !== undefined ? hasQuiz : false,
           quizRequired: quizRequired !== undefined ? quizRequired : true,
+          coverImage: coverImage || null,
           createdBy: userId,
         },
         include: {
@@ -862,9 +887,9 @@ export const formationsController = {
         title,
         description,
         isActive,
-        isMandatory,
         hasQuiz,
         quizRequired,
+        coverImage,
       } = req.body;
 
       // Validation
@@ -894,15 +919,16 @@ export const formationsController = {
           description: description || "",
           isActive:
             isActive !== undefined ? isActive : existingFormation.isActive,
-          isMandatory:
-            isMandatory !== undefined
-              ? isMandatory
-              : existingFormation.isMandatory,
+
           hasQuiz: hasQuiz !== undefined ? hasQuiz : existingFormation.hasQuiz,
           quizRequired:
             quizRequired !== undefined
               ? quizRequired
               : existingFormation.quizRequired,
+          coverImage:
+            coverImage !== undefined
+              ? coverImage
+              : existingFormation.coverImage,
         },
         include: {
           creator: {
@@ -1482,23 +1508,100 @@ export const usersController = {
 
 export const dashboardController = {
   async getStats(req, res) {
-    res.json({
-      success: true,
-      data: {
-        totalBanks: 0,
-        totalUsers: 1,
-        totalFormations: 0,
-        completedFormations: 0,
-        averageScore: 0,
-        activeAssignments: 0,
-      },
-    });
+    try {
+      // Compter le nombre total d'utilisateurs
+      const totalUsers = await prisma.user.count();
+
+      // Compter le nombre total de formations
+      const totalFormations = await prisma.formation.count();
+
+      // Compter le nombre total de banques
+      const totalBanks = await prisma.bank.count({
+        where: { isArchived: false },
+      });
+
+      // Compter le nombre de formations terminées (pour l'instant, on met 0)
+      const completedFormations = 0;
+
+      // Compter le nombre d'utilisateurs actifs
+      const activeUsers = await prisma.user.count({
+        where: { isActive: true },
+      });
+
+      // Pour l'instant, on met 0 car le champ status n'existe pas encore dans le schéma
+      const pendingAssignments = 0;
+
+      res.json({
+        success: true,
+        data: {
+          totalUsers,
+          totalFormations,
+          totalBanks,
+          completedFormations,
+          activeUsers,
+          pendingAssignments,
+        },
+      });
+    } catch (error) {
+      console.error("Erreur getDashboardStats:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
+
   async getBankStats(req, res) {
-    res.json({ success: true, data: [] });
+    try {
+      const banks = await prisma.bank.findMany({
+        where: { isArchived: false },
+        include: {
+          users: {
+            select: {
+              id: true,
+            },
+          },
+          bankFormations: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+
+      const bankStats = banks.map((bank) => ({
+        bankId: bank.id,
+        bankName: bank.name,
+        userCount: bank.users.length,
+        formationCount: bank.bankFormations.length,
+        completionRate: 0, // Pour l'instant, on met 0
+      }));
+
+      res.json({
+        success: true,
+        data: bankStats,
+      });
+    } catch (error) {
+      console.error("Erreur getBankStats:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
+
   async getRecentActivity(req, res) {
-    res.json({ success: true, data: [] });
+    try {
+      // Pour l'instant, on retourne un tableau vide
+      // TODO: Implémenter la logique d'activité récente
+      res.json({ success: true, data: [] });
+    } catch (error) {
+      console.error("Erreur getRecentActivity:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
 };
 
@@ -2168,8 +2271,24 @@ export const bankFormationController = {
   // Assigner une formation à une banque
   async assignFormationToBank(req, res) {
     try {
+      console.log("🔍 assignFormationToBank appelé");
+      console.log("📡 Headers:", req.headers);
+      console.log("👤 req.user:", req.user);
+      console.log("📦 Body:", req.body);
+
       const { bankId, formationId } = req.body;
-      const { userId } = req.user; // ID de l'admin qui fait l'assignation
+
+      // Vérifier l'authentification
+      if (!req.user || !req.user.id) {
+        console.log("❌ Utilisateur non authentifié");
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié",
+        });
+      }
+
+      const userId = req.user.id; // ID de l'admin qui fait l'assignation
+      console.log("✅ Utilisateur authentifié:", userId);
 
       // Validation
       if (!bankId || !formationId) {
@@ -2204,12 +2323,10 @@ export const bankFormationController = {
       }
 
       // Vérifier si l'assignation existe déjà
-      const existingAssignment = await prisma.bankFormation.findUnique({
+      const existingAssignment = await prisma.bankFormation.findFirst({
         where: {
-          bankId_formationId: {
-            bankId,
-            formationId,
-          },
+          bankId,
+          formationId,
         },
       });
 
@@ -2272,7 +2389,7 @@ export const bankFormationController = {
         });
       }
 
-      // Récupérer les formations assignées avec leurs détails
+      // Récupérer les formations assignées avec le nombre d'utilisateurs
       const bankFormations = await prisma.bankFormation.findMany({
         where: { bankId },
         include: {
@@ -2287,25 +2404,116 @@ export const bankFormationController = {
             },
           },
           userAssignments: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                  department: true,
-                },
-              },
+            select: {
+              id: true,
+              userId: true,
+              isMandatory: true,
+              dueDate: true,
             },
           },
         },
-        orderBy: { assignedAt: "desc" },
       });
 
-      res.json({ success: true, data: bankFormations });
+      // Ajouter le nombre d'utilisateurs assignés à chaque formation
+      const formationsWithUserCount = bankFormations.map((bf) => ({
+        ...bf,
+        userCount: bf.userAssignments.length,
+      }));
+
+      res.json({ success: true, data: formationsWithUserCount });
     } catch (error) {
       console.error("Erreur getBankFormations:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Récupérer toutes les banques qui ont accès à une formation
+  async getFormationBanks(req, res) {
+    try {
+      const { formationId } = req.params;
+
+      // Vérifier si la formation existe
+      const formation = await prisma.formation.findUnique({
+        where: { id: formationId },
+      });
+
+      if (!formation) {
+        return res.status(404).json({
+          success: false,
+          message: "Formation non trouvée",
+        });
+      }
+
+      // Récupérer toutes les banques qui ont accès à cette formation
+      const bankFormations = await prisma.bankFormation.findMany({
+        where: { formationId },
+        include: {
+          bank: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              isActive: true,
+            },
+          },
+        },
+      });
+
+      const banks = bankFormations.map((bf) => bf.bank);
+
+      res.json({ success: true, data: banks });
+    } catch (error) {
+      console.error("Erreur getFormationBanks:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Récupérer les statistiques d'une formation
+  async getFormationStats(req, res) {
+    try {
+      const { formationId } = req.params;
+
+      // Vérifier si la formation existe
+      const formation = await prisma.formation.findUnique({
+        where: { id: formationId },
+      });
+
+      if (!formation) {
+        return res.status(404).json({
+          success: false,
+          message: "Formation non trouvée",
+        });
+      }
+
+      // Compter le nombre de banques qui ont accès à cette formation
+      const bankCount = await prisma.bankFormation.count({
+        where: { formationId },
+      });
+
+      // Compter le nombre total d'utilisateurs assignés à cette formation
+      const userCount = await prisma.userFormationAssignment.count({
+        where: {
+          bankFormation: {
+            formationId,
+          },
+        },
+      });
+
+      res.json({
+        success: true,
+        data: {
+          bankCount,
+          userCount,
+        },
+      });
+    } catch (error) {
+      console.error("Erreur getFormationStats:", error);
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",

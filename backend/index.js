@@ -3,6 +3,8 @@ import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
 import rateLimit from "express-rate-limit";
+import path from "path";
+import fs from "fs";
 import { sendContactMail } from "./src/services/contactMail.service.js";
 import {
   validateInput,
@@ -49,26 +51,15 @@ const authLimiter = rateLimit({
 
 // Configuration CORS sécurisée
 const corsOptions = {
-  origin: function (origin, callback) {
-    const allowedOrigins = [
-      "https://olivedrab-hornet-656554.hostingersite.com",
-      "http://localhost:3001",
-      "http://localhost:3002",
-      "http://localhost:5173",
-      "https://backend-k05cpsnj6-adams-projects-b35f6371.vercel.app",
-    ];
-
-    // Autoriser les requêtes sans origine (mobile apps, etc.)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
+  origin: true, // Permettre toutes les origines pour les images
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "Accept",
+    "Origin",
+    "X-Requested-With",
+  ],
   credentials: true,
   optionsSuccessStatus: 200,
 };
@@ -80,6 +71,79 @@ app.use(express.json({ limit: "10mb" })); // Limiter la taille des requêtes
 // Import des routes
 import adminRoutes from "./src/routes/admin.routes.js";
 import learnerRoutes from "./src/routes/learner.routes.js";
+
+// Route API pour servir les images
+app.get("/api/images/:type/:userFolder/:filename", (req, res) => {
+  const { type, userFolder, filename } = req.params;
+  const imagePath = path.join(
+    process.cwd(),
+    "uploads",
+    type,
+    userFolder,
+    filename
+  );
+
+  console.log("🔍 Route /api/images appelée:");
+  console.log("  - type:", type);
+  console.log("  - userFolder:", userFolder);
+  console.log("  - filename:", filename);
+  console.log("  - imagePath:", imagePath);
+  console.log("  - exists:", fs.existsSync(imagePath));
+
+  if (fs.existsSync(imagePath)) {
+    res.sendFile(imagePath);
+  } else {
+    res.status(404).json({ error: "Image non trouvée", path: imagePath });
+  }
+});
+
+// Route API spécifique pour les images de couverture de formation
+app.options("/api/formations/:formationTitle/:filename", (req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.status(200).end();
+});
+
+app.get("/api/formations/:formationTitle/:filename", (req, res) => {
+  const { formationTitle, filename } = req.params;
+  const imagePath = path.join(
+    process.cwd(),
+    "uploads",
+    "formations",
+    formationTitle,
+    filename
+  );
+
+  console.log("🔍 Route /api/formations couverture appelée:");
+  console.log("  - formationTitle:", formationTitle);
+  console.log("  - filename:", filename);
+  console.log("  - imagePath:", imagePath);
+  console.log("  - exists:", fs.existsSync(imagePath));
+
+  // Ajouter les en-têtes CORS explicites et permissifs
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Access-Control-Allow-Credentials", "true");
+  res.header("Cache-Control", "public, max-age=31536000");
+
+  if (fs.existsSync(imagePath)) {
+    // Déterminer le type MIME basé sur l'extension
+    const ext = path.extname(filename).toLowerCase();
+    let mimeType = "image/jpeg"; // par défaut
+
+    if (ext === ".png") mimeType = "image/png";
+    else if (ext === ".gif") mimeType = "image/gif";
+    else if (ext === ".webp") mimeType = "image/webp";
+
+    res.setHeader("Content-Type", mimeType);
+    res.sendFile(imagePath);
+  } else {
+    res.status(404).json({ error: "Image non trouvée", path: imagePath });
+  }
+});
 
 // Routes
 app.use("/api/admin", adminRoutes);

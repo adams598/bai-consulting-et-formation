@@ -78,6 +78,10 @@ export const DashboardPage: React.FC = () => {
         dashboardApi.getBankStats()
       ]);
       
+      console.log('📊 Réponse stats:', statsResponse);
+      console.log('🏦 Réponse banks:', banksResponse);
+      
+      // L'API retourne déjà response.data, pas besoin de .data.data
       setStats(statsResponse.data);
       setBankStats(banksResponse.data);
       setRecentActivity([]); // Pas d'activité récente pour l'instant
@@ -190,15 +194,15 @@ export const DashboardPage: React.FC = () => {
                           </div>
                           <div>
                             <p className="font-medium text-gray-900">{bank.bankName}</p>
-                            <p className="text-sm text-gray-600">{bank.totalUsers} utilisateurs</p>
+                            <p className="text-sm text-gray-600">{bank.userCount} utilisateurs</p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="text-sm font-medium text-gray-900">
-                            {bank.completedFormations}/{bank.totalFormations} formations
+                            {bank.formationCount} formations assignées
                           </p>
                           <p className="text-sm text-gray-600">
-                            Score moyen: {bank.averageScore}%
+                            Taux de réussite: {bank.completionRate}%
                           </p>
                         </div>
                       </div>

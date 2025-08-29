@@ -55,34 +55,43 @@ export const formationsApi = {
   toggleMandatory: (id: string) => api.patch<ApiResponse<Formation>>(`/api/admin/formations/${id}/toggle-mandatory`),
 };
 
+// API pour le contenu des formations (leçons et sections)
 export const formationContentApi = {
   // Récupérer tout le contenu d'une formation
-  getByFormation: (formationId: string) =>
-    api.get<ApiResponse<FormationContent[]>>(`/api/admin/formations/${formationId}/content`),
-  
-  // Gestion des sections
-  addSection: (formationId: string, data: { title: string; description?: string; order?: number }) =>
-    api.post<ApiResponse<FormationContent>>(`/api/admin/formations/${formationId}/sections`, data),
-  
-  updateSection: (id: string, data: { title: string; description?: string; order?: number }) =>
-    api.put<ApiResponse<FormationContent>>(`/api/admin/formations/sections/${id}`, data),
-  
-  deleteSection: (id: string) => 
-    api.delete<ApiResponse<void>>(`/api/admin/formations/sections/${id}`),
-  
-  // Gestion des leçons
-  addLesson: (formationId: string, data: { title: string; description?: string; type: string; duration?: number; sectionId?: string; order?: number; coverImage?: string }) =>
-    api.post<ApiResponse<FormationContent>>(`/api/admin/formations/${formationId}/lessons`, data),
-  
-  updateLesson: (id: string, data: { title: string; description?: string; type: string; duration?: number; sectionId?: string; order?: number; coverImage?: string }) =>
-    api.put<ApiResponse<FormationContent>>(`/api/admin/formations/lessons/${id}`, data),
-  
-  deleteLesson: (id: string) => 
-    api.delete<ApiResponse<void>>(`/api/admin/formations/lessons/${id}`),
-  
-  // Réorganisation du contenu
-  reorderContent: (formationId: string, data: { content: Array<{ id: string; order: number; sectionId?: string }> }) =>
-    api.put<ApiResponse<void>>(`/api/admin/formations/${formationId}/reorder`, data),
+  async getByFormation(formationId: string) {
+    const response = await api.get(`/api/admin/formations/${formationId}/content`);
+    return response.data;
+  },
+
+  // Ajouter une section
+  async addSection(formationId: string, sectionData: any) {
+    const response = await api.post(`/api/admin/formations/${formationId}/sections`, sectionData);
+    return response.data;
+  },
+
+  // Ajouter une leçon
+  async addLesson(formationId: string, lessonData: any) {
+    const response = await api.post(`/api/admin/formations/${formationId}/lessons`, lessonData);
+    return response.data;
+  },
+
+  // Modifier une leçon
+  async updateLesson(lessonId: string, lessonData: any) {
+    const response = await api.put(`/api/admin/formations/lessons/${lessonId}`, lessonData);
+    return response.data;
+  },
+
+  // Supprimer une leçon
+  async deleteLesson(lessonId: string) {
+    const response = await api.delete(`/api/admin/formations/lessons/${lessonId}`);
+    return response.data;
+  },
+
+  // Supprimer une section
+  async deleteSection(sectionId: string) {
+    const response = await api.delete(`/api/admin/formations/sections/${sectionId}`);
+    return response.data;
+  }
 };
 
 export const quizApi = {
@@ -254,6 +263,21 @@ export const bankFormationApi = {
   // Récupérer toutes les formations assignées à une banque
   getBankFormations: async (bankId: string): Promise<ApiResponse<BankFormation[]>> => {
     const response = await api.get(`/api/admin/banks/${bankId}/formations`);
+    return response.data;
+  },
+
+  // Récupérer toutes les banques qui ont accès à une formation
+  getFormationBanks: async (formationId: string): Promise<ApiResponse<Bank[]>> => {
+    const response = await api.get(`/api/admin/formations/${formationId}/banks`);
+    return response.data;
+  },
+
+  // Récupérer les statistiques d'une formation (nombre de banques, collaborateurs)
+  getFormationStats: async (formationId: string): Promise<ApiResponse<{
+    bankCount: number;
+    userCount: number;
+  }>> => {
+    const response = await api.get(`/api/admin/formations/${formationId}/stats`);
     return response.data;
   },
 

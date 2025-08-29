@@ -6,8 +6,11 @@ import {
   uploadSingleVideo,
   uploadSingleFile,
   uploadProfileImage,
-  uploadLessonImage,
   uploadFormationImage,
+  uploadLessonFile,
+  uploadLessonCoverImage,
+  createLessonFileUploadMiddleware,
+  createLessonCoverUploadMiddleware,
   handleMulterError,
 } from "../middleware/upload.middleware.js";
 import {
@@ -239,6 +242,21 @@ router.get(
   authMiddleware,
   adminMiddleware,
   bankFormationController.getBankFormations
+);
+
+// Routes pour les statistiques des formations
+router.get(
+  "/formations/:formationId/banks",
+  authMiddleware,
+  adminMiddleware,
+  bankFormationController.getFormationBanks
+);
+
+router.get(
+  "/formations/:formationId/stats",
+  authMiddleware,
+  adminMiddleware,
+  bankFormationController.getFormationStats
 );
 
 router.patch(
@@ -490,6 +508,12 @@ router.get(
 // );
 
 // Routes d'upload
+router.post("/upload/test", authMiddleware, adminMiddleware, (req, res) => {
+  console.log("🔍 Test endpoint - req.body:", req.body);
+  console.log("🔍 Test endpoint - req.params:", req.params);
+  res.json({ success: true, message: "Test endpoint fonctionne" });
+});
+
 router.post(
   "/upload/image",
   authMiddleware,
@@ -500,12 +524,22 @@ router.post(
 );
 
 router.post(
-  "/upload/lesson-image",
+  "/upload/cover-image/:formationTitle",
   authMiddleware,
   adminMiddleware,
-  uploadLessonImage,
+  uploadFormationImage,
   handleMulterError,
-  uploadController.uploadImage
+  uploadController.uploadFormationCoverImage
+);
+
+router.post(
+  "/upload/lesson-cover-image",
+  authMiddleware,
+  adminMiddleware,
+  createLessonCoverUploadMiddleware(),
+  uploadSingleImage,
+  handleMulterError,
+  uploadController.uploadLessonCoverImage
 );
 
 router.post(
@@ -533,6 +567,16 @@ router.post(
   uploadSingleFile,
   handleMulterError,
   uploadController.uploadFile
+);
+
+router.post(
+  "/upload/lesson-file/:formationTitle/:lessonTitle",
+  authMiddleware,
+  adminMiddleware,
+  createLessonFileUploadMiddleware(),
+  uploadSingleFile,
+  uploadController.uploadLessonFile,
+  handleMulterError
 );
 
 // Routes de vérification et gestion

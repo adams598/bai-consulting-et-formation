@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, BookOpen, Users, Settings, FolderOpen } from 'lucide-react';
-import { formationsApi, quizApi } from '../../../api/adminApi';
+import { Plus, Edit, Trash2, Eye, BookOpen, Users, Settings, FolderOpen, Clock, Database } from 'lucide-react';
+import './AdminFormationsPage.css';
+import '../styles/admin-typography.css';
+import { formationsApi, quizApi, bankFormationApi } from '../../../api/adminApi';
 import { Formation } from '../types';
+import { getFormationCoverImageUrl } from '../../../utils/imageUtils';
 import { FormationModal } from './FormationModal';
 import ConfirmModal from './ConfirmModal';
 import QuizConfigModal from './QuizConfigModal';
 import FormationContentManager from './FormationContentManager';
+import FormationDetailView from './FormationDetailView';
+import BanksListView from './BanksListView';
 
 const AdminFormationsPage: React.FC = () => {
   const [formations, setFormations] = useState<Formation[]>([]);
@@ -16,8 +21,11 @@ const AdminFormationsPage: React.FC = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showQuizModal, setShowQuizModal] = useState(false);
   const [showContentManager, setShowContentManager] = useState(false);
+  const [showFormationDetail, setShowFormationDetail] = useState(false);
+  const [showBanksList, setShowBanksList] = useState(false);
   const [selectedFormation, setSelectedFormation] = useState<Formation | null>(null);
   const [action, setAction] = useState<'edit' | 'delete' | 'quiz' | null>(null);
+  const [formationStats, setFormationStats] = useState<Record<string, { bankCount: number; userCount: number }>>({});
 
   useEffect(() => {
     loadFormations();
@@ -32,7 +40,21 @@ const AdminFormationsPage: React.FC = () => {
       setIsLoading(true);
       const response = await formationsApi.getAllFormations();
       // L'API retourne { success: true, data: [...] }
-      setFormations(response.data.data || []);
+      const formationsData = response.data.data || [];
+      setFormations(formationsData);
+      
+      // Charger les statistiques pour chaque formation
+      const stats: Record<string, { bankCount: number; userCount: number }> = {};
+      for (const formation of formationsData) {
+        try {
+          const statsResponse = await bankFormationApi.getFormationStats(formation.id);
+          stats[formation.id] = statsResponse.data || { bankCount: 0, userCount: 0 };
+        } catch (error) {
+          console.error(`Erreur lors du chargement des stats pour la formation ${formation.id}:`, error);
+          stats[formation.id] = { bankCount: 0, userCount: 0 };
+        }
+      }
+      setFormationStats(stats);
     } catch (error) {
       console.error('Erreur lors du chargement des formations:', error);
     } finally {
@@ -58,16 +80,24 @@ const AdminFormationsPage: React.FC = () => {
     setShowFormationModal(true);
   };
 
-  const handleEditFormation = (formation: Formation) => {
-    setSelectedFormation(formation);
-    setAction('edit');
-    setShowFormationModal(true);
+  const handleEditFormation = async (formation: Formation) => {
+    try {
+      setSelectedFormation(formation);
+      setAction('edit');
+      setShowFormationModal(true);
+    } catch (error) {
+      console.error('Erreur lors de l\'ouverture du modal d\'édition:', error);
+    }
   };
 
-  const handleDeleteFormation = (formation: Formation) => {
-    setSelectedFormation(formation);
-    setAction('delete');
-    setShowConfirmModal(true);
+  const handleDeleteFormation = async (formation: Formation) => {
+    try {
+      setSelectedFormation(formation);
+      setAction('delete');
+      setShowConfirmModal(true);
+    } catch (error) {
+      console.error('Erreur lors de l\'ouverture de la confirmation de suppression:', error);
+    }
   };
 
   const handleManageContent = (formation: Formation) => {
@@ -81,10 +111,36 @@ const AdminFormationsPage: React.FC = () => {
     setShowQuizModal(true);
   };
 
+  const handleFormationClick = (formation: Formation) => {
+    setSelectedFormation(formation);
+    setShowFormationDetail(true);
+  };
+
+  const handleLessonsClick = (formation: Formation, e: React.MouseEvent) => {
+    e.stopPropagation(); // Empêcher le déclenchement de handleFormationClick
+    setSelectedFormation(formation);
+    setShowFormationDetail(true);
+  };
+
+  const handleBanksClick = (formation: Formation, e: React.MouseEvent) => {
+    e.stopPropagation(); // Empêcher le déclenchement de handleFormationClick
+    setSelectedFormation(formation);
+    setShowBanksList(true);
+  };
+
   const handleSaveFormation = async () => {
     try {
       setShowFormationModal(false);
-      loadFormations();
+      // Recharger les formations pour avoir les données fraîches
+      await loadFormations();
+      
+      // Si on est en mode détail, mettre à jour selectedFormation avec les nouvelles données
+      if (showFormationDetail && selectedFormation) {
+        const updatedFormation = formations.find(f => f.id === selectedFormation.id);
+        if (updatedFormation) {
+          setSelectedFormation(updatedFormation);
+        }
+      }
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
     }
@@ -109,7 +165,14 @@ const AdminFormationsPage: React.FC = () => {
       try {
         await formationsApi.deleteFormation(selectedFormation.id);
         setShowConfirmModal(false);
-        loadFormations();
+        
+        // Si on était en mode détail, retourner à la liste
+        if (showFormationDetail) {
+          setShowFormationDetail(false);
+        }
+        
+        // Recharger les formations
+        await loadFormations();
       } catch (error) {
         console.error('Erreur lors de la suppression:', error);
       }
@@ -125,18 +188,7 @@ const AdminFormationsPage: React.FC = () => {
     }
   };
 
-  const formatDuration = (minutes: number) => {
-    if (minutes < 60) {
-      return `${minutes} min`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    if (remainingMinutes === 0) {
-      return `${hours}h`;
-    }
-    return `${hours}h ${remainingMinutes}min`;
-  };
-
+  // Fonction pour obtenir l'icône de statut
   const getStatusIcon = (isActive: boolean) => {
     return isActive ? (
       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -149,11 +201,48 @@ const AdminFormationsPage: React.FC = () => {
     );
   };
 
+  // Fonction pour formater la durée
+  const formatDuration = (minutes: number) => {
+    if (minutes < 60) {
+      return `${minutes} min`;
+    }
+    const hours = Math.floor(minutes / 60);
+    const remainingMinutes = minutes % 60;
+    if (remainingMinutes === 0) {
+      return `${hours}h`;
+    }
+    return `${hours}h ${remainingMinutes}min`;
+  };
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
+    );
+  }
+
+  // Afficher la vue détaillée de la formation
+  if (showFormationDetail && selectedFormation) {
+    return (
+      <FormationDetailView
+        formation={selectedFormation}
+        formationStats={formationStats[selectedFormation.id]}
+        onBack={() => setShowFormationDetail(false)}
+        onEdit={handleEditFormation}
+        onDelete={handleDeleteFormation}
+      />
+    );
+  }
+
+  // Afficher la liste des banques
+  if (showBanksList && selectedFormation) {
+    return (
+      <BanksListView
+        formation={selectedFormation}
+        formationStats={formationStats[selectedFormation.id]}
+        onBack={() => setShowBanksList(false)}
+      />
     );
   }
 
@@ -182,124 +271,164 @@ const AdminFormationsPage: React.FC = () => {
         />
       </div>
 
-      {/* Tableau des formations */}
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Formation
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Description
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Durée
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Leçons
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Banques
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Quiz
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Statut
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+      {/* Liste des formations */}
+      <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="admin-title-md admin-title-spacing">Formations disponibles</h2>
+          <span className="admin-text-sm admin-badge">{filteredFormations.length} formation(s)</span>
+        </div>
+
+        {isLoading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-500 text-lg">Chargement des formations...</p>
+          </div>
+        ) : filteredFormations.length === 0 ? (
+          <div className="text-center py-12">
+            <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg">Aucune formation trouvée</p>
+            <p className="text-gray-400">Commencez par créer votre première formation</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredFormations.map((formation) => (
-              <tr key={formation.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <BookOpen className="h-5 w-5 text-blue-600 mr-3" />
-                    <div className="text-sm font-medium text-gray-900">{formation.title}</div>
+              <div 
+                key={formation.id} 
+                className="bg-gradient-to-b from-white to-blue-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+                onClick={() => handleFormationClick(formation)}
+              >
+                <div className="relative h-48 bg-gray-200 rounded-lg mb-4 overflow-hidden">
+                  {formation.coverImage ? (
+                    <img
+                      src={getFormationCoverImageUrl(formation.coverImage)}
+                      alt={`Couverture de ${formation.title}`}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        console.error('❌ Erreur de chargement de l\'image de couverture:', formation.coverImage);
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        target.nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  
+                  {/* Fallback si pas d'image */}
+                  <div className={`w-full h-full flex items-center justify-center ${formation.coverImage ? 'hidden' : ''}`}>
+                    <BookOpen className="h-16 w-16 text-gray-400" />
                   </div>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="text-sm text-gray-900 max-w-xs truncate">
-                    {formation.description}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {formatDuration(formation.totalDuration || formation.duration)}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">
-                    {formation.lessonCount || 0} leçon(s)
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center text-sm text-gray-900">
-                    <Users className="h-4 w-4 mr-2" />
-                    {formation.bankCount || 0} banque(s)
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    {formation.hasQuiz ? (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        Configuré
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                        Non configuré
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <button
-                    onClick={() => handleToggleActive(formation)}
-                    className="cursor-pointer"
-                  >
-                    {getStatusIcon(formation.isActive)}
-                  </button>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                  <div className="flex space-x-2">
+                  
+                  {/* Badge de statut */}
+                  <div className="absolute top-2 right-2">
                     <button
-                      onClick={() => handleManageContent(formation)}
-                      className="text-green-600 hover:text-green-900 p-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleActive(formation);
+                      }}
+                      className="cursor-pointer"
+                    >
+                      {getStatusIcon(formation.isActive)}
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <h3 className="admin-card-title admin-title-spacing line-clamp-2">{formation.title}</h3>
+                  <p className="admin-text-sm admin-body-spacing line-clamp-3">{formation.description}</p>
+                  
+                  {/* Statistiques */}
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center text-sm text-gray-700">
+                      <Clock className="h-4 w-4 mr-2" />
+                      <span>{formatDuration(formation.totalDuration || formation.duration)}</span>
+                    </div>
+                    
+                    {/* Leçons et banques placées horizontalement */}
+                    <div className="flex items-center justify-between text-sm text-gray-700">
+                      <div 
+                        className="flex items-center hover:text-blue-600 transition-colors cursor-pointer"
+                        onClick={(e) => handleLessonsClick(formation, e)}
+                      >
+                        <BookOpen className="h-4 w-4 mr-2" />
+                        <span>{formation.lessonCount || 0} leçon(s)</span>
+                      </div>
+                      
+                      <div 
+                        className="flex items-center hover:text-blue-600 transition-colors cursor-pointer"
+                        onClick={(e) => handleBanksClick(formation, e)}
+                      >
+                        <Database className="h-4 w-4 mr-2" />
+                        <span>{formationStats[formation.id]?.bankCount || 0} banque(s)</span>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center">
+                      {formation.hasQuiz ? (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Quiz configuré
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                          Quiz non configuré
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Actions */}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleManageContent(formation);
+                      }}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-2 rounded-md transition-colors duration-200 flex items-center justify-center action-button"
                       title="Gérer le contenu"
                     >
-                      <FolderOpen className="h-4 w-4" />
+                      <FolderOpen className="h-3 w-3 mr-1" />
+                      Contenu
                     </button>
+                    
                     <button
-                      onClick={() => handleConfigureQuiz(formation)}
-                      className="text-purple-600 hover:text-purple-900 p-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleConfigureQuiz(formation);
+                      }}
+                      className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-2 rounded-md transition-colors duration-200 flex items-center justify-center action-button"
                       title="Configurer le quiz"
                     >
-                      <Settings className="h-4 w-4" />
+                      <Settings className="h-3 w-3 mr-1" />
+                      Quiz
                     </button>
+                    
                     <button
-                      onClick={() => handleEditFormation(formation)}
-                      className="text-indigo-600 hover:text-indigo-900 p-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditFormation(formation);
+                      }}
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-2 rounded-md transition-colors duration-200 flex items-center justify-center action-button"
                       title="Modifier"
                     >
-                      <Edit className="h-4 w-4" />
+                      <Edit className="h-3 w-3 mr-1" />
+                      Modifier
                     </button>
+                    
                     <button
-                      onClick={() => handleDeleteFormation(formation)}
-                      className="text-red-600 hover:text-red-900 p-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteFormation(formation);
+                      }}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-2 rounded-md transition-colors duration-200 flex items-center justify-center action-button"
                       title="Supprimer"
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3 w-3 mr-1" />
+                      Supprimer
                     </button>
                   </div>
-                </td>
-              </tr>
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+        )}
       </div>
 
       {/* Modal de création/édition de formation */}

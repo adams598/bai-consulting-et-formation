@@ -14,6 +14,7 @@ import AdminDashboardPage from './app/admin/dashboard/page';
 
 import AdminBanksPage from './app/admin/banks/page';
 import AdminUsersPage from './app/admin/users/page';
+import AdminFormationsPage from './features/admin/components/AdminFormationsPage';
 import AdminStatsPage from './app/admin/stats/page';
 import AdminSettingsPage from './app/admin/settings/page';
 import BankDetailPage from './features/admin/components/BankDetailPage';
@@ -225,6 +226,7 @@ function App() {
               <Route path="banks" element={<AdminBanksPage />} />
               <Route path="banks/:bankId" element={<BankDetailPage />} />
               <Route path="users" element={<AdminUsersPage />} />
+              <Route path="formations" element={<AdminFormationsPage />} />
               <Route path="stats" element={<AdminStatsPage />} />
               <Route path="settings" element={<AdminSettingsPage />} />
             </Route>
