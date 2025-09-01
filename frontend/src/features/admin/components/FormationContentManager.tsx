@@ -7,6 +7,7 @@ import LessonModal from './LessonModal';
 import ConfirmModal from './ConfirmModal';
 import LessonPreview from './LessonPreview';
 import LessonSelectionManager from './LessonSelectionManager';
+import LessonProgressBar from './LessonProgressBar';
 import { toast } from '../../../components/ui/use-toast';
 import { getLessonImageUrl } from '../../../utils/imageUtils';
 
@@ -101,7 +102,8 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
           duration: lessonData.duration || selectedContent.duration,
           order: lessonData.order || selectedContent.order,
           sectionId: lessonData.sectionId || selectedContent.sectionId,
-          coverImage: lessonData.coverImage || selectedContent.coverImage
+          coverImage: lessonData.coverImage || selectedContent.coverImage,
+          fileUrl: lessonData.fileUrl || selectedContent.fileUrl
         });
       } else {
         // Création d'une nouvelle leçon
@@ -112,7 +114,8 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
           duration: lessonData.duration || 0,
           order: lessonData.order || 0,
           sectionId: lessonData.sectionId,
-          coverImage: lessonData.coverImage
+          coverImage: lessonData.coverImage,
+          fileUrl: lessonData.fileUrl
         });
       }
       setShowLessonModal(false);
@@ -544,7 +547,18 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                             </div>
                             
                             <h4 className="font-semibold text-gray-900 mb-2 line-clamp-2">{lesson.title}</h4>
-                            <p className="text-gray-600 text-sm mb-4 line-clamp-2">{lesson.description}</p>
+                            <p className="text-gray-600 text-sm mb-3 line-clamp-2">{lesson.description}</p>
+                            
+                            {/* Barre de progression */}
+                            <div className="mb-3">
+                              <LessonProgressBar
+                                lessonId={lesson.id}
+                                formationId={formation.id}
+                                userId={localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')!).id : 'default-user-id'}
+                                lessonType={lesson.type}
+                                className="text-xs"
+                              />
+                            </div>
                             
                             <div className="flex items-center justify-between text-xs text-gray-500">
                               <div className="flex items-center space-x-1">
@@ -684,7 +698,18 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                           </div>
                           
                           <h4 className="font-semibold text-gray-900 mb-2 line-clamp-2">{lesson.title}</h4>
-                          <p className="text-gray-600 text-sm mb-4 line-clamp-2">{lesson.description}</p>
+                          <p className="text-gray-600 text-sm mb-3 line-clamp-2">{lesson.description}</p>
+                          
+                          {/* Barre de progression */}
+                          <div className="mb-3">
+                            <LessonProgressBar
+                              lessonId={lesson.id}
+                              formationId={formation.id}
+                              userId={localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')!).id : 'default-user-id'}
+                              lessonType={lesson.type}
+                              className="text-xs"
+                            />
+                          </div>
                           
                           <div className="flex items-center justify-between text-xs text-gray-500">
                             <div className="flex items-center space-x-1">

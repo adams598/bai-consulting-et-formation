@@ -2,6 +2,33 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
+// Fonction pour déterminer le type de fichier
+const getFileType = (filename) => {
+  const extension = path.extname(filename).toLowerCase();
+
+  if ([".jpg", ".jpeg", ".png", ".gif", ".webp"].includes(extension)) {
+    return "image";
+  }
+
+  if ([".mp4", ".avi", ".mov", ".wmv", ".webm"].includes(extension)) {
+    return "video";
+  }
+
+  if (
+    [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"].includes(
+      extension
+    )
+  ) {
+    return "document";
+  }
+
+  if ([".mp3", ".wav", ".ogg", ".aac"].includes(extension)) {
+    return "audio";
+  }
+
+  return "other";
+};
+
 // Configuration du stockage avec dossiers dynamiques
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -269,8 +296,16 @@ const storage = multer.diskStorage({
         // Images de couverture des leçons : couverture-{timestamp}.{ext}
         filename = `couverture-${timestamp}${extension}`;
       } else if (req.uploadType === "lesson-file") {
-        // Fichiers joints des leçons : conserver le nom original
-        filename = file.originalname;
+        // Fichiers joints des leçons : file-{type}-{titre-leçon}-{timestamp}.{ext}
+        const fileType = getFileType(file.originalname);
+        const lessonTitle =
+          req.params.lessonTitle || req.body.lessonTitle || "unknown";
+        const sanitizedLessonTitle = lessonTitle
+          .replace(/[^a-zA-Z0-9_-]/g, "_")
+          .toLowerCase();
+        const timestamp = Date.now();
+        const extension = path.extname(file.originalname);
+        filename = `file-${fileType}-${sanitizedLessonTitle}-${timestamp}${extension}`;
       } else if (req.uploadType === "formation") {
         // Images des formations : couverture-{timestamp}.{ext}
         filename = `couverture-${timestamp}${extension}`;
@@ -287,6 +322,26 @@ const storage = multer.diskStorage({
       const timestamp = Date.now();
       const extension = path.extname(file.originalname);
       filename = `video-${userFolderName}-${timestamp}${extension}`;
+    } else if (req.uploadType === "lesson-file") {
+      // Fichiers joints des leçons (non-images) : file-{type}-{titre-leçon}-{timestamp}.{ext}
+      const fileType = getFileType(file.originalname);
+      const lessonTitle =
+        req.params.lessonTitle || req.body.lessonTitle || "unknown";
+      const sanitizedLessonTitle = lessonTitle
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .toLowerCase();
+      const timestamp = Date.now();
+      const extension = path.extname(file.originalname);
+      filename = `file-${fileType}-${sanitizedLessonTitle}-${timestamp}${extension}`;
+
+      console.log("🔍 Naming lesson-file (non-image):");
+      console.log("  - req.uploadType:", req.uploadType);
+      console.log("  - req.params.lessonTitle:", req.params.lessonTitle);
+      console.log("  - req.body.lessonTitle:", req.body.lessonTitle);
+      console.log("  - lessonTitle final:", lessonTitle);
+      console.log("  - sanitizedLessonTitle:", sanitizedLessonTitle);
+      console.log("  - fileType:", fileType);
+      console.log("  - filename final:", filename);
     } else {
       // Pour les autres fichiers, utiliser le format file-{nom de l'user}
       const userFolderName = `${user.firstName}_${user.lastName}`.replace(

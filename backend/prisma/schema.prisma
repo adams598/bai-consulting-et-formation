@@ -111,6 +111,7 @@ model FormationContent {
   formation Formation          @relation(fields: [formationId], references: [id], onDelete: Cascade)
   section   FormationContent?  @relation("SectionLessons", fields: [sectionId], references: [id])
   lessons   FormationContent[] @relation("SectionLessons")
+  userProgress UserProgress[]
 
   @@map("formation_content")
 }
@@ -185,22 +186,36 @@ model QuizAnswer {
 }
 
 model UserProgress {
-  id           String   @id @default(cuid())
-  userId       String
-  formationId  String
-  contentId    String?
-  progress     Float    @default(0) // pourcentage de progression (0-100)
-  timeSpent    Int      @default(0) // en secondes
-  lastAccessed DateTime @default(now())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
+  id        String   @id @default(cuid())
+  userId    String
+  lessonId  String
+  formationId String
+  
+  // Progression générale (0-100)
+  progress  Float    @default(0) // Pourcentage de progression
+  
+  // Détails spécifiques par type de contenu
+  currentPage    Int?    // Page actuelle (pour PDFs)
+  totalPages     Int?    // Nombre total de pages
+  currentTime    Int?    // Temps actuel en secondes (pour vidéos/audio)
+  totalTime      Int?    // Durée totale en secondes
+  lastPosition   String? // Position de sauvegarde (JSON)
+  
+  // Métadonnées
+  startedAt      DateTime @default(now())
+  lastAccessedAt DateTime @default(now())
+  completedAt    DateTime?
+  isCompleted    Boolean  @default(false)
+  
   // Relations
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson   FormationContent @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   formation Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, formationId])
-  @@map("user_progress")
+  
+  // Index pour les requêtes fréquentes
+  @@unique([userId, lessonId])
+  @@index([userId, formationId])
+  @@index([lessonId])
 }
 
 model Notification {

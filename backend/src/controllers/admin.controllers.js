@@ -1699,6 +1699,8 @@ export const formationContentController = {
         sectionId,
         order,
         coverImage,
+        fileUrl,
+        metadata,
       } = req.body;
 
       // Validation
@@ -1750,6 +1752,8 @@ export const formationContentController = {
           order: order || 0,
           duration: duration ? parseInt(duration) : null,
           coverImage: coverImage || null,
+          fileUrl: fileUrl || null,
+          metadata: metadata || null,
         },
       });
 
@@ -1777,6 +1781,8 @@ export const formationContentController = {
         sectionId,
         order,
         coverImage,
+        fileUrl,
+        metadata,
       } = req.body;
 
       // Validation
@@ -1828,6 +1834,8 @@ export const formationContentController = {
           duration: duration ? parseInt(duration) : null,
           coverImage:
             coverImage !== undefined ? coverImage : existingLesson.coverImage,
+          fileUrl: fileUrl !== undefined ? fileUrl : existingLesson.fileUrl,
+          metadata: metadata !== undefined ? metadata : existingLesson.metadata,
         },
       });
 

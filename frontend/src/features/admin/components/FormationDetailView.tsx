@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, BookOpen, Clock, Database, Plus, Edit, Trash2, X, RefreshCw, Users } from 'lucide-react';
+import { ArrowLeft, BookOpen, Clock, Database, Plus, Edit, Trash2, X, RefreshCw, Users, Play } from 'lucide-react';
 import { Formation, FormationContent } from '../types';
 import { getFormationCoverImageUrl, getLessonImageUrl } from '../../../utils/imageUtils';
 import { formationContentApi } from '../../../api/adminApi';
@@ -7,6 +7,8 @@ import ConfirmModal from './ConfirmModal';
 import { FormationModal } from './FormationModal';
 import BanksListView from './BanksListView';
 import LessonModal from './LessonModal';
+import LessonPlayer from './LessonPlayer';
+
 
 interface FormationDetailViewProps {
   formation: Formation;
@@ -39,6 +41,9 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
   
   // État pour afficher la liste des banques
   const [showBanksList, setShowBanksList] = useState(false);
+  
+  // État pour le lecteur de leçons
+  const [showLessonPlayer, setShowLessonPlayer] = useState(false);
 
   // Fonctions utilitaires pour l'affichage des leçons
   const getContentIcon = (type: string) => {
@@ -280,6 +285,19 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
     } catch (error) {
       console.error('Erreur lors de la suppression:', error);
     }
+  };
+
+  // Fonction pour lancer une leçon (affiche l'interface de la leçon)
+  const handleLaunchLesson = (lesson: FormationContent) => {
+    console.log('🚀 FormationDetailView - handleLaunchLesson appelé');
+    console.log('🚀 FormationDetailView - Leçon sélectionnée:', lesson.title);
+    console.log('🚀 FormationDetailView - Formation:', localFormation.title);
+    
+    // Afficher le lecteur de leçon avec la leçon sélectionnée
+    setSelectedLesson(lesson);
+    setShowLessonPlayer(true);
+    
+    console.log('🚀 FormationDetailView - LessonPlayer va s\'afficher');
   };
 
   const formatDuration = (minutes: number) => {
@@ -536,7 +554,7 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
                       <p className="text-sm text-gray-600 mb-3 line-clamp-3">{lesson.description}</p>
                     )}
                     
-                    <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
                       <div className="flex items-center">
                         <Clock className="h-4 w-4 mr-2" />
                         <span>{formatDuration(lesson.duration || 0)}</span>
@@ -544,6 +562,31 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
                       <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium text-xs">
                         {getContentTypeLabel(lesson.type)}
                       </span>
+                    </div>
+                    
+                    {/* Bouton de lancement et barre de progression */}
+                    <div className="mt-3">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleLaunchLesson(lesson);
+                        }}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors flex items-center justify-center"
+                      >
+                        <Play className="h-4 w-4 mr-2" />
+                        Lancer la leçon
+                      </button>
+                      
+                      {/* Barre de progression */}
+                      <div className="mt-3">
+                        <div className="flex items-center justify-between text-sm text-gray-600 mb-1">
+                          <span>Progression</span>
+                          <span>0%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-blue-600 h-2 rounded-full" style={{ width: '0%' }}></div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -592,6 +635,19 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
               onCancel={() => setShowDeleteFormationModal(false)}
               confirmText="Supprimer"
               variant="danger"
+            />
+          )}
+          
+          {/* Lecteur de leçons */}
+          {showLessonPlayer && (
+            <LessonPlayer
+              formation={{
+                id: localFormation.id,
+                title: localFormation.title,
+                description: localFormation.description
+              }}
+              lessons={lessons}
+              onClose={() => setShowLessonPlayer(false)}
             />
           )}
         </>

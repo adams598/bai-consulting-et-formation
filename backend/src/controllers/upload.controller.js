@@ -4,6 +4,151 @@ import path from "path";
 
 const prisma = new PrismaClient();
 
+// Fonction helper pour déterminer le type MIME d'un fichier
+function getMimeType(filename) {
+  const ext = path.extname(filename).toLowerCase();
+  const mimeTypes = {
+    // Images
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+
+    // Vidéos
+    ".mp4": "video/mp4",
+    ".avi": "video/x-msvideo",
+    ".mov": "video/quicktime",
+    ".wmv": "video/x-ms-wmv",
+    ".flv": "video/x-flv",
+    ".webm": "video/webm",
+
+    // Documents
+    ".pdf": "application/pdf",
+    ".doc": "application/msword",
+    ".docx":
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ".xls": "application/vnd.ms-excel",
+    ".xlsx":
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+
+    // Présentations
+    ".ppt": "application/vnd.ms-powerpoint",
+    ".pptx":
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+
+    // Texte
+    ".txt": "text/plain",
+    ".rtf": "application/rtf",
+
+    // Archives
+    ".zip": "application/zip",
+    ".rar": "application/x-rar-compressed",
+    ".7z": "application/x-7z-compressed",
+
+    // Audio
+    ".mp3": "audio/mpeg",
+    ".wav": "audio/wav",
+    ".ogg": "audio/ogg",
+    ".m4a": "audio/mp4",
+  };
+
+  return mimeTypes[ext] || "application/octet-stream";
+}
+
+// Fonction helper pour vérifier les fichiers existants dans une leçon
+async function checkExistingLessonFiles(formationTitle, lessonTitle) {
+  try {
+    const sanitizedFormationTitle = formationTitle
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .toLowerCase();
+    const sanitizedLessonTitle = lessonTitle
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .toLowerCase();
+
+    const lessonPath = path.join(
+      "uploads",
+      "formations",
+      sanitizedFormationTitle,
+      "lessons",
+      sanitizedLessonTitle
+    );
+
+    if (!fs.existsSync(lessonPath)) {
+      return { exists: false, files: [] };
+    }
+
+    const files = fs.readdirSync(lessonPath);
+    const lessonFiles = files.filter((file) => file.startsWith("file-"));
+
+    return {
+      exists: lessonFiles.length > 0,
+      files: lessonFiles.map((file) => ({
+        name: file,
+        path: path.join(lessonPath, file),
+        size: fs.statSync(path.join(lessonPath, file)).size,
+        type: getMimeType(file),
+      })),
+    };
+  } catch (error) {
+    console.error(
+      "❌ Erreur lors de la vérification des fichiers existants:",
+      error
+    );
+    return { exists: false, files: [] };
+  }
+}
+
+// Fonction pour supprimer un fichier existant
+async function deleteExistingLessonFile(formationTitle, lessonTitle) {
+  try {
+    const sanitizedFormationTitle = formationTitle
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .toLowerCase();
+    const sanitizedLessonTitle = lessonTitle
+      .replace(/[^a-zA-Z0-9_-]/g, "_")
+      .toLowerCase();
+
+    const lessonPath = path.join(
+      "uploads",
+      "formations",
+      sanitizedFormationTitle,
+      "lessons",
+      sanitizedLessonTitle
+    );
+
+    if (!fs.existsSync(lessonPath)) {
+      return { success: false, message: "Dossier de leçon introuvable" };
+    }
+
+    const files = fs.readdirSync(lessonPath);
+    const lessonFiles = files.filter((file) => file.startsWith("file-"));
+
+    if (lessonFiles.length === 0) {
+      return { success: false, message: "Aucun fichier à supprimer" };
+    }
+
+    // Supprimer tous les fichiers de leçon existants
+    for (const file of lessonFiles) {
+      const filePath = path.join(lessonPath, file);
+      fs.unlinkSync(filePath);
+      console.log(`🗑️ Fichier supprimé: ${filePath}`);
+    }
+
+    return {
+      success: true,
+      message: `${lessonFiles.length} fichier(s) supprimé(s)`,
+    };
+  } catch (error) {
+    console.error(
+      "❌ Erreur lors de la suppression des fichiers existants:",
+      error
+    );
+    return { success: false, message: "Erreur lors de la suppression" };
+  }
+}
+
 export const uploadController = {
   // Upload d'image de couverture
   async uploadImage(req, res) {
@@ -222,6 +367,125 @@ export const uploadController = {
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur lors de l'upload",
+      });
+    }
+  },
+
+  // Récupérer le fichier d'une leçon (avec ou sans nom de fichier)
+  async getLessonFile(req, res) {
+    try {
+      const { formationTitle, lessonTitle, filename } = req.params;
+
+      if (!formationTitle || !lessonTitle) {
+        return res.status(400).json({
+          success: false,
+          message: "Le titre de la formation et de la leçon sont requis",
+        });
+      }
+
+      // Sanitizer les titres pour la sécurité
+      const sanitizedFormationTitle = formationTitle
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .toLowerCase();
+      const sanitizedLessonTitle = lessonTitle
+        .replace(/[^a-zA-Z0-9_-]/g, "_")
+        .toLowerCase();
+
+      // Construire le chemin du dossier de la leçon
+      const lessonDir = path.join(
+        process.cwd(),
+        "uploads",
+        "formations",
+        sanitizedFormationTitle,
+        "lessons",
+        sanitizedLessonTitle
+      );
+
+      // console.log("🔍 getLessonFile - Dossier de la leçon:", lessonDir);
+
+      // Vérifier si le dossier existe
+      if (!fs.existsSync(lessonDir)) {
+        console.log("❌ Dossier de leçon non trouvé:", lessonDir);
+        return res.status(404).json({
+          success: false,
+          message: "Dossier de leçon non trouvé",
+        });
+      }
+
+      let targetFilename = filename;
+      let filePath;
+
+      // Si pas de nom de fichier fourni, chercher le fichier qui commence par 'file'
+      if (!filename) {
+        try {
+          const files = fs.readdirSync(lessonDir);
+          // console.log("🔍 getLessonFile - Fichiers dans le dossier:", files);
+
+          // Chercher le fichier qui commence par 'file'
+          const lessonFile = files.find((file) => file.startsWith("file"));
+
+          if (!lessonFile) {
+            console.log("❌ Aucun fichier de leçon trouvé dans:", lessonDir);
+            return res.status(404).json({
+              success: false,
+              message: "Aucun fichier de leçon trouvé",
+            });
+          }
+
+          targetFilename = lessonFile;
+          // console.log("🔍 getLessonFile - Fichier trouvé:", targetFilename);
+        } catch (error) {
+          console.error("❌ Erreur lecture dossier:", error);
+          return res.status(500).json({
+            success: false,
+            message: "Erreur lors de la lecture du dossier de la leçon",
+          });
+        }
+      }
+
+      // Construire le chemin complet du fichier
+      filePath = path.join(lessonDir, targetFilename);
+
+      // console.log("🔍 getLessonFile - Chemin du fichier:", filePath);
+
+      // Vérifier si le fichier existe
+      if (!fs.existsSync(filePath)) {
+        console.log("❌ Fichier non trouvé:", filePath);
+        return res.status(404).json({
+          success: false,
+          message: "Fichier non trouvé",
+        });
+      }
+
+      // Obtenir les informations du fichier
+      const stats = fs.statSync(filePath);
+      const mimeType = getMimeType(targetFilename);
+
+      // Définir les headers appropriés
+      res.setHeader("Content-Type", mimeType);
+      res.setHeader("Content-Length", stats.size);
+      res.setHeader(
+        "Content-Disposition",
+        `inline; filename="${targetFilename}"`
+      );
+      res.setHeader("Cache-Control", "public, max-age=3600"); // Cache 1 heure
+
+      // Envoyer le fichier
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+
+      console.log("✅ Fichier de leçon envoyé avec succès:", {
+        formationTitle: sanitizedFormationTitle,
+        lessonTitle: sanitizedLessonTitle,
+        filename: targetFilename,
+        size: stats.size,
+        mimeType,
+      });
+    } catch (error) {
+      console.error("❌ Erreur getLessonFile:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur lors de la récupération du fichier",
       });
     }
   },
@@ -526,6 +790,75 @@ export const uploadController = {
       res.status(500).json({
         success: false,
         message: "Erreur lors de la liste des fichiers",
+      });
+    }
+  },
+
+  // Vérifier les fichiers existants d'une leçon
+  async checkLessonFiles(req, res) {
+    try {
+      const { formationTitle, lessonTitle } = req.params;
+
+      if (!formationTitle || !lessonTitle) {
+        return res.status(400).json({
+          success: false,
+          message: "Le titre de la formation et de la leçon sont requis",
+        });
+      }
+
+      const result = await checkExistingLessonFiles(
+        formationTitle,
+        lessonTitle
+      );
+
+      res.json({
+        success: true,
+        data: result,
+        message: result.exists ? "Fichiers trouvés" : "Aucun fichier trouvé",
+      });
+    } catch (error) {
+      console.error("❌ Erreur checkLessonFiles:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur lors de la vérification des fichiers",
+      });
+    }
+  },
+
+  // Supprimer les fichiers existants d'une leçon
+  async deleteLessonFiles(req, res) {
+    try {
+      const { formationTitle, lessonTitle } = req.params;
+
+      if (!formationTitle || !lessonTitle) {
+        return res.status(400).json({
+          success: false,
+          message: "Le titre de la formation et de la leçon sont requis",
+        });
+      }
+
+      const result = await deleteExistingLessonFile(
+        formationTitle,
+        lessonTitle
+      );
+
+      if (result.success) {
+        res.json({
+          success: true,
+          data: result,
+          message: result.message,
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          message: result.message,
+        });
+      }
+    } catch (error) {
+      console.error("❌ Erreur deleteLessonFiles:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur lors de la suppression des fichiers",
       });
     }
   },

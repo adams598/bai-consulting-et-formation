@@ -82,9 +82,9 @@ const AdminFormationsPage: React.FC = () => {
 
   const handleEditFormation = async (formation: Formation) => {
     try {
-      setSelectedFormation(formation);
-      setAction('edit');
-      setShowFormationModal(true);
+    setSelectedFormation(formation);
+    setAction('edit');
+    setShowFormationModal(true);
     } catch (error) {
       console.error('Erreur lors de l\'ouverture du modal d\'édition:', error);
     }
@@ -92,9 +92,9 @@ const AdminFormationsPage: React.FC = () => {
 
   const handleDeleteFormation = async (formation: Formation) => {
     try {
-      setSelectedFormation(formation);
-      setAction('delete');
-      setShowConfirmModal(true);
+    setSelectedFormation(formation);
+    setAction('delete');
+    setShowConfirmModal(true);
     } catch (error) {
       console.error('Erreur lors de l\'ouverture de la confirmation de suppression:', error);
     }
@@ -340,7 +340,7 @@ const AdminFormationsPage: React.FC = () => {
                     <div className="flex items-center text-sm text-gray-700">
                       <Clock className="h-4 w-4 mr-2" />
                       <span>{formatDuration(formation.totalDuration || formation.duration)}</span>
-                    </div>
+                  </div>
                     
                     {/* Leçons et banques placées horizontalement */}
                     <div className="flex items-center justify-between text-sm text-gray-700">
@@ -350,7 +350,7 @@ const AdminFormationsPage: React.FC = () => {
                       >
                         <BookOpen className="h-4 w-4 mr-2" />
                         <span>{formation.lessonCount || 0} leçon(s)</span>
-                      </div>
+                  </div>
                       
                       <div 
                         className="flex items-center hover:text-blue-600 transition-colors cursor-pointer"
@@ -358,19 +358,19 @@ const AdminFormationsPage: React.FC = () => {
                       >
                         <Database className="h-4 w-4 mr-2" />
                         <span>{formationStats[formation.id]?.bankCount || 0} banque(s)</span>
-                      </div>
-                    </div>
+                  </div>
+                  </div>
                     
-                    <div className="flex items-center">
-                      {formation.hasQuiz ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  <div className="flex items-center">
+                    {formation.hasQuiz ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                           Quiz configuré
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                           Quiz non configuré
-                        </span>
-                      )}
+                      </span>
+                    )}
                     </div>
                   </div>
                   

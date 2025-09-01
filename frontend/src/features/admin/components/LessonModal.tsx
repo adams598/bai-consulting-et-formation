@@ -42,6 +42,9 @@ const LessonModal: React.FC<LessonModalProps> = ({
 
   const [uploadMethod, setUploadMethod] = useState<'file' | 'url'>('file');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [existingFiles, setExistingFiles] = useState<any[]>([]);
+  const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (existingLesson) {
@@ -83,6 +86,36 @@ const LessonModal: React.FC<LessonModalProps> = ({
       });
     }
   }, [existingLesson]);
+
+  // Vérifier les fichiers existants quand le titre change
+  useEffect(() => {
+    if (formData.title.trim() && formationTitle) {
+      checkExistingFiles();
+    } else {
+      setExistingFiles([]);
+    }
+  }, [formData.title, formationTitle]);
+
+  // Fonction pour vérifier les fichiers existants
+  const checkExistingFiles = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/admin/upload/check-lesson-files/${encodeURIComponent(formationTitle)}/${encodeURIComponent(formData.title)}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          },
+        }
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        setExistingFiles(data.data.files || []);
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la vérification des fichiers existants:', error);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -167,24 +200,73 @@ const LessonModal: React.FC<LessonModalProps> = ({
         return;
       }
       
-      try {
-        console.log('🔍 Upload fichier joint - Titre leçon:', formData.title);
-        console.log('🔍 Upload fichier joint - Formation:', formationTitle);
-        
-        // Upload du fichier joint avec la nouvelle structure
-        const fileUrl = await uploadService.uploadLessonFile(file, formationTitle, formData.title);
-        
-        setFormData(prev => ({
-          ...prev,
-          contentFile: file,
-          contentFileUrl: fileUrl
-        }));
-        
-        console.log('✅ Fichier joint uploadé:', fileUrl);
-      } catch (error) {
-        console.error('❌ Erreur upload fichier joint:', error);
-        alert('Erreur lors de l\'upload du fichier joint');
+      console.log('🔍 Upload fichier joint - Titre leçon:', formData.title);
+      console.log('🔍 Upload fichier joint - Formation:', formationTitle);
+      
+      // Vérifier s'il y a des fichiers existants
+      if (existingFiles.length > 0) {
+        setPendingFile(file);
+        setShowReplaceConfirm(true);
+        e.target.value = ''; // Réinitialiser l'input
+        return;
       }
+      
+      // Pas de fichier existant, procéder à l'upload
+      await uploadFile(file);
+    }
+  };
+
+  // Fonction pour uploader un fichier
+  const uploadFile = async (file: File) => {
+    try {
+      console.log('🔍 Upload fichier joint - Titre leçon:', formData.title);
+      console.log('🔍 Upload fichier joint - Formation:', formationTitle);
+      
+      // Upload du fichier joint avec la nouvelle structure
+      const fileUrl = await uploadService.uploadLessonFile(file, formationTitle, formData.title);
+      
+      setFormData(prev => ({
+        ...prev,
+        contentFile: file,
+        contentFileUrl: fileUrl
+      }));
+      
+      console.log('✅ Fichier joint uploadé:', fileUrl);
+    } catch (error) {
+      console.error('❌ Erreur upload fichier joint:', error);
+      alert('Erreur lors de l\'upload du fichier joint');
+    }
+  };
+
+  // Fonction pour confirmer le remplacement
+  const confirmReplace = async () => {
+    if (!pendingFile) return;
+    
+    try {
+      // Supprimer les fichiers existants
+      const response = await fetch(
+        `http://localhost:3000/api/admin/upload/delete-lesson-files/${encodeURIComponent(formationTitle)}/${encodeURIComponent(formData.title)}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          },
+        }
+      );
+      
+      if (response.ok) {
+        // Uploader le nouveau fichier
+        await uploadFile(pendingFile);
+        setExistingFiles([]);
+      } else {
+        alert('Erreur lors de la suppression des fichiers existants');
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors du remplacement:', error);
+      alert('Erreur lors du remplacement du fichier');
+    } finally {
+      setShowReplaceConfirm(false);
+      setPendingFile(null);
     }
   };
 
@@ -432,6 +514,27 @@ const LessonModal: React.FC<LessonModalProps> = ({
                 <label htmlFor="contentFile" className="lesson-label">
                   Fichier de la leçon
                 </label>
+                
+                {/* Affichage des fichiers existants */}
+                {existingFiles.length > 0 && (
+                  <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="text-yellow-800 text-sm font-medium">⚠️ Fichier(s) existant(s)</span>
+                    </div>
+                    <div className="space-y-2">
+                      {existingFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between text-sm">
+                          <span className="text-yellow-700">{file.name}</span>
+                          <span className="text-yellow-600">({Math.round(file.size / 1024)} KB)</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-yellow-600 mt-2">
+                      Si vous ajoutez un nouveau fichier, l'ancien sera remplacé.
+                    </p>
+                  </div>
+                )}
+                
                 <div className="lesson-drag-zone">
                   <input
                     type="file"
@@ -503,6 +606,56 @@ const LessonModal: React.FC<LessonModalProps> = ({
           </div>
         </form>
       </div>
+
+      {/* Modale de confirmation de remplacement */}
+      {showReplaceConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-60">
+          <div className="bg-white rounded-lg p-6 max-w-md mx-4">
+            <div className="flex items-center space-x-3 mb-4">
+              <span className="text-yellow-600 text-2xl">⚠️</span>
+              <h3 className="text-lg font-semibold text-gray-900">
+                Remplacer le fichier existant ?
+              </h3>
+            </div>
+            
+            <div className="mb-4">
+              <p className="text-gray-600 mb-3">
+                Cette leçon contient déjà {existingFiles.length} fichier(s) :
+              </p>
+              <div className="bg-gray-50 p-3 rounded border">
+                {existingFiles.map((file, index) => (
+                  <div key={index} className="text-sm text-gray-700 mb-1">
+                    • {file.name} ({Math.round(file.size / 1024)} KB)
+                  </div>
+                ))}
+              </div>
+              <p className="text-red-600 text-sm mt-2">
+                ⚠️ L'ancien fichier sera définitivement supprimé !
+              </p>
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReplaceConfirm(false);
+                  setPendingFile(null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={confirmReplace}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Remplacer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

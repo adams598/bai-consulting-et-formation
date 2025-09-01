@@ -25,6 +25,8 @@ import {
   userFormationAssignmentController,
 } from "../controllers/admin.controllers.js";
 import { uploadController } from "../controllers/upload.controller.js";
+import { conversionController } from "../controllers/conversion.controller.js";
+import { progressController } from "../controllers/progress.controller.js";
 
 const router = express.Router();
 
@@ -449,31 +451,28 @@ router.get(
 //   quizController.deleteQuiz
 // );
 
-// Routes des progressions (à implémenter)
-// router.get(
-//   "/progress",
-//   authMiddleware,
-//   adminMiddleware,
-//   progressController.getAllProgress
-// );
-// router.get(
-//   "/progress/user/:userId",
-//   authMiddleware,
-//   adminMiddleware,
-//   progressController.getUserProgress
-// );
-// router.get(
-//   "/progress/formation/:formationId",
-//   authMiddleware,
-//   adminMiddleware,
-//   progressController.getFormationProgress
-// );
-// router.put(
-//   "/progress/:id",
-//   authMiddleware,
-//   adminMiddleware,
-//   progressController.updateProgress
-// );
+// Routes des progressions
+router.get(
+  "/progress/user/:userId",
+  authMiddleware,
+  adminMiddleware,
+  progressController.getUserProgress
+);
+router.put(
+  "/progress/:id",
+  authMiddleware,
+  adminMiddleware,
+  progressController.updateProgress
+);
+
+// Nouvelles routes de progression pour le TestViewer
+router.post("/progress/save", authMiddleware, progressController.saveProgress);
+router.get("/progress/get", authMiddleware, progressController.getProgress);
+router.get(
+  "/progress/user/:userId/all",
+  authMiddleware,
+  progressController.getUserAllProgress
+);
 
 // Routes des notifications (à implémenter)
 // router.get(
@@ -579,6 +578,20 @@ router.post(
   handleMulterError
 );
 
+// Route pour récupérer les fichiers des leçons
+router.get(
+  "/lesson-file/:formationTitle/:lessonTitle/:filename",
+  authMiddleware,
+  uploadController.getLessonFile
+);
+
+// Route pour récupérer le fichier le plus récent d'une leçon
+router.get(
+  "/lesson-file/:formationTitle/:lessonTitle",
+  authMiddleware,
+  uploadController.getLessonFile
+);
+
 // Routes de vérification et gestion
 router.get(
   "/upload/check/:contentType/:userFolder/:filename",
@@ -587,11 +600,71 @@ router.get(
   uploadController.checkFile
 );
 
+// Route pour vérifier les fichiers existants d'une leçon
+router.get(
+  "/upload/check-lesson-files/:formationTitle/:lessonTitle",
+  authMiddleware,
+  adminMiddleware,
+  uploadController.checkLessonFiles
+);
+
+// Route pour supprimer les fichiers existants d'une leçon
+router.delete(
+  "/upload/delete-lesson-files/:formationTitle/:lessonTitle",
+  authMiddleware,
+  adminMiddleware,
+  uploadController.deleteLessonFiles
+);
+
 router.get(
   "/upload/files",
   authMiddleware,
   adminMiddleware,
   uploadController.listUserFiles
+);
+
+// Routes de conversion
+router.get(
+  "/convert/status/:formationTitle/:lessonTitle/:filename",
+  authMiddleware,
+  conversionController.getConversionStatus
+);
+
+router.post(
+  "/convert/to-pdf/:formationTitle/:lessonTitle/:filename",
+  authMiddleware,
+  conversionController.convertToPdf
+);
+
+router.get(
+  "/convert/extract-html/:formationTitle/:lessonTitle/:filename",
+  authMiddleware,
+  conversionController.extractHtml
+);
+
+// Routes de progression
+router.get(
+  "/progress/:userId/:lessonId",
+  authMiddleware,
+  progressController.getUserProgress
+);
+
+router.put(
+  "/progress/:userId/:lessonId",
+  authMiddleware,
+  progressController.updateProgress
+);
+
+router.get(
+  "/progress/formation/:userId/:formationId",
+  authMiddleware,
+  progressController.getFormationProgress
+);
+
+router.post(
+  "/progress/:userId/:lessonId/complete",
+  authMiddleware,
+  progressController.markLessonCompleted
 );
 
 export default router;

@@ -7,6 +7,7 @@ import { toast } from "./components/ui/use-toast";
 import RootLayout from './layouts/RootLayout';
 import Loader from "./components/ui/loader";
 import { useTheme } from "./contexts/ThemeContext";
+import { ProgressProvider } from "./contexts/ProgressContext";
 
 // Import des pages admin
 import AdminLoginPage from './app/admin/login/page';
