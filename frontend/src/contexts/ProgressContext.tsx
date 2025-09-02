@@ -54,6 +54,15 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
     return `${userId}-${formationId}-${lessonId}`;
   };
 
+  // Configuration de l'API URL selon l'environnement
+  const getApiUrl = () => {
+    if (import.meta.env.VITE_API_URL) {
+      return import.meta.env.VITE_API_URL;
+    }
+    // En développement, utiliser localhost:3000
+    return 'http://localhost:3000';
+  };
+
   // Sauvegarder la progression dans la base de données et l'état global
   const saveProgress = async (data: ProgressData) => {
     // Éviter les requêtes trop fréquentes (minimum 1 seconde entre chaque sauvegarde)
@@ -77,24 +86,29 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
     setLastSaveTime(now);
     
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/progress/save`, {
+      // Nettoyer et valider les données avant envoi
+      const cleanData = {
+        lessonId: data.lessonId || '',
+        formationId: data.formationId || '',
+        userId: data.userId || '',
+        currentPage: data.currentPage || null,
+        totalPages: data.totalPages || null,
+        currentTime: data.currentTime || 0,
+        totalTime: data.totalTime || 0,
+        progress: data.progress || 0,
+        completed: data.completed || false,
+        lastAccessedAt: new Date().toISOString(),
+      };
+
+      console.log('📤 Envoi des données de progression:', cleanData);
+
+      const response = await fetch(`${getApiUrl()}/api/admin/progress/save`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
         },
-        body: JSON.stringify({
-          lessonId: data.lessonId,
-          formationId: data.formationId,
-          userId: data.userId,
-          currentPage: data.currentPage,
-          totalPages: data.totalPages,
-          timeSpent: data.currentTime,
-          progress: data.progress,
-          completed: data.completed,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }),
+        body: JSON.stringify(cleanData),
       });
 
       if (response.ok) {
@@ -111,10 +125,29 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
           }
         }));
       } else {
-        throw new Error(`Erreur ${response.status}: ${response.statusText}`);
+        // Si le backend n'est pas disponible, sauvegarder en local seulement
+        console.log('⚠️ Backend non disponible, sauvegarde locale uniquement');
+        const progressKey = getProgressKey(data.lessonId, data.formationId, data.userId);
+        setGlobalProgress(prev => ({
+          ...prev,
+          [progressKey]: {
+            ...data,
+            lastAccessedAt: new Date().toISOString()
+          }
+        }));
       }
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde globale:', error);
+      // En cas d'erreur, sauvegarder en local seulement
+      console.log('⚠️ Erreur réseau, sauvegarde locale uniquement');
+      const progressKey = getProgressKey(data.lessonId, data.formationId, data.userId);
+      setGlobalProgress(prev => ({
+        ...prev,
+        [progressKey]: {
+          ...data,
+          lastAccessedAt: new Date().toISOString()
+        }
+      }));
       setError(error instanceof Error ? error.message : 'Erreur inconnue');
     } finally {
       setIsLoading(false);
@@ -137,7 +170,7 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
     
     try {
       const response = await fetch(
-        `http://localhost:3000/api/admin/progress/get?lessonId=${lessonId}&formationId=${formationId}&userId=${userId}`,
+        `${getApiUrl()}/api/admin/progress/get?lessonId=${lessonId}&formationId=${formationId}&userId=${userId}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,

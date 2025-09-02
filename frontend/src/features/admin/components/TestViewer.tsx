@@ -2,15 +2,19 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { FileText } from 'lucide-react';
 import { FormationContent } from '../types';
-import ProgressTracker from './ProgressTracker';
 import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker?url';
 import { Document, Page } from 'react-pdf';
 import { useProgress } from '../../../contexts/ProgressContext';
 
-// Configuration du worker pour react-pdf
+// Configuration du worker pour react-pdf et pdfjs-dist
 import { pdfjs } from 'react-pdf';
-pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
+// Configuration globale du worker
+if (typeof window !== 'undefined') {
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
+  GlobalWorkerOptions.workerSrc = pdfjsWorker;
+}
 
 interface TestViewerProps {
   lesson: FormationContent;
@@ -84,30 +88,56 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     };
   }, []);
 
+  // Effet pour réinitialiser l'état quand la leçon change
+  useEffect(() => {
+    console.log('🔄 TestViewer - Changement de leçon détecté:', lesson.id);
+    
+    // Nettoyer les URLs blob existantes
+    if (blobUrl) {
+      URL.revokeObjectURL(blobUrl);
+    }
+    
+    // Arrêter le suivi de progression
+    if (progressUpdateInterval.current) {
+      clearInterval(progressUpdateInterval.current);
+      progressUpdateInterval.current = null;
+    }
+    
+    // Réinitialiser tous les états
+    setBlobUrl(null);
+    setMimeType("");
+    setIsLoading(false);
+    setError(null);
+    setFullUrl("");
+    setConversionStatus(null);
+    setIsConverting(false);
+    setPdfUrl(null);
+    setPdfDocument(null);
+    setPageCount(null);
+    setCurrentPage(1);
+    setTotalPages(1);
+    setCurrentTime(0);
+    setTotalTime(0);
+    setIsTrackingProgress(false);
+    setScrollMode('vertical');
+    
+    console.log('✅ TestViewer - État réinitialisé pour nouvelle leçon');
+  }, [lesson.id]); // Seulement quand lesson.id change
+
   // Effet pour charger le fichier
   useEffect(() => {
+    console.log('🔄 TestViewer - useEffect de chargement déclenché');
+    console.log('🔄 TestViewer - fileUrl:', fileUrl);
+    console.log('🔄 TestViewer - lesson.id:', lesson.id);
+    
     if (!fileUrl) {
       console.log('🔍 TestViewer - Pas de fileUrl fourni, pas de chargement');
-      setMimeType("");
-      setBlobUrl(null);
-      setError(null);
-      setFullUrl("");
-      setConversionStatus(null);
-      setIsConverting(false);
-      setPdfUrl(null);
-      setPdfDocument(null);
-      setPageCount(null);
-      setCurrentPage(1);
-      setTotalPages(1);
-      setCurrentTime(0);
-      setTotalTime(0);
-      setIsTrackingProgress(false);
-      setScrollMode('vertical');
-      setIsLoading(false);
+      // Ne pas réinitialiser l'état ici, juste ne pas charger
       return;
     }
 
     const loadFile = async () => {
+      console.log('🔄 TestViewer - Début du chargement du fichier:', fileUrl);
       setIsLoading(true);
       setError(null);
       
@@ -120,6 +150,8 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
         
         const completeUrl = fileUrl.startsWith('http') ? fileUrl : `http://localhost:3000${fileUrl}`;
         setFullUrl(completeUrl);
+        
+        console.log('🔄 TestViewer - URL complète:', completeUrl);
         
         const response = await fetch(completeUrl, {
           method: "GET",
@@ -134,6 +166,11 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
         }
 
         const blob = await response.blob();
+        console.log('✅ TestViewer - Blob reçu:', {
+          size: blob.size,
+          type: blob.type
+        });
+        
         let detectedMimeType = blob.type;
         if (blob.type === 'application/octet-stream' || blob.type === '') {
           const fileName = fileUrl?.split('/').pop() || '';
@@ -160,16 +197,17 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
           loadPdfPages(url);
         }
 
-      } catch (err) {
-        console.error("❌ Erreur chargement fichier:", err);
-        setError(err instanceof Error ? err.message : 'Erreur inconnue');
-      } finally {
-        setIsLoading(false);
-      }
+             } catch (err) {
+         console.error("❌ Erreur chargement fichier:", err);
+         setError(err instanceof Error ? err.message : 'Erreur inconnue');
+         // Ne pas réinitialiser complètement l'état, juste marquer l'erreur
+       } finally {
+         setIsLoading(false);
+       }
     };
 
     loadFile();
-  }, [fileUrl]);
+  }, [fileUrl, lesson.id]); // Ajouter lesson.id comme dépendance
 
   // Effet pour charger la progression sauvegardée (une seule fois au montage)
   useEffect(() => {
@@ -178,12 +216,14 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     }
   }, []); // Dépendances vides pour ne s'exécuter qu'une seule fois
 
-  // Effet pour re-rendre les pages quand le mode change
+  // Effet pour sauvegarder automatiquement la progression quand la page change
   useEffect(() => {
-    if (scrollMode === 'horizontal' && pageCount && pdfDocument) {
-      renderAllPages(pdfDocument);
+    if (mimeType === "application/pdf" && pageCount && pageCount > 0 && currentPage > 0) {
+      console.log(`📊 Sauvegarde automatique: page ${currentPage}/${pageCount}`);
+      // Utiliser updateProgress pour bénéficier de la logique non-régressive
+      updateProgress();
     }
-  }, [scrollMode, pdfDocument]);
+  }, [currentPage, pageCount, mimeType]);
 
   // Fonction pour charger le nombre de pages d'un PDF
   const loadPdfPages = async (pdfUrl: string) => {
@@ -277,6 +317,12 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
 
   // Fonction pour démarrer le suivi de progression
   const startProgressTracking = () => {
+    // Ne pas utiliser d'intervalle pour les PDFs, la progression sera gérée par les événements de page
+    if (mimeType === "application/pdf") {
+      console.log('📊 Suivi de progression PDF activé (événements de page)');
+      return;
+    }
+    
     if (isTrackingProgress) return;
     
     setIsTrackingProgress(true);
@@ -297,16 +343,30 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
 
   // Fonction pour mettre à jour la progression
   const updateProgress = () => {
-    if (mimeType === "application/pdf" && pageCount) {
-      const estimatedProgress = Math.round((currentPage / pageCount) * 100);
+    if (mimeType === "application/pdf" && pageCount && pageCount > 0) {
+      const progressPercentage = Math.round((currentPage / pageCount) * 100);
+      console.log(`📊 updateProgress - PDF: ${currentPage}/${pageCount} = ${progressPercentage}%`);
       
+      // Récupérer la progression actuelle pour éviter la régression
+      const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '');
+      const savedProgressPercentage = currentProgress?.progress || 0;
+      
+      // Ne pas diminuer la progression si on recule
+      const finalProgressPercentage = Math.max(progressPercentage, savedProgressPercentage);
+      
+      console.log(`📊 Progression: actuelle=${progressPercentage}%, sauvegardée=${savedProgressPercentage}%, finale=${finalProgressPercentage}%`);
+      
+      // Mettre à jour l'interface parent
       if (onProgressUpdate) {
         onProgressUpdate({
-          timeSpent: estimatedProgress,
-          progress: estimatedProgress,
-          completed: estimatedProgress >= 100
+          timeSpent: finalProgressPercentage,
+          progress: finalProgressPercentage,
+          completed: finalProgressPercentage >= 100
         });
       }
+      
+      // Sauvegarder la progression avec la page actuelle mais le pourcentage non-régressif
+      saveLocalProgress(currentPage, pageCount, finalProgressPercentage);
     } else if (mimeType.startsWith("video/") && videoRef.current) {
       const video = videoRef.current;
       const currentTime = video.currentTime;
@@ -347,9 +407,14 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   };
 
   // Fonction pour sauvegarder la progression avec throttling
-  const saveProgress = async (currentPage: number, totalPages: number) => {
+  const saveLocalProgress = async (currentPage: number, totalPages: number, progressPercentage?: number) => {
     if (fileUrl && formationId && userId) {
       try {
+        // Utiliser le pourcentage fourni ou calculer à partir de la page actuelle
+        const finalProgress = progressPercentage !== undefined 
+          ? progressPercentage 
+          : Math.round((currentPage / totalPages) * 100);
+        
         await saveGlobalProgress({
           lessonId: lesson.id,
           formationId: formationId,
@@ -358,8 +423,8 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
           totalPages: totalPages,
           currentTime: currentTime,
           totalTime: totalTime,
-          progress: Math.round((currentPage / totalPages) * 100),
-          completed: currentPage >= totalPages,
+          progress: finalProgress,
+          completed: finalProgress >= 100,
           lastAccessedAt: new Date().toISOString()
         });
       } catch (error) {
@@ -375,17 +440,21 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
         const savedProgress = await loadGlobalProgress(lesson.id, formationId, userId);
         if (savedProgress) {
           console.log('📊 Progression chargée:', savedProgress);
-          setCurrentPage(savedProgress.currentPage || 1);
+          
+          // Restaurer la page exacte où l'utilisateur s'était arrêté
+          const lastPage = savedProgress.currentPage || 1;
+          setCurrentPage(lastPage);
           setCurrentTime(savedProgress.currentTime || 0);
           
-          // Mettre à jour l'interface parent
-          if (onProgressUpdate) {
-            onProgressUpdate({
-              timeSpent: savedProgress.currentTime || 0,
-              progress: savedProgress.progress || 0,
-              completed: savedProgress.completed || false
-            });
-          }
+          console.log(`📊 Repositionnement exact: page ${lastPage}/${savedProgress.totalPages || '?'}`);
+          
+          // Déclencher la progression après un délai pour laisser le temps aux états de se mettre à jour
+          setTimeout(() => {
+            if (pageCount && pageCount > 0) {
+              console.log(`📊 Restauration de la progression: page ${lastPage}/${pageCount}`);
+              updateProgress();
+            }
+          }, 100);
         }
       } catch (error) {
         console.error('❌ Erreur lors du chargement de la progression:', error);
@@ -396,18 +465,17 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   // Nettoyer l'intervalle quand le composant se démonte
   useEffect(() => {
     return () => {
+      console.log('🧹 TestViewer - Nettoyage du composant');
       stopProgressTracking();
-    };
-  }, []);
-
-  // Nettoyer l'URL blob quand le composant se démonte
-  useEffect(() => {
-    return () => {
+      
+      // Nettoyer les URLs blob
       if (blobUrl) {
         URL.revokeObjectURL(blobUrl);
       }
     };
-  }, [blobUrl]);
+  }, []); // Dépendances vides pour ne s'exécuter qu'au démontage
+
+  // Nettoyer l'URL blob quand le composant se démonte
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -433,12 +501,30 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                 Erreur de chargement ❌
               </h4>
               <p className="text-gray-600 mb-4">{error}</p>
-              <button
-                onClick={() => window.location.reload()}
-                className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Réessayer
-              </button>
+              <div className="bg-gray-100 p-4 rounded text-left text-sm mb-4">
+                <p><strong>Debug info :</strong></p>
+                <p>Lesson ID: {lesson.id}</p>
+                <p>Lesson Title: {lesson.title}</p>
+                <p>FileUrl: {fileUrl}</p>
+                <p>MimeType: {mimeType}</p>
+                <p>FullUrl: {fullUrl}</p>
+              </div>
+                             <button
+                 onClick={() => {
+                   console.log('🔄 TestViewer - Tentative de rechargement');
+                   // Réinitialiser les états nécessaires
+                   setError(null);
+                   setIsLoading(true);
+                   // Déclencher un nouveau chargement
+                   if (fileUrl) {
+                     const event = new CustomEvent('retryLoad', { detail: { fileUrl, lessonId: lesson.id } });
+                     window.dispatchEvent(event);
+                   }
+                 }}
+                 className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+               >
+                 Réessayer
+               </button>
             </div>
           ) : blobUrl ? (
             <div>
@@ -461,111 +547,69 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                     {pageCount && pageCount > 1 && (
                       <div className="absolute bottom-4 right-4 z-20 bg-white/95 p-3 rounded-lg shadow-lg border">
                         <div className="flex items-center space-x-3">
-                          <button
-                            onClick={() => {
-                              const newPage = Math.max(1, currentPage - 1);
-                              setCurrentPage(newPage);
-                              console.log(`📄 Navigation: Page ${newPage}/${pageCount}`);
-                              
-                              if (pageCount && pageCount > 0) {
-                                const progressPercentage = Math.round((newPage / pageCount) * 100);
-                                if (onProgressUpdate) {
-                                  onProgressUpdate({
-                                    timeSpent: currentTime,
-                                    progress: progressPercentage,
-                                    completed: progressPercentage >= 100
-                                  });
-                                }
-                                saveProgress(newPage, pageCount);
-                              }
-                            }}
-                            className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 transition-colors text-sm font-medium"
-                            disabled={currentPage <= 1}
-                          >
-                            ← Précédente
-                          </button>
+                                                                              <button
+                           onClick={() => {
+                             const newPage = Math.max(1, currentPage - 1);
+                             setCurrentPage(newPage);
+                             console.log(`📄 Navigation: Page ${newPage}/${pageCount}`);
+                             // La progression sera mise à jour automatiquement par l'useEffect
+                           }}
+                           className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 transition-colors text-sm font-medium"
+                           disabled={currentPage <= 1}
+                         >
+                           ← Précédente
+                         </button>
                           
                           <span className="text-sm font-medium text-gray-700 px-2">
                             {currentPage} / {pageCount}
                           </span>
                           
-                          <button
-                            onClick={() => {
-                              const newPage = Math.min(pageCount, currentPage + 1);
-                              setCurrentPage(newPage);
-                              console.log(`📄 Navigation: Page ${newPage}/${pageCount}`);
-                              
-                              if (pageCount && pageCount > 0) {
-                                const progressPercentage = Math.round((newPage / pageCount) * 100);
-                                if (onProgressUpdate) {
-                                  onProgressUpdate({
-                                    timeSpent: currentTime,
-                                    progress: progressPercentage,
-                                    completed: progressPercentage >= 100
-                                  });
-                                }
-                                saveProgress(newPage, pageCount);
-                              }
-                            }}
-                            className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 transition-colors text-sm font-medium"
-                            disabled={currentPage >= pageCount}
-                          >
-                            Suivante →
-                          </button>
+                                                                              <button
+                           onClick={() => {
+                             const newPage = Math.min(pageCount, currentPage + 1);
+                             setCurrentPage(newPage);
+                             console.log(`📄 Navigation: Page ${newPage}/${pageCount}`);
+                             // La progression sera mise à jour automatiquement par l'useEffect
+                           }}
+                           className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 transition-colors text-sm font-medium"
+                           disabled={currentPage >= pageCount}
+                         >
+                           Suivante →
+                         </button>
                         </div>
                       </div>
                     )}
                     
                     {/* PDF Viewer */}
                     <div className="w-full h-full flex items-center justify-center">
-                      <Document
-                        file={blobUrl}
-                        onLoadSuccess={({ numPages }) => {
-                          console.log('📄 PDF chargé avec react-pdf:', numPages, 'pages');
-                          setPageCount(numPages);
-                          setTotalPages(numPages);
-                          
-                          if (onProgressUpdate) {
-                            const initialProgress = Math.round((1 / numPages) * 100);
-                            onProgressUpdate({
-                              timeSpent: 0,
-                              progress: initialProgress,
-                              completed: false
-                            });
-                            console.log(`📊 Progression initiale: 1/${numPages} = ${initialProgress}%`);
-                          }
-                        }}
-                        onLoadError={(error) => {
-                          console.error('❌ Erreur lors du chargement du PDF:', error);
-                        }}
-                      >
-                        <Page
-                          pageNumber={currentPage}
-                          width={800}
-                          scale={0.65}
-                          renderTextLayer={false}
-                          renderAnnotationLayer={false}
-                          onLoadSuccess={() => {
-                            console.log(`📄 Page ${currentPage} chargée avec succès`);
-                            
-                            if (pageCount && pageCount > 0) {
-                              const progressPercentage = Math.round((currentPage / pageCount) * 100);
-                              console.log(`📊 Progression: ${currentPage}/${pageCount} = ${progressPercentage}%`);
-                              
-                              if (onProgressUpdate) {
-                                onProgressUpdate({
-                                  timeSpent: currentTime,
-                                  progress: progressPercentage,
-                                  completed: progressPercentage >= 100
-                                });
-                              }
-                              saveProgress(currentPage, pageCount);
-                            }
-                          }}
-                          onLoadError={(error) => {
-                            console.error(`❌ Erreur lors du chargement de la page ${currentPage}:`, error);
-                          }}
-                        />
+                                             <Document
+                         file={blobUrl}
+                         onLoadSuccess={({ numPages }) => {
+                           console.log('📄 PDF chargé avec react-pdf:', numPages, 'pages');
+                           setPageCount(numPages);
+                           setTotalPages(numPages);
+                           
+                           // Ne pas déclencher la progression ici, elle sera gérée par onLoadSuccess de Page
+                           console.log(`📊 PDF chargé: ${numPages} pages, page courante: ${currentPage}`);
+                         }}
+                         onLoadError={(error) => {
+                           console.error('❌ Erreur lors du chargement du PDF:', error);
+                         }}
+                       >
+                                                 <Page
+                           pageNumber={currentPage}
+                           width={800}
+                           scale={0.65}
+                           renderTextLayer={false}
+                           renderAnnotationLayer={false}
+                           onLoadSuccess={() => {
+                             console.log(`📄 Page ${currentPage} chargée avec succès`);
+                             // La progression est maintenant gérée par l'useEffect automatique
+                           }}
+                           onLoadError={(error) => {
+                             console.error(`❌ Erreur lors du chargement de la page ${currentPage}:`, error);
+                           }}
+                         />
                       </Document>
                     </div>
                   </div>
@@ -763,26 +807,19 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
           </div>
         )}
 
-        {/* Composant de suivi de progression */}
-        {formationId && userId && (
-          <div className="mt-6">
-            <ProgressTracker
-              lessonId={lesson.id}
-              formationId={formationId}
-              userId={userId}
-              lessonType={lesson.type}
-              lessonDuration={lesson.duration}
-              onProgressUpdate={(progress) => {
-                console.log('📊 Progression mise à jour:', progress);
-                onProgressUpdate?.({
-                  timeSpent: progress,
-                  progress: progress,
-                  completed: progress >= 100
-                });
-              }}
-            />
-          </div>
-        )}
+                 {/* Composant de suivi de progression */}
+         {formationId && userId && (
+           <div className="mt-6">
+             <div className="bg-white p-4 rounded-lg shadow border">
+               <h3 className="text-lg font-semibold text-gray-800 mb-2">Suivi de progression</h3>
+               <div className="text-sm text-gray-600">
+                 <p>• Progression basée sur la navigation des pages</p>
+                 <p>• Sauvegarde automatique de votre position</p>
+                 <p>• Rechargement de la progression à la reconnexion</p>
+               </div>
+             </div>
+           </div>
+         )}
       </div>
       
       {/* Footer minimal */}

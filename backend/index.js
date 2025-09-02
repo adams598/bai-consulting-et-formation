@@ -223,8 +223,7 @@ const faq = [
   },
 ];
 
-// Routes d'administration
-app.use("/api/admin", adminRoutes);
+// Routes d'administration (suppression de la duplication)
 
 app.post(
   "/api/chat",

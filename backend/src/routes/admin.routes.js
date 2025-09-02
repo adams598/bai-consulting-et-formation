@@ -465,7 +465,28 @@ router.put(
   progressController.updateProgress
 );
 
-// Nouvelles routes de progression pour le TestViewer
+// Route de test pour vérifier l'authentification
+router.get("/test-auth", authMiddleware, (req, res) => {
+  res.json({
+    success: true,
+    message: "Authentification réussie",
+    user: req.user,
+  });
+});
+
+// Route de test pour la progression
+router.post("/test-progress", authMiddleware, (req, res) => {
+  console.log("🧪 Test progression - Données reçues:", req.body);
+  console.log("🧪 Test progression - Utilisateur:", req.user);
+  res.json({
+    success: true,
+    message: "Test progression réussi",
+    data: req.body,
+    user: req.user,
+  });
+});
+
+// Routes de progression pour le TestViewer (sans adminMiddleware pour permettre l'accès aux utilisateurs)
 router.post("/progress/save", authMiddleware, progressController.saveProgress);
 router.get("/progress/get", authMiddleware, progressController.getProgress);
 router.get(
@@ -614,6 +635,14 @@ router.delete(
   authMiddleware,
   adminMiddleware,
   uploadController.deleteLessonFiles
+);
+
+// Route pour mettre à jour les types de fichiers existants
+router.post(
+  "/upload/update-file-types",
+  authMiddleware,
+  adminMiddleware,
+  uploadController.updateExistingFileTypes
 );
 
 router.get(

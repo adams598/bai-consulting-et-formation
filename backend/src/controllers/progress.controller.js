@@ -371,101 +371,130 @@ export const progressController = {
   // Sauvegarder la progression (pour TestViewer)
   async saveProgress(req, res) {
     try {
-      const { lessonId, formationId, userId, currentPage, totalPages, timeSpent, progress, completed } = req.body;
+      console.log("📊 saveProgress - Données reçues:", req.body);
+      console.log("📊 saveProgress - Utilisateur authentifié:", req.user);
+
+      const {
+        lessonId,
+        formationId,
+        userId,
+        currentPage,
+        totalPages,
+        currentTime,
+        totalTime,
+        progress,
+        completed,
+      } = req.body;
 
       // Validation des données
       if (!lessonId || !formationId || !userId) {
-        return res.status(400).json({ 
-          error: 'Données manquantes', 
-          required: ['lessonId', 'formationId', 'userId'] 
+        console.log("❌ saveProgress - Données manquantes:", {
+          lessonId,
+          formationId,
+          userId,
+        });
+        return res.status(400).json({
+          error: "Données manquantes",
+          required: ["lessonId", "formationId", "userId"],
+          received: { lessonId, formationId, userId },
         });
       }
 
-      // Vérifier que l'utilisateur existe
-      const user = await prisma.user.findUnique({
-        where: { id: userId }
-      });
-
-      if (!user) {
-        return res.status(404).json({ error: 'Utilisateur non trouvé' });
-      }
+      // Utiliser l'utilisateur authentifié plutôt que celui dans le body
+      const actualUserId = req.user.id;
+      console.log(
+        "📊 saveProgress - Utilisation de l'utilisateur authentifié:",
+        actualUserId
+      );
 
       // Vérifier que la leçon existe
       const lesson = await prisma.formationContent.findUnique({
-        where: { id: lessonId }
+        where: { id: lessonId },
       });
 
       if (!lesson) {
-        return res.status(404).json({ error: 'Leçon non trouvée' });
+        console.log("❌ saveProgress - Leçon non trouvée:", lessonId);
+        return res.status(404).json({ error: "Leçon non trouvée", lessonId });
       }
 
       // Vérifier que la formation existe
       const formation = await prisma.formation.findUnique({
-        where: { id: formationId }
+        where: { id: formationId },
       });
 
       if (!formation) {
-        return res.status(404).json({ error: 'Formation non trouvée' });
+        console.log("❌ saveProgress - Formation non trouvée:", formationId);
+        return res
+          .status(404)
+          .json({ error: "Formation non trouvée", formationId });
       }
 
       // Créer ou mettre à jour la progression
       const progressData = {
-        userId,
+        userId: actualUserId, // Utiliser l'utilisateur authentifié
         lessonId,
         formationId,
         progress: Math.min(100, Math.max(0, progress || 0)), // Limiter entre 0 et 100
         currentPage: currentPage || null,
         totalPages: totalPages || null,
-        currentTime: timeSpent || 0,
-        totalTime: null, // Sera mis à jour si nécessaire
+        currentTime: currentTime || 0,
+        totalTime: totalTime || null,
         lastPosition: JSON.stringify({
           currentPage,
           totalPages,
-          timeSpent,
+          currentTime,
+          totalTime,
           progress,
           completed,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         }),
         lastAccessedAt: new Date(),
         isCompleted: completed || false,
-        completedAt: completed ? new Date() : null
+        completedAt: completed ? new Date() : null,
       };
+
+      console.log(
+        "📊 saveProgress - Données de progression à sauvegarder:",
+        progressData
+      );
 
       // Upsert (créer ou mettre à jour)
       const savedProgress = await prisma.userProgress.upsert({
         where: {
           userId_lessonId: {
-            userId,
-            lessonId
-          }
+            userId: actualUserId, // Utiliser l'utilisateur authentifié
+            lessonId,
+          },
         },
         update: progressData,
         create: {
           ...progressData,
-          startedAt: new Date()
-        }
+          startedAt: new Date(),
+        },
       });
 
-      console.log('📊 Progression sauvegardée:', {
+      console.log("📊 Progression sauvegardée:", {
         userId,
         lessonId,
         formationId,
         progress: savedProgress.progress,
         currentPage: savedProgress.currentPage,
-        isCompleted: savedProgress.isCompleted
+        isCompleted: savedProgress.isCompleted,
       });
 
       res.json({
         success: true,
-        message: 'Progression sauvegardée avec succès',
-        progress: savedProgress
+        message: "Progression sauvegardée avec succès",
+        progress: savedProgress,
       });
-
     } catch (error) {
-      console.error('❌ Erreur lors de la sauvegarde de la progression:', error);
-      res.status(500).json({ 
-        error: 'Erreur interne du serveur',
-        details: error.message 
+      console.error(
+        "❌ Erreur lors de la sauvegarde de la progression:",
+        error
+      );
+      res.status(500).json({
+        error: "Erreur interne du serveur",
+        details: error.message,
       });
     }
   },
@@ -477,9 +506,9 @@ export const progressController = {
 
       // Validation des paramètres
       if (!lessonId || !formationId || !userId) {
-        return res.status(400).json({ 
-          error: 'Paramètres manquants', 
-          required: ['lessonId', 'formationId', 'userId'] 
+        return res.status(400).json({
+          error: "Paramètres manquants",
+          required: ["lessonId", "formationId", "userId"],
         });
       }
 
@@ -488,46 +517,46 @@ export const progressController = {
         where: {
           userId_lessonId: {
             userId,
-            lessonId
-          }
+            lessonId,
+          },
         },
         include: {
           lesson: {
             select: {
               id: true,
               title: true,
-              type: true
-            }
+              type: true,
+            },
           },
           formation: {
             select: {
               id: true,
-              title: true
-            }
-          }
-        }
+              title: true,
+            },
+          },
+        },
       });
 
       if (!progress) {
         return res.json({
           success: true,
-          message: 'Aucune progression trouvée',
-          progress: null
+          message: "Aucune progression trouvée",
+          progress: null,
         });
       }
 
-      console.log('📊 Progression récupérée:', {
+      console.log("📊 Progression récupérée:", {
         userId,
         lessonId,
         formationId,
         progress: progress.progress,
         currentPage: progress.currentPage,
-        isCompleted: progress.isCompleted
+        isCompleted: progress.isCompleted,
       });
 
       res.json({
         success: true,
-        message: 'Progression récupérée avec succès',
+        message: "Progression récupérée avec succès",
         progress: {
           id: progress.id,
           userId: progress.userId,
@@ -538,21 +567,25 @@ export const progressController = {
           totalPages: progress.totalPages,
           currentTime: progress.currentTime,
           totalTime: progress.totalTime,
-          lastPosition: progress.lastPosition ? JSON.parse(progress.lastPosition) : null,
+          lastPosition: progress.lastPosition
+            ? JSON.parse(progress.lastPosition)
+            : null,
           startedAt: progress.startedAt,
           lastAccessedAt: progress.lastAccessedAt,
           completedAt: progress.completedAt,
           isCompleted: progress.isCompleted,
           lesson: progress.lesson,
-          formation: progress.formation
-        }
+          formation: progress.formation,
+        },
       });
-
     } catch (error) {
-      console.error('❌ Erreur lors de la récupération de la progression:', error);
-      res.status(500).json({ 
-        error: 'Erreur interne du serveur',
-        details: error.message 
+      console.error(
+        "❌ Erreur lors de la récupération de la progression:",
+        error
+      );
+      res.status(500).json({
+        error: "Erreur interne du serveur",
+        details: error.message,
       });
     }
   },
@@ -565,7 +598,7 @@ export const progressController = {
 
       // Validation des paramètres
       if (!userId) {
-        return res.status(400).json({ error: 'ID utilisateur manquant' });
+        return res.status(400).json({ error: "ID utilisateur manquant" });
       }
 
       // Construire la requête
@@ -583,29 +616,28 @@ export const progressController = {
               id: true,
               title: true,
               type: true,
-              contentType: true
-            }
+              contentType: true,
+            },
           },
           formation: {
             select: {
               id: true,
-              title: true
-            }
-          }
+              title: true,
+            },
+          },
         },
-        orderBy: [
-          { formationId: 'asc' },
-          { lessonId: 'asc' }
-        ]
+        orderBy: [{ formationId: "asc" }, { lessonId: "asc" }],
       });
 
-      console.log(`📊 ${progressions.length} progressions récupérées pour l'utilisateur ${userId}`);
+      console.log(
+        `📊 ${progressions.length} progressions récupérées pour l'utilisateur ${userId}`
+      );
 
       res.json({
         success: true,
-        message: 'Progressions récupérées avec succès',
+        message: "Progressions récupérées avec succès",
         count: progressions.length,
-        progressions: progressions.map(p => ({
+        progressions: progressions.map((p) => ({
           id: p.id,
           userId: p.userId,
           lessonId: p.lessonId,
@@ -621,15 +653,17 @@ export const progressController = {
           completedAt: p.completedAt,
           isCompleted: p.isCompleted,
           lesson: p.lesson,
-          formation: p.formation
-        }))
+          formation: p.formation,
+        })),
       });
-
     } catch (error) {
-      console.error('❌ Erreur lors de la récupération des progressions:', error);
-      res.status(500).json({ 
-        error: 'Erreur interne du serveur',
-        details: error.message 
+      console.error(
+        "❌ Erreur lors de la récupération des progressions:",
+        error
+      );
+      res.status(500).json({
+        error: "Erreur interne du serveur",
+        details: error.message,
       });
     }
   },

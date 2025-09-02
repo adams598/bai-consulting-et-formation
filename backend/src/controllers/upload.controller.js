@@ -4,6 +4,72 @@ import path from "path";
 
 const prisma = new PrismaClient();
 
+// Fonction helper pour déterminer le type de contenu basé sur le MIME type
+function getContentTypeFromMime(mimeType, filename) {
+  const ext = path.extname(filename).toLowerCase();
+
+  // Images
+  if (mimeType.startsWith("image/")) {
+    return "INTERACTIVE";
+  }
+
+  // Vidéos
+  if (mimeType.startsWith("video/")) {
+    return "VIDEO";
+  }
+
+  // Audio
+  if (mimeType.startsWith("audio/")) {
+    return "AUDIO";
+  }
+
+  // PDF
+  if (mimeType === "application/pdf" || ext === ".pdf") {
+    return "DOCUMENT";
+  }
+
+  // Documents Word
+  if (
+    mimeType === "application/msword" ||
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    ext === ".doc" ||
+    ext === ".docx"
+  ) {
+    return "DOCUMENT";
+  }
+
+  // Présentations PowerPoint
+  if (
+    mimeType === "application/vnd.ms-powerpoint" ||
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+    ext === ".ppt" ||
+    ext === ".pptx"
+  ) {
+    return "PRESENTATION";
+  }
+
+  // Tableurs Excel
+  if (
+    mimeType === "application/vnd.ms-excel" ||
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    ext === ".xls" ||
+    ext === ".xlsx"
+  ) {
+    return "DOCUMENT";
+  }
+
+  // Texte
+  if (mimeType === "text/plain" || ext === ".txt") {
+    return "DOCUMENT";
+  }
+
+  // Par défaut
+  return "DOCUMENT";
+}
+
 // Fonction helper pour déterminer le type MIME d'un fichier
 function getMimeType(filename) {
   const ext = path.extname(filename).toLowerCase();
@@ -679,8 +745,63 @@ export const uploadController = {
       const finalFilePath = path.join(lessonPath, filename);
       console.log(`📁 Fichier uploadé directement dans: ${finalFilePath}`);
 
-      // Générer une URL publique pour le fichier
+      // Vérifier si le fichier existe déjà dans le dossier de destination
+      if (!fs.existsSync(finalFilePath)) {
+        // Le fichier n'est pas encore dans le bon dossier, le déplacer
+        if (req.file.path && fs.existsSync(req.file.path)) {
+          fs.copyFileSync(req.file.path, finalFilePath);
+          fs.unlinkSync(req.file.path); // Supprimer le fichier temporaire
+          console.log(`📁 Fichier déplacé vers: ${finalFilePath}`);
+        } else {
+          throw new Error("Fichier temporaire introuvable");
+        }
+      }
+
+      // Générer l'URL publique du fichier original
       const fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${filename}`;
+
+      // Déterminer le type de contenu basé sur le MIME type et l'extension
+      const detectedMimeType = getMimeType(filename);
+      const contentType = getContentTypeFromMime(detectedMimeType, filename);
+
+      console.log("🔍 Type de contenu détecté:", {
+        filename,
+        detectedMimeType,
+        contentType,
+        originalMimeType: mimetype,
+      });
+
+      // Mettre à jour le type de la leçon en base de données
+      try {
+        const lesson = await prisma.formationContent.findFirst({
+          where: {
+            title: lessonTitle,
+            contentType: "LESSON",
+            formation: {
+              title: formationTitle,
+            },
+          },
+        });
+
+        if (lesson) {
+          await prisma.formationContent.update({
+            where: { id: lesson.id },
+            data: {
+              type: contentType,
+              fileUrl: fileUrl,
+            },
+          });
+          console.log(`✅ Type de leçon mis à jour en base: ${contentType}`);
+        } else {
+          console.log("⚠️ Leçon non trouvée en base pour mise à jour du type");
+        }
+      } catch (dbError) {
+        console.error(
+          "❌ Erreur lors de la mise à jour du type de leçon:",
+          dbError
+        );
+        // Ne pas faire échouer l'upload pour une erreur de base de données
+      }
 
       console.log("📎 Fichier joint de leçon uploadé avec succès:", {
         filename,
@@ -700,7 +821,8 @@ export const uploadController = {
           fileId: filename,
           filename,
           size,
-          mimetype,
+          mimetype: detectedMimeType,
+          contentType: contentType,
           lessonPath,
         },
         message: "Fichier joint uploadé avec succès",
@@ -859,6 +981,81 @@ export const uploadController = {
       res.status(500).json({
         success: false,
         message: "Erreur lors de la suppression des fichiers",
+      });
+    }
+  },
+
+  // Mettre à jour les types de fichiers existants
+  async updateExistingFileTypes(req, res) {
+    try {
+      console.log("🔄 Mise à jour des types de fichiers existants...");
+
+      // Récupérer toutes les leçons avec des fichiers
+      const lessons = await prisma.formationContent.findMany({
+        where: {
+          contentType: "LESSON",
+          fileUrl: {
+            not: null,
+          },
+        },
+        include: {
+          formation: true,
+        },
+      });
+
+      console.log(`📚 ${lessons.length} leçons avec fichiers trouvées`);
+
+      let updatedCount = 0;
+      let errorCount = 0;
+
+      for (const lesson of lessons) {
+        try {
+          // Extraire le nom de fichier de l'URL
+          const fileName = lesson.fileUrl.split("/").pop();
+          if (!fileName) continue;
+
+          // Déterminer le type de contenu
+          const detectedMimeType = getMimeType(fileName);
+          const contentType = getContentTypeFromMime(
+            detectedMimeType,
+            fileName
+          );
+
+          // Mettre à jour si le type a changé
+          if (lesson.type !== contentType) {
+            await prisma.formationContent.update({
+              where: { id: lesson.id },
+              data: { type: contentType },
+            });
+
+            console.log(
+              `✅ Leçon "${lesson.title}" mise à jour: ${lesson.type} → ${contentType}`
+            );
+            updatedCount++;
+          }
+        } catch (error) {
+          console.error(
+            `❌ Erreur lors de la mise à jour de la leçon "${lesson.title}":`,
+            error
+          );
+          errorCount++;
+        }
+      }
+
+      res.json({
+        success: true,
+        data: {
+          totalLessons: lessons.length,
+          updatedCount,
+          errorCount,
+          message: `Mise à jour terminée: ${updatedCount} leçons mises à jour, ${errorCount} erreurs`,
+        },
+      });
+    } catch (error) {
+      console.error("❌ Erreur updateExistingFileTypes:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur lors de la mise à jour des types de fichiers",
       });
     }
   },
