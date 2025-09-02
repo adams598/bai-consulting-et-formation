@@ -8,11 +8,11 @@ import { useProgress } from '../../../contexts/ProgressContext';
 // Configuration du worker pour react-pdf et pdfjs-dist
 import { pdfjs } from 'react-pdf';
 
-// Configuration globale du worker - utiliser un worker local depuis public
-if (typeof window !== 'undefined') {
-  pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-  console.log('✅ Worker PDF configuré avec worker local');
-}
+   // Configuration globale du worker - utiliser un worker local depuis public
+   if (typeof window !== 'undefined') {
+     pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+     console.log('✅ Worker PDF configuré avec worker local');
+   }
 
 interface TestViewerProps {
   lesson: FormationContent;
@@ -39,18 +39,20 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfDocument, setPdfDocument] = useState<any>(null);
   
-  // États pour la progression dynamique
-  const [pageCount, setPageCount] = useState<number | null>(null);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [currentTime, setCurrentTime] = useState<number>(0);
-  const [totalTime, setTotalTime] = useState<number>(0);
-  const [isTrackingProgress, setIsTrackingProgress] = useState<boolean>(false);
-  const [scrollMode, setScrollMode] = useState<'vertical' | 'horizontal'>('vertical');
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
-  const pdfContainerRef = useRef<HTMLDivElement | null>(null);
+     // États pour la progression dynamique
+   const [pageCount, setPageCount] = useState<number | null>(null);
+   const [currentPage, setCurrentPage] = useState<number>(1);
+   const [totalPages, setTotalPages] = useState<number>(1);
+   const [currentTime, setCurrentTime] = useState<number>(0);
+   const [totalTime, setTotalTime] = useState<number>(0);
+   const [isTrackingProgress, setIsTrackingProgress] = useState<boolean>(false);
+   const [scrollMode, setScrollMode] = useState<'vertical' | 'horizontal'>('vertical');
+   const [pdfError, setPdfError] = useState<boolean>(false);
+   const [retryCount, setRetryCount] = useState<number>(0);
+   const videoRef = useRef<HTMLVideoElement | null>(null);
+   const audioRef = useRef<HTMLAudioElement | null>(null);
+   const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
+   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Effet pour bloquer les raccourcis clavier et captures d'écran
   useEffect(() => {
@@ -127,8 +129,23 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     console.log('✅ TestViewer - État réinitialisé pour nouvelle leçon');
   }, [lesson.id]); // Seulement quand lesson.id change
 
-  // Fonction pour vérifier la progression de la leçon en base de données
-  const checkLessonProgress = async () => {
+     // Fonction pour réinitialiser le worker PDF
+   const resetPdfWorker = () => {
+     if (typeof window !== 'undefined') {
+       try {
+         const { pdfjs } = require('react-pdf');
+         pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+         console.log('🔄 Worker PDF réinitialisé');
+         setPdfError(false);
+         setRetryCount(0);
+       } catch (error) {
+         console.error('❌ Erreur lors de la réinitialisation du worker PDF:', error);
+       }
+     }
+   };
+
+   // Fonction pour vérifier la progression de la leçon en base de données
+   const checkLessonProgress = async () => {
     if (!formationId || !userId) return;
     
     try {
@@ -248,15 +265,20 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   // Effet pour charger la progression sauvegardée quand le PDF est chargé
   // SUPPRIMÉ - Le chargement se fait maintenant dans onLoadSuccess du Document
 
-  // Effet pour sauvegarder automatiquement la progression quand la page change
-  useEffect(() => {
-    if (mimeType === "application/pdf" && pageCount && pageCount > 0 && currentPage > 0) {
-      console.log(`📊 Sauvegarde automatique: page ${currentPage}/${pageCount}`);
-      console.log(`📊 État actuel - currentPage: ${currentPage}, pageCount: ${pageCount}, mimeType: ${mimeType}`);
-      // Utiliser updateProgress pour bénéficier de la logique non-régressive
-      updateProgress();
-    }
-  }, [currentPage, pageCount, mimeType]);
+     // Effet pour sauvegarder automatiquement la progression quand la page change (PDF) ou le temps change (vidéo/audio)
+   useEffect(() => {
+     if (mimeType === "application/pdf" && pageCount && pageCount > 0 && currentPage > 0) {
+       console.log(`📊 Sauvegarde automatique PDF: page ${currentPage}/${pageCount}`);
+       // Utiliser updateProgress pour bénéficier de la logique non-régressive
+       updateProgress();
+     } else if ((mimeType.startsWith("video/") || mimeType.startsWith("audio/")) && totalTime > 0 && currentTime >= 0) {
+       console.log(`🎬 useEffect sauvegarde - Déclenchement automatique`);
+       console.log(`🎬 useEffect sauvegarde - Temps: ${Math.floor(currentTime / 60)}:${(currentTime % 60).toFixed(0).padStart(2, '0')}/${Math.floor(totalTime / 60)}:${(totalTime % 60).toFixed(0).padStart(2, '0')}`);
+       console.log(`🎬 useEffect sauvegarde - Progression: ${Math.round((currentTime / totalTime) * 100)}%`);
+       // Utiliser updateProgress pour bénéficier de la logique non-régressive
+       updateProgress();
+     }
+   }, [currentPage, pageCount, mimeType, currentTime, totalTime]);
 
   // Fonction pour charger le nombre de pages d'un PDF - SUPPRIMÉE car react-pdf gère tout
 
@@ -308,22 +330,32 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     }
   };
 
-  // Fonction pour démarrer le suivi de progression
-  const startProgressTracking = () => {
-    // Ne pas utiliser d'intervalle pour les PDFs, la progression sera gérée par les événements de page
-    if (mimeType === "application/pdf") {
-      console.log('📊 Suivi de progression PDF activé (événements de page)');
-      return;
-    }
-    
-    if (isTrackingProgress) return;
-    
-    setIsTrackingProgress(true);
-    
-    progressUpdateInterval.current = setInterval(() => {
-      updateProgress();
-    }, 2000);
-  };
+     // Fonction pour démarrer le suivi de progression
+   const startProgressTracking = () => {
+     // Ne pas utiliser d'intervalle pour les PDFs, la progression sera gérée par les événements de page
+     if (mimeType === "application/pdf") {
+       console.log('📊 Suivi de progression PDF activé (événements de page)');
+       return;
+     }
+     
+     // Pour les vidéos et audios, vérifier que les données sont disponibles
+     if ((mimeType.startsWith("video/") || mimeType.startsWith("audio/")) && totalTime <= 0) {
+       console.log('🎬 startProgressTracking - Suivi différé - totalTime non disponible');
+       console.log(`🎬 startProgressTracking - État actuel: totalTime=${totalTime}, currentTime=${currentTime}, mimeType=${mimeType}`);
+       return;
+     }
+     
+     if (isTrackingProgress) return;
+     
+     setIsTrackingProgress(true);
+     console.log('🎬 Suivi de progression média activé (intervalle 2s)');
+     console.log(`🎬 État final - totalTime: ${totalTime}, currentTime: ${currentTime}, isTrackingProgress: true`);
+     
+     progressUpdateInterval.current = setInterval(() => {
+       console.log(`⏰ Intervalle de progression déclenché - ${new Date().toLocaleTimeString()}`);
+       updateProgress();
+     }, 2000);
+   };
 
   // Fonction pour arrêter le suivi de progression
   const stopProgressTracking = () => {
@@ -334,155 +366,233 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     setIsTrackingProgress(false);
   };
 
-  // Fonction pour mettre à jour la progression
-  const updateProgress = () => {
-    console.log(`📊 updateProgress appelée - mimeType: ${mimeType}, pageCount: ${pageCount}, currentPage: ${currentPage}`);
-    if (mimeType === "application/pdf" && pageCount && pageCount > 0) {
-      const progressPercentage = Math.round((currentPage / pageCount) * 100);
-      console.log(`📊 updateProgress - PDF: ${currentPage}/${pageCount} = ${progressPercentage}%`);
-      
-      // Récupérer la progression actuelle pour éviter la régression
-      const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '');
-      const savedProgressPercentage = currentProgress?.progress || 0;
-      
-      // Ne pas diminuer la progression si on recule
-      const finalProgressPercentage = Math.max(progressPercentage, savedProgressPercentage);
-      
-      console.log(`📊 Progression: actuelle=${progressPercentage}%, sauvegardée=${savedProgressPercentage}%, finale=${finalProgressPercentage}%`);
-      
-      // Mettre à jour l'interface parent
-      if (onProgressUpdate) {
-        onProgressUpdate({
-          timeSpent: finalProgressPercentage,
-          progress: finalProgressPercentage,
-          completed: finalProgressPercentage >= 100
-        });
-      }
-      
-      // Toujours sauvegarder la progression actuelle en base de données
-      saveLocalProgress(currentPage, pageCount, finalProgressPercentage);
-    } else if (mimeType.startsWith("video/") && videoRef.current) {
-      const video = videoRef.current;
-      const currentTime = video.currentTime;
-      const duration = video.duration;
-      
-      if (duration > 0) {
-        const progress = Math.round((currentTime / duration) * 100);
-        setCurrentTime(currentTime);
-        setTotalTime(duration);
-        
-        if (onProgressUpdate) {
-          onProgressUpdate({
-            timeSpent: progress,
-            progress: progress,
-            completed: progress >= 100
-          });
-        }
-      }
-    } else if (mimeType.startsWith("audio/") && audioRef.current) {
-      const audio = audioRef.current;
-      const currentTime = audio.currentTime;
-      const duration = audio.duration;
-      
-      if (duration > 0) {
-        const progress = Math.round((currentTime / duration) * 100);
-        setCurrentTime(currentTime);
-        setTotalTime(duration);
-        
-        if (onProgressUpdate) {
-          onProgressUpdate({
-            timeSpent: progress,
-            progress: progress,
-            completed: progress >= 100
-          });
-        }
-      }
-    }
-  };
+     // Fonction pour mettre à jour la progression
+   const updateProgress = () => {
+     console.log(`📊 updateProgress appelée - mimeType: ${mimeType}, pageCount: ${pageCount}, currentPage: ${currentPage}`);
+     console.log(`📊 updateProgress - État actuel: totalTime=${totalTime}, currentTime=${currentTime}, isTrackingProgress=${isTrackingProgress}`);
+     if (mimeType === "application/pdf" && pageCount && pageCount > 0) {
+       const progressPercentage = Math.round((currentPage / pageCount) * 100);
+       console.log(`📊 updateProgress - PDF: ${currentPage}/${pageCount} = ${progressPercentage}%`);
+       
+       // Récupérer la progression actuelle pour éviter la régression
+       const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '');
+       const savedProgressPercentage = currentProgress?.progress || 0;
+       
+       // Ne pas diminuer la progression si on recule
+       const finalProgressPercentage = Math.max(progressPercentage, savedProgressPercentage);
+       
+       console.log(`📊 Progression: actuelle=${progressPercentage}%, sauvegardée=${savedProgressPercentage}%, finale=${finalProgressPercentage}%`);
+       
+       // Mettre à jour l'interface parent
+       if (onProgressUpdate) {
+         onProgressUpdate({
+           timeSpent: finalProgressPercentage,
+           progress: finalProgressPercentage,
+           completed: finalProgressPercentage >= 100
+         });
+       }
+       
+       // Toujours sauvegarder la progression actuelle en base de données
+       saveLocalProgress(currentPage, pageCount, finalProgressPercentage);
+            } else if (mimeType.startsWith("video/") && videoRef.current) {
+         const video = videoRef.current;
+         const currentTime = video.currentTime;
+         const duration = video.duration;
+         
+         console.log(`🎬 updateProgress vidéo - currentTime: ${currentTime}s, duration: ${duration}s, isNaN: ${isNaN(currentTime)}/${isNaN(duration)}`);
+         
+         if (duration > 0 && currentTime >= 0 && !isNaN(currentTime) && !isNaN(duration)) {
+           const progress = Math.round((currentTime / duration) * 100);
+           setCurrentTime(currentTime);
+           setTotalTime(duration);
+           
+           console.log(`🎬 updateProgress vidéo - Progression calculée: ${currentTime}s/${duration}s = ${progress}%`);
+           
+           // Récupérer la progression actuelle pour éviter la régression
+           const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '');
+           const savedProgressPercentage = currentProgress?.progress || 0;
+           
+           // Ne pas diminuer la progression si on recule
+           const finalProgressPercentage = Math.max(progress, savedProgressPercentage);
+           
+           console.log(`🎬 Progression vidéo: actuelle=${progress}%, sauvegardée=${savedProgressPercentage}%, finale=${finalProgressPercentage}%`);
+           console.log(`🎬 Temps formaté: ${Math.floor(currentTime / 60)}:${(currentTime % 60).toFixed(0).padStart(2, '0')}/${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')}`);
+           
+           if (onProgressUpdate) {
+             onProgressUpdate({
+               timeSpent: finalProgressPercentage,
+               progress: finalProgressPercentage,
+               completed: finalProgressPercentage >= 100
+             });
+             console.log(`🎬 Interface parent mise à jour avec: ${finalProgressPercentage}%`);
+           }
+           
+           // Sauvegarder la progression en base de données seulement si on a des données valides
+           if (currentTime > 0 && duration > 0) {
+             console.log(`🎬 Sauvegarde de la progression vidéo...`);
+             saveLocalProgress();
+           } else {
+             console.log(`🎬 Données invalides - currentTime: ${currentTime}, duration: ${duration}`);
+           }
+         } else {
+           console.log(`🎬 Conditions non remplies - duration: ${duration}, currentTime: ${currentTime}, isNaN: ${isNaN(currentTime)}/${isNaN(duration)}`);
+         }
+            } else if (mimeType.startsWith("audio/") && audioRef.current) {
+         const audio = audioRef.current;
+         const currentTime = audio.currentTime;
+         const duration = audio.duration;
+         
+         if (duration > 0 && currentTime >= 0) {
+           const progress = Math.round((currentTime / duration) * 100);
+           setCurrentTime(currentTime);
+           setTotalTime(duration);
+           
+           // Récupérer la progression actuelle pour éviter la régression
+           const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '');
+           const savedProgressPercentage = currentProgress?.progress || 0;
+           
+           // Ne pas diminuer la progression si on recule
+           const finalProgressPercentage = Math.max(progress, savedProgressPercentage);
+           
+           console.log(`📊 Progression audio: actuelle=${progress}%, sauvegardée=${savedProgressPercentage}%, finale=${finalProgressPercentage}%`);
+           
+           if (onProgressUpdate) {
+             onProgressUpdate({
+               timeSpent: finalProgressPercentage,
+               progress: finalProgressPercentage,
+               completed: finalProgressPercentage >= 100
+             });
+           }
+           
+           // Sauvegarder la progression en base de données seulement si on a des données valides
+           if (currentTime > 0 && duration > 0) {
+             saveLocalProgress();
+           }
+         }
+     }
+   };
 
-  // Fonction pour sauvegarder la progression avec throttling
-  const saveLocalProgress = async (currentPage: number, totalPages: number, progressPercentage?: number) => {
-    if (fileUrl && formationId && userId) {
-      try {
-        // Utiliser le pourcentage fourni ou calculer à partir de la page actuelle
-        const finalProgress = progressPercentage !== undefined 
-          ? progressPercentage 
-          : Math.round((currentPage / totalPages) * 100);
-        
-        await saveGlobalProgress({
-          lessonId: lesson.id,
-          formationId: formationId,
-          userId: userId,
-          currentPage: currentPage,
-          totalPages: totalPages,
-          currentTime: currentTime,
-          totalTime: totalTime,
-          progress: finalProgress,
-          completed: finalProgress >= 100,
-          lastAccessedAt: new Date().toISOString()
-        });
-      } catch (error) {
-        console.error('❌ Erreur lors de la sauvegarde de la progression:', error);
-      }
-    }
-  };
+     // Fonction pour sauvegarder la progression avec throttling
+   const saveLocalProgress = async (currentPage?: number, totalPages?: number, progressPercentage?: number) => {
+     console.log(`💾 saveLocalProgress appelée - mimeType: ${mimeType}, formationId: ${formationId}, userId: ${userId}`);
+     console.log(`💾 saveLocalProgress - Paramètres: currentPage=${currentPage}, totalPages=${totalPages}, progressPercentage=${progressPercentage}`);
+     
+     if (fileUrl && formationId && userId) {
+       try {
+         let finalProgress = 0;
+         
+         if (mimeType === "application/pdf" && currentPage && totalPages) {
+           // Pour les PDFs
+           finalProgress = progressPercentage !== undefined 
+             ? progressPercentage 
+             : Math.round((currentPage / totalPages) * 100);
+         } else if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) {
+           // Pour les vidéos et audios - vérifier que les temps sont disponibles
+           console.log(`🎬 saveLocalProgress - totalTime: ${totalTime}, currentTime: ${currentTime}, isNaN: ${isNaN(totalTime)}/${isNaN(currentTime)}`);
+           
+           if (totalTime > 0 && currentTime >= 0 && !isNaN(totalTime) && !isNaN(currentTime)) {
+             finalProgress = Math.round((currentTime / totalTime) * 100);
+             console.log(`🎬 saveLocalProgress - Progression calculée: ${currentTime}s/${totalTime}s = ${finalProgress}%`);
+           } else {
+             console.log('🎬 Temps non disponibles ou invalides, sauvegarde différée');
+             console.log(`🎬 Détails - totalTime: ${totalTime}, currentTime: ${currentTime}, conditions: totalTime>0=${totalTime > 0}, currentTime>=0=${currentTime >= 0}`);
+             return; // Ne pas sauvegarder si les temps ne sont pas encore disponibles
+           }
+         }
+         
+         const progressData = {
+           lessonId: lesson.id,
+           formationId: formationId,
+           userId: userId,
+           currentPage: mimeType === "application/pdf" ? currentPage : undefined,
+           totalPages: mimeType === "application/pdf" ? totalPages : undefined,
+           currentTime: (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) ? currentTime : undefined,
+           totalTime: (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) ? totalTime : undefined,
+           progress: finalProgress,
+           completed: finalProgress >= 100,
+           lastAccessedAt: new Date().toISOString()
+         };
+         
+         console.log(`💾 Données à envoyer au backend:`, progressData);
+         console.log(`💾 Type de contenu: ${mimeType}, currentTime: ${currentTime}, totalTime: ${totalTime}`);
+         
+         await saveGlobalProgress(progressData);
+         
+         console.log(`📊 Progression sauvegardée: ${finalProgress}% (${mimeType}) - Temps: ${Math.floor(currentTime / 60)}:${(currentTime % 60).toFixed(0).padStart(2, '0')}/${Math.floor(totalTime / 60)}:${(totalTime % 60).toFixed(0).padStart(2, '0')}`);
+       } catch (error) {
+         console.error('❌ Erreur lors de la sauvegarde de la progression:', error);
+       }
+     }
+   };
 
-  // Fonction pour charger la progression sauvegardée
-  const loadSavedProgress = async () => {
-    if (fileUrl && formationId && userId) {
-      try {
-        const savedProgress = await loadGlobalProgress(lesson.id, formationId, userId);
-        if (savedProgress) {
-          console.log('📊 Progression chargée:', savedProgress);
-          
-          // Restaurer la page exacte où l'utilisateur s'était arrêté
-          const lastPage = savedProgress.currentPage || 1;
-          setCurrentPage(lastPage);
-          setCurrentTime(savedProgress.currentTime || 0);
-          
-          console.log(`📊 Repositionnement exact: page ${lastPage}/${savedProgress.totalPages || '?'}`);
-          
-          // Mettre à jour l'interface parent avec la progression chargée
-          if (onProgressUpdate) {
-            const progressPercentage = savedProgress.progress || 0;
-            onProgressUpdate({
-              timeSpent: progressPercentage,
-              progress: progressPercentage,
-              completed: progressPercentage >= 100
-            });
-          }
-          
-          console.log(`📊 Interface mise à jour avec la progression: ${savedProgress.progress}%`);
-        } else {
-          console.log('📊 Aucune progression trouvée, utilisation des valeurs par défaut');
-          // Pas de progression sauvegardée, utiliser les valeurs par défaut
-          setCurrentPage(1);
-          setCurrentTime(0);
-          
-          if (onProgressUpdate) {
-            onProgressUpdate({
-              timeSpent: 0,
-              progress: 0,
-              completed: false
-            });
-          }
-        }
-      } catch (error) {
-        console.error('❌ Erreur lors du chargement de la progression:', error);
-        // En cas d'erreur, utiliser les valeurs par défaut
-        setCurrentPage(1);
-        setCurrentTime(0);
-        
-        if (onProgressUpdate) {
-          onProgressUpdate({
-            timeSpent: 0,
-            progress: 0,
-            completed: false
-          });
-        }
-      }
-    }
-  };
+     // Fonction pour charger la progression sauvegardée
+   const loadSavedProgress = async () => {
+     if (fileUrl && formationId && userId) {
+       try {
+         const savedProgress = await loadGlobalProgress(lesson.id, formationId, userId);
+         if (savedProgress) {
+           console.log('📊 Progression chargée:', savedProgress);
+           
+           if (mimeType === "application/pdf") {
+             // Pour les PDFs : restaurer la page exacte
+             const lastPage = savedProgress.currentPage || 1;
+             setCurrentPage(lastPage);
+             console.log(`📊 Repositionnement PDF: page ${lastPage}/${savedProgress.totalPages || '?'}`);
+           } else if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) {
+             // Pour les vidéos/audios : restaurer le temps exact
+             const lastTime = savedProgress.currentTime || 0;
+             const totalTime = savedProgress.totalTime || 0;
+             
+             console.log(`🎬 loadSavedProgress - Progression trouvée: currentTime=${lastTime}s, totalTime=${totalTime}s`);
+             console.log(`🎬 loadSavedProgress - Temps formaté: ${Math.floor(lastTime / 60)}:${(lastTime % 60).toFixed(0).padStart(2, '0')}/${Math.floor(totalTime / 60)}:${(totalTime % 60).toFixed(0).padStart(2, '0')}`);
+             
+             setCurrentTime(lastTime);
+             setTotalTime(totalTime);
+             
+             console.log(`🎬 États mis à jour - currentTime: ${lastTime}, totalTime: ${totalTime}`);
+           }
+           
+           // Mettre à jour l'interface parent avec la progression chargée
+           if (onProgressUpdate) {
+             const progressPercentage = savedProgress.progress || 0;
+             onProgressUpdate({
+               timeSpent: progressPercentage,
+               progress: progressPercentage,
+               completed: progressPercentage >= 100
+             });
+           }
+           
+           console.log(`📊 Interface mise à jour avec la progression: ${savedProgress.progress}%`);
+         } else {
+           console.log('📊 Aucune progression trouvée, utilisation des valeurs par défaut');
+           // Pas de progression sauvegardée, utiliser les valeurs par défaut
+           setCurrentPage(1);
+           setCurrentTime(0);
+           
+           if (onProgressUpdate) {
+             onProgressUpdate({
+               timeSpent: 0,
+               progress: 0,
+               completed: false
+             });
+           }
+         }
+       } catch (error) {
+         console.error('❌ Erreur lors du chargement de la progression:', error);
+         // En cas d'erreur, utiliser les valeurs par défaut
+         setCurrentPage(1);
+         setCurrentTime(0);
+         
+         if (onProgressUpdate) {
+           onProgressUpdate({
+             timeSpent: 0,
+             progress: 0,
+             completed: false
+           });
+         }
+       }
+     }
+   };
 
 
 
@@ -563,10 +673,36 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                 </div>
               )}
 
-              {/* PDFs */}
-              {mimeType === "application/pdf" && (
-                <div className="w-full h-[calc(100vh-120px)] border rounded bg-white relative">
-                  <div className="w-full h-full relative p-4">
+                             {/* PDFs */}
+               {mimeType === "application/pdf" && (
+                 <div className="w-full h-[calc(100vh-120px)] border rounded bg-white relative">
+                   <div className="w-full h-full relative p-4">
+                     {/* Message d'erreur PDF */}
+                     {pdfError && retryCount >= 3 && (
+                       <div className="absolute inset-0 bg-white/95 flex items-center justify-center z-30">
+                         <div className="text-center p-6">
+                           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                             <FileText className="h-8 w-8 text-red-600" />
+                           </div>
+                           <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                             Erreur de chargement PDF
+                           </h3>
+                           <p className="text-gray-600 mb-4">
+                             Le PDF n'a pas pu être chargé après plusieurs tentatives.
+                           </p>
+                           <button
+                             onClick={() => {
+                               setPdfError(false);
+                               setRetryCount(0);
+                               resetPdfWorker();
+                             }}
+                             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                           >
+                             Réessayer
+                           </button>
+                         </div>
+                       </div>
+                     )}
                     {/* Contrôles de navigation */}
                     {pageCount && pageCount > 1 && (
                       <div className="absolute bottom-4 right-4 z-20 bg-white/95 p-3 rounded-lg shadow-lg border">
@@ -606,93 +742,171 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                     
                                          {/* PDF Viewer */}
                      <div className="w-full h-full flex items-center justify-center">
-                       <Document
-                         file={blobUrl}
-                         onLoadSuccess={({ numPages }) => {
-                           console.log('📄 PDF chargé avec react-pdf:', numPages, 'pages');
-                           setPageCount(numPages);
-                           setTotalPages(numPages);
-                           
-                           // Charger la progression sauvegardée APRÈS que le PDF soit prêt
-                           if (formationId && userId) {
-                             console.log('📊 Chargement de la progression après chargement PDF...');
-                             loadSavedProgress();
-                           }
-                           
-                           console.log(`📊 PDF chargé: ${numPages} pages, page courante: ${currentPage}`);
-                         }}
-                         onLoadError={(error) => {
-                           console.error('❌ Erreur lors du chargement du PDF:', error);
-                         }}
-                       >
-                         <Page
-                           pageNumber={currentPage}
-                           width={800}
-                           scale={0.65}
-                           renderTextLayer={false}
-                           renderAnnotationLayer={false}
-                           onLoadSuccess={() => {
-                             console.log(`📄 Page ${currentPage} chargée avec succès`);
-                             // La progression est maintenant gérée par l'useEffect automatique
+                                               <Document
+                          file={blobUrl}
+                          onLoadSuccess={({ numPages }) => {
+                            console.log('📄 PDF chargé avec react-pdf:', numPages, 'pages');
+                            setPageCount(numPages);
+                            setTotalPages(numPages);
+                            
+                            // Charger la progression sauvegardée APRÈS que le PDF soit prêt
+                            if (formationId && userId) {
+                              console.log('📊 Chargement de la progression après chargement PDF...');
+                              loadSavedProgress();
+                            }
+                            
+                            console.log(`📊 PDF chargé: ${numPages} pages, page courante: ${currentPage}`);
+                          }}
+                                                     onLoadError={(error) => {
+                             console.error('❌ Erreur lors du chargement du PDF:', error);
+                             setPdfError(true);
+                             
+                             // Réessayer automatiquement jusqu'à 3 fois
+                             if (retryCount < 3) {
+                               console.log(`🔄 Tentative de récupération ${retryCount + 1}/3...`);
+                               setRetryCount(prev => prev + 1);
+                               setTimeout(() => {
+                                 resetPdfWorker();
+                               }, 1000);
+                             } else {
+                               console.error('❌ Échec après 3 tentatives de récupération');
+                             }
                            }}
-                           onLoadError={(error) => {
-                             console.error(`❌ Erreur lors du chargement de la page ${currentPage}:`, error);
-                             // Erreur de chargement de page
-                           }}
-                         />
+                        >
+                                                   <Page
+                            pageNumber={currentPage}
+                            width={800}
+                            scale={0.65}
+                            renderTextLayer={false}
+                            renderAnnotationLayer={false}
+                            onLoadSuccess={() => {
+                              console.log(`📄 Page ${currentPage} chargée avec succès`);
+                              // La progression est maintenant gérée par l'useEffect automatique
+                            }}
+                                                         onLoadError={(error) => {
+                               console.error(`❌ Erreur lors du chargement de la page ${currentPage}:`, error);
+                               setPdfError(true);
+                               
+                               // Réessayer automatiquement jusqu'à 3 fois
+                               if (retryCount < 3) {
+                                 console.log(`🔄 Tentative de récupération page ${retryCount + 1}/3...`);
+                                 setRetryCount(prev => prev + 1);
+                                 setTimeout(() => {
+                                   resetPdfWorker();
+                                 }, 1000);
+                               } else {
+                                 console.error('❌ Échec après 3 tentatives de récupération de page');
+                               }
+                             }}
+                          />
                        </Document>
                      </div>
                   </div>
                 </div>
               )}
 
-              {/* Vidéos */}
-              {mimeType.startsWith("video/") && (
-                <div className="w-full h-[calc(100vh-120px)] border rounded bg-white">
-                  <div className="relative">
-                    <video
-                      ref={videoRef}
-                      src={blobUrl}
-                      controls
-                      className="w-full h-full object-contain bg-black select-none"
-                      style={{
-                        userSelect: 'none',
-                        WebkitUserSelect: 'none',
-                        MozUserSelect: 'none',
-                        msUserSelect: 'none',
-                        pointerEvents: 'auto'
-                      }}
-                      preload="metadata"
-                      controlsList="nodownload nofullscreen noremoteplayback"
-                      disablePictureInPicture
-                      onLoadedMetadata={() => {
-                        if (videoRef.current) {
-                          setTotalTime(videoRef.current.duration);
-                          startProgressTracking();
-                        }
-                      }}
-                      onTimeUpdate={() => {
-                        if (videoRef.current) {
-                          setCurrentTime(videoRef.current.currentTime);
-                        }
-                      }}
-                      onEnded={() => {
-                        stopProgressTracking();
-                        if (onProgressUpdate) {
-                          onProgressUpdate({
-                            timeSpent: 100,
-                            progress: 100,
-                            completed: true
-                          });
-                        }
-                      }}
-                      onContextMenu={(e) => e.preventDefault()}
-                      onDragStart={(e) => e.preventDefault()}
-                      onDrop={(e) => e.preventDefault()}
-                    />
-                  </div>
-                </div>
-              )}
+                             {/* Vidéos */}
+               {mimeType.startsWith("video/") && (
+                 <div className="w-full h-[calc(100vh-120px)] border rounded bg-white">
+                   <div className="relative">
+                     <video
+                       ref={videoRef}
+                       src={blobUrl}
+                       controls
+                       className="w-full h-full object-contain bg-black select-none"
+                       style={{
+                         userSelect: 'none',
+                         WebkitUserSelect: 'none',
+                         MozUserSelect: 'none',
+                         msUserSelect: 'none',
+                         pointerEvents: 'auto'
+                       }}
+                       preload="metadata"
+                       controlsList="nodownload nofullscreen noremoteplayback"
+                       disablePictureInPicture
+                       onLoadedMetadata={() => {
+                         console.log('🎬 onLoadedMetadata - Événement déclenché');
+                         if (videoRef.current) {
+                           const duration = videoRef.current.duration;
+                           console.log(`🎬 onLoadedMetadata - Durée vidéo: ${duration}s (${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')})`);
+                           console.log(`🎬 onLoadedMetadata - isNaN(duration): ${isNaN(duration)}`);
+                           console.log(`🎬 onLoadedMetadata - videoRef.current.duration: ${videoRef.current.duration}`);
+                           console.log(`🎬 onLoadedMetadata - videoRef.current.readyState: ${videoRef.current.readyState}`);
+                           
+                                                        if (!isNaN(duration) && duration > 0) {
+                               console.log(`🎬 Durée valide détectée, mise à jour de totalTime`);
+                               setTotalTime(duration);
+                               console.log(`🎬 État totalTime mis à jour: ${duration}s`);
+                             
+                             // Charger la progression sauvegardée APRÈS que la vidéo soit prête
+                             if (formationId && userId) {
+                               console.log('🎬 Chargement de la progression vidéo après chargement...');
+                               loadSavedProgress();
+                               
+                               // Positionner la vidéo au temps sauvegardé
+                               if (currentTime > 0 && videoRef.current) {
+                                 console.log(`🎬 Positionnement vidéo à ${currentTime}s (${Math.floor(currentTime / 60)}:${(currentTime % 60).toFixed(0).padStart(2, '0')})`);
+                                 videoRef.current.currentTime = currentTime;
+                                 console.log(`🎬 Vidéo positionnée avec succès`);
+                               } else {
+                                 console.log(`🎬 Pas de positionnement - currentTime: ${currentTime}`);
+                               }
+                             }
+                             
+                             // Démarrer le suivi de progression maintenant que tout est prêt
+                             setTimeout(() => {
+                               console.log('🎬 Démarrage du suivi de progression vidéo...');
+                               startProgressTracking();
+                             }, 100);
+                           } else {
+                             console.error(`🎬 Durée vidéo invalide: ${duration}`);
+                           }
+                         } else {
+                           console.error('🎬 videoRef.current est null dans onLoadedMetadata');
+                         }
+                       }}
+                       onTimeUpdate={() => {
+                         if (videoRef.current) {
+                           const newCurrentTime = videoRef.current.currentTime;
+                           const duration = videoRef.current.duration;
+                           
+                           console.log(`🎬 onTimeUpdate - Nouveau temps: ${newCurrentTime}s (${Math.floor(newCurrentTime / 60)}:${(newCurrentTime % 60).toFixed(0).padStart(2, '0')})`);
+                           console.log(`🎬 onTimeUpdate - Durée: ${duration}s, totalTime actuel: ${totalTime}s`);
+                           
+                           setCurrentTime(newCurrentTime);
+                           
+                           // Si totalTime n'est pas encore défini mais que la durée est disponible
+                           if (totalTime <= 0 && duration > 0 && !isNaN(duration)) {
+                             console.log(`🎬 onTimeUpdate - Récupération de la durée depuis onTimeUpdate: ${duration}s`);
+                             setTotalTime(duration);
+                             
+                             // Démarrer le suivi de progression maintenant que totalTime est disponible
+                             if (!isTrackingProgress) {
+                               console.log('🎬 onTimeUpdate - Démarrage du suivi de progression (récupération tardive)');
+                               startProgressTracking();
+                             }
+                           }
+                         } else {
+                           console.error('🎬 videoRef.current est null dans onTimeUpdate');
+                         }
+                       }}
+                       onEnded={() => {
+                         stopProgressTracking();
+                         if (onProgressUpdate) {
+                           onProgressUpdate({
+                             timeSpent: 100,
+                             progress: 100,
+                             completed: true
+                           });
+                         }
+                       }}
+                       onContextMenu={(e) => e.preventDefault()}
+                       onDragStart={(e) => e.preventDefault()}
+                       onDrop={(e) => e.preventDefault()}
+                     />
+                   </div>
+                 </div>
+               )}
 
               {/* Audio */}
               {mimeType.startsWith("audio/") && (
@@ -729,43 +943,61 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                             {Math.round((currentTime / totalTime) * 100)}% terminé
                           </div>
                         </div>
-                      )}
-                    </div>
-                  </div>
-                  
+        )}
+      </div>
+      </div>
+
                   <div className="flex-1 flex items-center justify-center bg-gray-100">
-                    <audio
-                      ref={audioRef}
-                      src={blobUrl}
-                      controls
-                      className="w-full max-w-md"
-                      preload="metadata"
-                      onLoadedMetadata={() => {
-                        if (audioRef.current) {
-                          setTotalTime(audioRef.current.duration);
-                          startProgressTracking();
-                        }
-                      }}
-                      onTimeUpdate={() => {
-                        if (audioRef.current) {
-                          setCurrentTime(audioRef.current.currentTime);
-                        }
-                      }}
-                    >
-                      Votre navigateur ne supporte pas la lecture audio.
-                      <a href={blobUrl} download>Télécharger l'audio</a>
-                    </audio>
-                  </div>
+                                         <audio
+                       ref={audioRef}
+                       src={blobUrl}
+                       controls
+                       className="w-full max-w-md"
+                       preload="metadata"
+                       onLoadedMetadata={() => {
+                         if (audioRef.current) {
+                           const duration = audioRef.current.duration;
+                           setTotalTime(duration);
+                           console.log(`📊 Audio chargé - Durée: ${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')}`);
+                           
+                           // Charger la progression sauvegardée APRÈS que l'audio soit prêt
+                           if (formationId && userId) {
+                             console.log('📊 Chargement de la progression audio après chargement...');
+                             loadSavedProgress();
+                             
+                             // Positionner l'audio au temps sauvegardé
+                             if (currentTime > 0 && audioRef.current) {
+                               audioRef.current.currentTime = currentTime;
+                               console.log(`📊 Audio positionné à ${Math.floor(currentTime / 60)}:${(currentTime % 60).toFixed(0).padStart(2, '0')}`);
+                             }
+                           }
+                           
+                           // Démarrer le suivi de progression maintenant que tout est prêt
+                           setTimeout(() => {
+                             startProgressTracking();
+                           }, 100);
+                         }
+                       }}
+                       onTimeUpdate={() => {
+                         if (audioRef.current) {
+                           setCurrentTime(audioRef.current.currentTime);
+                         }
+                       }}
+                     >
+                       Votre navigateur ne supporte pas la lecture audio.
+                       <a href={blobUrl} download>Télécharger l'audio</a>
+                     </audio>
+            </div>
                   
                   <div className="p-4 bg-gray-50 border-t">
                     <a
                       href={blobUrl}
                       download
-                      className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                    >
+                className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
                       Télécharger l'audio
-                    </a>
-                  </div>
+              </a>
+            </div>
                 </div>
               )}
 
@@ -793,24 +1025,24 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                   </a>
                 </div>
               )}
+          </div>
+        ) : (
+          <div className="text-center">
+            <div className="w-24 h-24 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-6">
+              <FileText className="h-12 w-12 text-red-600" />
             </div>
-          ) : (
-            <div className="text-center">
-              <div className="w-24 h-24 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-6">
-                <FileText className="h-12 w-12 text-red-600" />
-              </div>
-              <h4 className="text-2xl font-semibold text-gray-800 mb-4">
-                Aucun fichier disponible ❌
-              </h4>
-              <p className="text-gray-600 mb-4">
-                Le fichier n'a pas pu être récupéré
-              </p>
-              <div className="bg-gray-100 p-4 rounded text-left text-sm">
-                <p><strong>Debug info :</strong></p>
-                <p>Lesson ID: {lesson.id}</p>
-                <p>Lesson Title: {lesson.title}</p>
-                <p>Lesson fileUrl: {lesson.fileUrl || 'null'}</p>
-                <p>Lesson type: {lesson.type}</p>
+            <h4 className="text-2xl font-semibold text-gray-800 mb-4">
+              Aucun fichier disponible ❌
+            </h4>
+            <p className="text-gray-600 mb-4">
+              Le fichier n'a pas pu être récupéré
+            </p>
+            <div className="bg-gray-100 p-4 rounded text-left text-sm">
+              <p><strong>Debug info :</strong></p>
+              <p>Lesson ID: {lesson.id}</p>
+              <p>Lesson Title: {lesson.title}</p>
+              <p>Lesson fileUrl: {lesson.fileUrl || 'null'}</p>
+              <p>Lesson type: {lesson.type}</p>
                 <p>FileUrl prop: {fileUrl}</p>
               </div>
             </div>
@@ -847,9 +1079,9 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                  <p>• Sauvegarde automatique de votre position</p>
                  <p>• Rechargement de la progression à la reconnexion</p>
                </div>
-             </div>
-           </div>
-         )}
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Footer minimal */}
