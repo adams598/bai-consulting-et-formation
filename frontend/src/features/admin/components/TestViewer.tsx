@@ -2,18 +2,16 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { FileText } from 'lucide-react';
 import { FormationContent } from '../types';
-import { GlobalWorkerOptions, getDocument } from 'pdfjs-dist';
-import pdfjsWorker from 'pdfjs-dist/build/pdf.worker?url';
 import { Document, Page } from 'react-pdf';
 import { useProgress } from '../../../contexts/ProgressContext';
 
 // Configuration du worker pour react-pdf et pdfjs-dist
 import { pdfjs } from 'react-pdf';
 
-// Configuration globale du worker
+// Configuration globale du worker - utiliser un worker local depuis public
 if (typeof window !== 'undefined') {
-  pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
-  GlobalWorkerOptions.workerSrc = pdfjsWorker;
+  pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+  console.log('✅ Worker PDF configuré avec worker local');
 }
 
 interface TestViewerProps {
@@ -92,6 +90,11 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   useEffect(() => {
     console.log('🔄 TestViewer - Changement de leçon détecté:', lesson.id);
     
+    // Vérifier la progression en base de données pour cette leçon
+    if (formationId && userId) {
+      checkLessonProgress();
+    }
+    
     // Nettoyer les URLs blob existantes
     if (blobUrl) {
       URL.revokeObjectURL(blobUrl);
@@ -123,6 +126,38 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     
     console.log('✅ TestViewer - État réinitialisé pour nouvelle leçon');
   }, [lesson.id]); // Seulement quand lesson.id change
+
+  // Fonction pour vérifier la progression de la leçon en base de données
+  const checkLessonProgress = async () => {
+    if (!formationId || !userId) return;
+    
+    try {
+      console.log('🔍 Vérification de la progression en base de données...');
+      console.log('🔍 Lesson ID:', lesson.id);
+      console.log('🔍 Formation ID:', formationId);
+      console.log('🔍 User ID:', userId);
+      const savedProgress = await loadGlobalProgress(lesson.id, formationId, userId);
+      console.log('🔍 Progression trouvée en base de données:', savedProgress);
+      if (savedProgress) {
+        console.log('📊 Progression trouvée en base de données:', {
+          lessonId: lesson.id,
+          lessonTitle: lesson.title,
+          currentPage: savedProgress.currentPage,
+          totalPages: savedProgress.totalPages,
+          progress: savedProgress.progress + '%',
+          completed: savedProgress.completed ? 'Oui' : 'Non',
+          lastAccessed: savedProgress.lastAccessedAt
+        });
+      } else {
+        console.log('📊 Aucune progression trouvée en base de données pour:', {
+          lessonId: lesson.id,
+          lessonTitle: lesson.title
+        });
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la vérification de la progression:', error);
+    }
+  };
 
   // Effet pour charger le fichier
   useEffect(() => {
@@ -189,13 +224,14 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
           }
         }
         
-        setMimeType(detectedMimeType);
-        const url = URL.createObjectURL(blob);
-        setBlobUrl(url);
-        
-        if (detectedMimeType === "application/pdf") {
-          loadPdfPages(url);
-        }
+                 setMimeType(detectedMimeType);
+         const url = URL.createObjectURL(blob);
+         setBlobUrl(url);
+         
+         // Pour les PDFs, react-pdf gère tout automatiquement
+         if (detectedMimeType === "application/pdf") {
+           console.log('✅ PDF détecté - react-pdf va gérer le chargement');
+         }
 
              } catch (err) {
          console.error("❌ Erreur chargement fichier:", err);
@@ -209,63 +245,20 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     loadFile();
   }, [fileUrl, lesson.id]); // Ajouter lesson.id comme dépendance
 
-  // Effet pour charger la progression sauvegardée (une seule fois au montage)
-  useEffect(() => {
-    if (fileUrl && formationId && userId) {
-      loadSavedProgress();
-    }
-  }, []); // Dépendances vides pour ne s'exécuter qu'une seule fois
+  // Effet pour charger la progression sauvegardée quand le PDF est chargé
+  // SUPPRIMÉ - Le chargement se fait maintenant dans onLoadSuccess du Document
 
   // Effet pour sauvegarder automatiquement la progression quand la page change
   useEffect(() => {
     if (mimeType === "application/pdf" && pageCount && pageCount > 0 && currentPage > 0) {
       console.log(`📊 Sauvegarde automatique: page ${currentPage}/${pageCount}`);
+      console.log(`📊 État actuel - currentPage: ${currentPage}, pageCount: ${pageCount}, mimeType: ${mimeType}`);
       // Utiliser updateProgress pour bénéficier de la logique non-régressive
       updateProgress();
     }
   }, [currentPage, pageCount, mimeType]);
 
-  // Fonction pour charger le nombre de pages d'un PDF
-  const loadPdfPages = async (pdfUrl: string) => {
-    try {
-      GlobalWorkerOptions.workerSrc = pdfjsWorker;
-      
-      let pdfSource: string | ArrayBuffer = pdfUrl;
-      if (pdfUrl.startsWith('blob:')) {
-        try {
-          const response = await fetch(pdfUrl);
-          const arrayBuffer = await response.arrayBuffer();
-          pdfSource = arrayBuffer;
-        } catch (error) {
-          console.error('❌ loadPdfPages - Erreur lors de la conversion du blob:', error);
-        }
-      }
-      
-      const loadingTask = getDocument(pdfSource);
-      
-      loadingTask.onProgress = (progress: any) => {
-        // console.log('🔍 loadPdfPages - Progression:', progress);
-      };
-      
-      loadingTask.promise.catch((error: any) => {
-        console.error('❌ loadPdfPages - Erreur de la promesse:', error);
-      });
-      
-      const pdf = await loadingTask.promise;
-      const numPages = pdf.numPages;
-      
-      setPageCount(numPages);
-      setTotalPages(numPages);
-      setPdfDocument(pdf);
-      
-      startProgressTracking();
-      
-    } catch (err) {
-      console.error("❌ Erreur lors du chargement du PDF:", err);
-      setPageCount(null);
-      setTotalPages(1);
-    }
-  };
+  // Fonction pour charger le nombre de pages d'un PDF - SUPPRIMÉE car react-pdf gère tout
 
   // Fonction pour rendre toutes les pages en canvas
   const renderAllPages = async (pdf: any) => {
@@ -343,6 +336,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
 
   // Fonction pour mettre à jour la progression
   const updateProgress = () => {
+    console.log(`📊 updateProgress appelée - mimeType: ${mimeType}, pageCount: ${pageCount}, currentPage: ${currentPage}`);
     if (mimeType === "application/pdf" && pageCount && pageCount > 0) {
       const progressPercentage = Math.round((currentPage / pageCount) * 100);
       console.log(`📊 updateProgress - PDF: ${currentPage}/${pageCount} = ${progressPercentage}%`);
@@ -365,7 +359,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
         });
       }
       
-      // Sauvegarder la progression avec la page actuelle mais le pourcentage non-régressif
+      // Toujours sauvegarder la progression actuelle en base de données
       saveLocalProgress(currentPage, pageCount, finalProgressPercentage);
     } else if (mimeType.startsWith("video/") && videoRef.current) {
       const video = videoRef.current;
@@ -448,19 +442,49 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
           
           console.log(`📊 Repositionnement exact: page ${lastPage}/${savedProgress.totalPages || '?'}`);
           
-          // Déclencher la progression après un délai pour laisser le temps aux états de se mettre à jour
-          setTimeout(() => {
-            if (pageCount && pageCount > 0) {
-              console.log(`📊 Restauration de la progression: page ${lastPage}/${pageCount}`);
-              updateProgress();
-            }
-          }, 100);
+          // Mettre à jour l'interface parent avec la progression chargée
+          if (onProgressUpdate) {
+            const progressPercentage = savedProgress.progress || 0;
+            onProgressUpdate({
+              timeSpent: progressPercentage,
+              progress: progressPercentage,
+              completed: progressPercentage >= 100
+            });
+          }
+          
+          console.log(`📊 Interface mise à jour avec la progression: ${savedProgress.progress}%`);
+        } else {
+          console.log('📊 Aucune progression trouvée, utilisation des valeurs par défaut');
+          // Pas de progression sauvegardée, utiliser les valeurs par défaut
+          setCurrentPage(1);
+          setCurrentTime(0);
+          
+          if (onProgressUpdate) {
+            onProgressUpdate({
+              timeSpent: 0,
+              progress: 0,
+              completed: false
+            });
+          }
         }
       } catch (error) {
         console.error('❌ Erreur lors du chargement de la progression:', error);
+        // En cas d'erreur, utiliser les valeurs par défaut
+        setCurrentPage(1);
+        setCurrentTime(0);
+        
+        if (onProgressUpdate) {
+          onProgressUpdate({
+            timeSpent: 0,
+            progress: 0,
+            completed: false
+          });
+        }
       }
     }
   };
+
+
 
   // Nettoyer l'intervalle quand le composant se démonte
   useEffect(() => {
@@ -580,23 +604,28 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                       </div>
                     )}
                     
-                    {/* PDF Viewer */}
-                    <div className="w-full h-full flex items-center justify-center">
-                                             <Document
+                                         {/* PDF Viewer */}
+                     <div className="w-full h-full flex items-center justify-center">
+                       <Document
                          file={blobUrl}
                          onLoadSuccess={({ numPages }) => {
                            console.log('📄 PDF chargé avec react-pdf:', numPages, 'pages');
                            setPageCount(numPages);
                            setTotalPages(numPages);
                            
-                           // Ne pas déclencher la progression ici, elle sera gérée par onLoadSuccess de Page
+                           // Charger la progression sauvegardée APRÈS que le PDF soit prêt
+                           if (formationId && userId) {
+                             console.log('📊 Chargement de la progression après chargement PDF...');
+                             loadSavedProgress();
+                           }
+                           
                            console.log(`📊 PDF chargé: ${numPages} pages, page courante: ${currentPage}`);
                          }}
                          onLoadError={(error) => {
                            console.error('❌ Erreur lors du chargement du PDF:', error);
                          }}
                        >
-                                                 <Page
+                         <Page
                            pageNumber={currentPage}
                            width={800}
                            scale={0.65}
@@ -608,10 +637,11 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                            }}
                            onLoadError={(error) => {
                              console.error(`❌ Erreur lors du chargement de la page ${currentPage}:`, error);
+                             // Erreur de chargement de page
                            }}
                          />
-                      </Document>
-                    </div>
+                       </Document>
+                     </div>
                   </div>
                 </div>
               )}

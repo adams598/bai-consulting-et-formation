@@ -65,25 +65,12 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
 
   // Sauvegarder la progression dans la base de données et l'état global
   const saveProgress = async (data: ProgressData) => {
-    // Éviter les requêtes trop fréquentes (minimum 1 seconde entre chaque sauvegarde)
-    const now = Date.now();
-    if (now - lastSaveTime < 1000) {
-      console.log('⏳ Sauvegarde ignorée - trop fréquente, mise à jour locale uniquement');
-      // Mettre à jour seulement l'état local
-      const progressKey = getProgressKey(data.lessonId, data.formationId, data.userId);
-      setGlobalProgress(prev => ({
-        ...prev,
-        [progressKey]: {
-          ...data,
-          lastAccessedAt: new Date().toISOString()
-        }
-      }));
-      return;
-    }
+    // Sauvegarder immédiatement en base de données
+    console.log('📤 Sauvegarde de la progression en base de données...');
 
     setIsLoading(true);
     setError(null);
-    setLastSaveTime(now);
+    setLastSaveTime(Date.now());
     
     try {
       // Nettoyer et valider les données avant envoi
@@ -101,15 +88,20 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
       };
 
       console.log('📤 Envoi des données de progression:', cleanData);
+      
+      const accessToken = localStorage.getItem('accessToken');
+      console.log('🔑 Token d\'authentification:', accessToken ? 'Présent' : 'Absent');
 
       const response = await fetch(`${getApiUrl()}/api/admin/progress/save`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify(cleanData),
       });
+      
+      console.log('📡 Réponse du serveur:', response.status, response.statusText);
 
       if (response.ok) {
         const result = await response.json();
@@ -125,30 +117,15 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
           }
         }));
       } else {
-        // Si le backend n'est pas disponible, sauvegarder en local seulement
-        console.log('⚠️ Backend non disponible, sauvegarde locale uniquement');
-        const progressKey = getProgressKey(data.lessonId, data.formationId, data.userId);
-        setGlobalProgress(prev => ({
-          ...prev,
-          [progressKey]: {
-            ...data,
-            lastAccessedAt: new Date().toISOString()
-          }
-        }));
+        // Erreur du backend - lancer une exception pour forcer la gestion d'erreur
+        const errorText = await response.text();
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
       }
     } catch (error) {
       console.error('❌ Erreur lors de la sauvegarde globale:', error);
-      // En cas d'erreur, sauvegarder en local seulement
-      console.log('⚠️ Erreur réseau, sauvegarde locale uniquement');
-      const progressKey = getProgressKey(data.lessonId, data.formationId, data.userId);
-      setGlobalProgress(prev => ({
-        ...prev,
-        [progressKey]: {
-          ...data,
-          lastAccessedAt: new Date().toISOString()
-        }
-      }));
+      // Ne plus sauvegarder en local en cas d'erreur - forcer la résolution du problème
       setError(error instanceof Error ? error.message : 'Erreur inconnue');
+      throw error; // Propager l'erreur pour que le composant puisse la gérer
     } finally {
       setIsLoading(false);
     }
@@ -156,14 +133,8 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
 
   // Charger la progression depuis la base de données
   const loadProgress = async (lessonId: string, formationId: string, userId: string): Promise<ProgressData | null> => {
-    // Vérifier si la progression existe déjà en local
-    const progressKey = getProgressKey(lessonId, formationId, userId);
-    const existingProgress = globalProgress[progressKey];
-    
-    if (existingProgress) {
-      console.log('📊 Progression trouvée en local:', existingProgress);
-      return existingProgress;
-    }
+    // Toujours charger depuis la base de données pour avoir les données les plus récentes
+    console.log('📊 Chargement de la progression depuis la base de données...');
 
     setIsLoading(true);
     setError(null);
@@ -180,6 +151,8 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
 
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Réponse du serveur pour loadProgress:', data);
+        
         if (data.progress) {
           const progressData: ProgressData = {
             lessonId,
@@ -187,14 +160,15 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
             userId,
             currentPage: data.progress.currentPage || 1,
             totalPages: data.progress.totalPages || 1,
-            currentTime: data.progress.timeSpent || 0,
+            currentTime: data.progress.currentTime || 0,
             totalTime: data.progress.totalTime || 0,
             progress: data.progress.progress || 0,
-            completed: data.progress.completed || false,
+            completed: data.progress.isCompleted || false,
             lastAccessedAt: data.progress.lastAccessedAt || new Date().toISOString()
           };
           
           // Mettre à jour l'état global
+          const progressKey = getProgressKey(lessonId, formationId, userId);
           setGlobalProgress(prev => ({
             ...prev,
             [progressKey]: progressData

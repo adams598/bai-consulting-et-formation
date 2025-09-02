@@ -1,10 +1,11 @@
 // LessonPlayer.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { X, Play, FileText, Video, Presentation, Clock, CheckCircle, BookOpen } from 'lucide-react';
 import { FormationContent } from '../types';
 import { getLessonImageUrl, getImageUrl, getLessonFileUrl } from '../../../utils/imageUtils';
 import TestViewer from './TestViewer';
 import '../../../components/LessonPlayer.css';
+import { useAuth } from '../../../providers/auth-provider';
 
 interface LessonPlayerProps {
   formation: {
@@ -24,6 +25,7 @@ interface LessonProgress {
 }
 
 export default function LessonPlayer({ formation, lessons, onClose }: LessonPlayerProps) {
+  const { user } = useAuth();
   const [selectedLesson, setSelectedLesson] = useState<FormationContent | null>(null);
   const [lessonProgress, setLessonProgress] = useState<Map<string, LessonProgress>>(new Map());
 
@@ -87,18 +89,47 @@ export default function LessonPlayer({ formation, lessons, onClose }: LessonPlay
 
   // Fonction pour récupérer l'ID de l'utilisateur connecté
   const getCurrentUserId = (): string => {
-    // Récupérer depuis le localStorage ou le contexte d'authentification
+    console.log('🔍 User depuis AuthContext:', user);
+    
+    // Utiliser l'utilisateur du contexte d'authentification
+    if (user && user.id) {
+      console.log('🔍 ID utilisateur trouvé dans AuthContext:', user.id);
+      return user.id;
+    }
+    
+    // Fallback : essayer de récupérer depuis le localStorage
     const userInfo = localStorage.getItem('userInfo');
+    console.log('🔍 userInfo dans localStorage:', userInfo);
+    
     if (userInfo) {
       try {
-        const user = JSON.parse(userInfo);
-        return user.id || 'default-user-id';
+        const userData = JSON.parse(userInfo);
+        console.log('🔍 User parsé:', userData);
+        return userData.id || 'default-user-id';
       } catch (error) {
         console.error('Erreur parsing userInfo:', error);
       }
     }
     
+    // Essayer de récupérer depuis le token JWT
+    const accessToken = localStorage.getItem('accessToken');
+    console.log('🔍 accessToken dans localStorage:', accessToken);
+    
+    if (accessToken) {
+      try {
+        // Décoder le token JWT pour extraire l'ID utilisateur
+        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        console.log('🔍 Payload du token JWT:', payload);
+        if (payload.userId || payload.sub) {
+          return payload.userId || payload.sub;
+        }
+      } catch (error) {
+        console.error('Erreur décodage token JWT:', error);
+      }
+    }
+    
     // Fallback : utiliser un ID par défaut pour les tests
+    console.log('⚠️ Aucun ID utilisateur trouvé, utilisation de default-user-id');
     return 'default-user-id';
   };
 
