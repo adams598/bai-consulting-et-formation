@@ -31,7 +31,7 @@ app.use(blockSuspiciousRequests);
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limite chaque IP à 100 requêtes par fenêtre
+  max: 1000, // limite chaque IP à 1000 requêtes par fenêtre (augmenté pour le développement)
   message: {
     error: "Trop de requêtes depuis cette IP, veuillez réessayer plus tard.",
   },
@@ -70,6 +70,7 @@ app.use(express.json({ limit: "10mb" })); // Limiter la taille des requêtes
 
 // Import des routes
 import adminRoutes from "./src/routes/admin.routes.js";
+import opportunitiesRoutes from "./src/routes/opportunities.routes.js";
 import learnerRoutes from "./src/routes/learner.routes.js";
 
 // Route API pour servir les images
@@ -147,6 +148,7 @@ app.get("/api/formations/:formationTitle/:filename", (req, res) => {
 
 // Routes
 app.use("/api/admin", adminRoutes);
+app.use("/api/admin/opportunities", opportunitiesRoutes);
 app.use("/api/learner", learnerRoutes);
 
 // Initialisation conditionnelle d'OpenAI

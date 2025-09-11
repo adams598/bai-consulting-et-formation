@@ -23,10 +23,15 @@ import {
   quizController,
   bankFormationController,
   userFormationAssignmentController,
+  universeController,
 } from "../controllers/admin.controllers.js";
 import { uploadController } from "../controllers/upload.controller.js";
 import { conversionController } from "../controllers/conversion.controller.js";
 import { progressController } from "../controllers/progress.controller.js";
+import { quizController as newQuizController } from "../controllers/quiz.controller.js";
+import { notificationsController } from "../controllers/notifications.controller.js";
+import { advancedAssignmentsController } from "../controllers/advanced-assignments.controller.js";
+import { certificatesController } from "../controllers/certificates.controller.js";
 
 const router = express.Router();
 
@@ -207,28 +212,35 @@ router.post(
   "/formations/:formationId/quiz",
   authMiddleware,
   adminMiddleware,
-  quizController.createQuiz
+  newQuizController.createQuiz
 );
 
 router.put(
   "/quiz/:id",
   authMiddleware,
   adminMiddleware,
-  quizController.updateQuiz
+  newQuizController.updateQuiz
 );
 
 router.delete(
   "/quiz/:id",
   authMiddleware,
   adminMiddleware,
-  quizController.deleteQuiz
+  newQuizController.deleteQuiz
 );
 
 router.patch(
   "/quiz/:id/toggle",
   authMiddleware,
   adminMiddleware,
-  quizController.toggleQuizActive
+  newQuizController.toggleQuizActive
+);
+
+router.get(
+  "/quiz/:quizId/stats",
+  authMiddleware,
+  adminMiddleware,
+  newQuizController.getQuizStats
 );
 
 // Routes des assignations banque-formation
@@ -309,6 +321,82 @@ router.get(
   authMiddleware,
   adminMiddleware,
   userFormationAssignmentController.getFormationUserAssignments
+);
+
+// Routes des assignations avancées
+router.post(
+  "/assignments/bulk-banks",
+  authMiddleware,
+  adminMiddleware,
+  advancedAssignmentsController.bulkAssignToBanks
+);
+
+router.post(
+  "/assignments/bulk-users",
+  authMiddleware,
+  adminMiddleware,
+  advancedAssignmentsController.bulkAssignUsers
+);
+
+router.post(
+  "/assignments/by-criteria",
+  authMiddleware,
+  adminMiddleware,
+  advancedAssignmentsController.assignByCriteria
+);
+
+router.post(
+  "/assignments/send-reminders",
+  authMiddleware,
+  adminMiddleware,
+  advancedAssignmentsController.sendReminders
+);
+
+router.get(
+  "/assignments/:bankFormationId/stats",
+  authMiddleware,
+  adminMiddleware,
+  advancedAssignmentsController.getAssignmentStats
+);
+
+// Routes des certificats
+router.post(
+  "/certificates/generate/:userId/:formationId",
+  authMiddleware,
+  adminMiddleware,
+  certificatesController.generateCertificate
+);
+
+router.post(
+  "/certificates/generate-bulk/:formationId",
+  authMiddleware,
+  adminMiddleware,
+  certificatesController.generateBulkCertificates
+);
+
+router.get(
+  "/certificates",
+  authMiddleware,
+  adminMiddleware,
+  certificatesController.getAllCertificates
+);
+
+router.get(
+  "/certificates/user/:userId",
+  authMiddleware,
+  adminMiddleware,
+  certificatesController.getUserCertificates
+);
+
+router.get(
+  "/certificates/:certificateId/download",
+  authMiddleware,
+  certificatesController.downloadCertificate
+);
+
+router.get(
+  "/certificates/verify/:certificateNumber",
+  certificatesController.verifyCertificate
 );
 
 // Routes des utilisateurs
@@ -418,6 +506,18 @@ router.get(
   adminMiddleware,
   dashboardController.getRecentActivity
 );
+router.get(
+  "/dashboard/alerts",
+  authMiddleware,
+  adminMiddleware,
+  dashboardController.getAlerts
+);
+router.get(
+  "/dashboard/formation-performance",
+  authMiddleware,
+  adminMiddleware,
+  dashboardController.getFormationPerformance
+);
 
 // Routes des quiz (à implémenter)
 // router.get(
@@ -495,37 +595,37 @@ router.get(
   progressController.getUserAllProgress
 );
 
-// Routes des notifications (à implémenter)
-// router.get(
-//   "/notifications",
-//   authMiddleware,
-//   adminMiddleware,
-//   notificationsController.getAllNotifications
-// );
-// router.get(
-//   "/notifications/user/:userId",
-//   authMiddleware,
-//   adminMiddleware,
-//   notificationsController.getUserNotifications
-// );
-// router.post(
-//   "/notifications",
-//   authMiddleware,
-//   adminMiddleware,
-//   notificationsController.createNotification
-// );
-// router.patch(
-//   "/notifications/:id/read",
-//   authMiddleware,
-//   adminMiddleware,
-//   notificationsController.markAsRead
-// );
-// router.delete(
-//   "/notifications/:id",
-//   authMiddleware,
-//   adminMiddleware,
-//   notificationsController.deleteNotification
-// );
+// Routes des notifications
+router.get(
+  "/notifications",
+  authMiddleware,
+  adminMiddleware,
+  notificationsController.getAllNotifications
+);
+router.get(
+  "/notifications/user/:userId",
+  authMiddleware,
+  adminMiddleware,
+  notificationsController.getUserNotificationsById
+);
+router.post(
+  "/notifications",
+  authMiddleware,
+  adminMiddleware,
+  notificationsController.createNotification
+);
+router.patch(
+  "/notifications/:id/read",
+  authMiddleware,
+  adminMiddleware,
+  notificationsController.markAsRead
+);
+router.delete(
+  "/notifications/:id",
+  authMiddleware,
+  adminMiddleware,
+  notificationsController.deleteNotification
+);
 
 // Routes d'upload
 router.post("/upload/test", authMiddleware, adminMiddleware, (req, res) => {
@@ -694,6 +794,49 @@ router.post(
   "/progress/:userId/:lessonId/complete",
   authMiddleware,
   progressController.markLessonCompleted
+);
+
+// Routes des univers
+router.get(
+  "/universes",
+  authMiddleware,
+  adminMiddleware,
+  universeController.getAllUniverses
+);
+
+router.post(
+  "/universes",
+  authMiddleware,
+  adminMiddleware,
+  universeController.createUniverse
+);
+
+router.put(
+  "/universes/:id",
+  authMiddleware,
+  adminMiddleware,
+  universeController.updateUniverse
+);
+
+router.delete(
+  "/universes/:id",
+  authMiddleware,
+  adminMiddleware,
+  universeController.deleteUniverse
+);
+
+router.post(
+  "/universes/move-formation",
+  authMiddleware,
+  adminMiddleware,
+  universeController.moveFormationToUniverse
+);
+
+router.get(
+  "/universes/:universeId/formations",
+  authMiddleware,
+  adminMiddleware,
+  universeController.getUniverseFormations
 );
 
 export default router;

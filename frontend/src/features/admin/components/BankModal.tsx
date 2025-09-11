@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import { Bank } from '../types';
+import ConfirmationModal from './ConfirmationModal';
+import { useConfirmation } from '../../../hooks/useConfirmation';
 
 interface BankModalProps {
   bank?: Bank | null;
@@ -14,6 +16,9 @@ const BankModal: React.FC<BankModalProps> = ({ bank, onClose, onSave }) => {
     code: '',
     isActive: true
   });
+  
+  // Hook de confirmation
+  const confirmation = useConfirmation();
 
   // Fonction pour générer le code de la banque
   const generateBankCode = (bankName: string): string => {
@@ -59,7 +64,13 @@ const BankModal: React.FC<BankModalProps> = ({ bank, onClose, onSave }) => {
     
     // Validation
     if (!formData.name.trim() || !formData.code.trim()) {
-      alert('Veuillez remplir tous les champs obligatoires');
+      confirmation.showConfirmation({
+        title: 'Champs requis',
+        message: 'Veuillez remplir tous les champs obligatoires avant de sauvegarder.',
+        confirmText: 'Compris',
+        type: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
     
@@ -142,6 +153,19 @@ const BankModal: React.FC<BankModalProps> = ({ bank, onClose, onSave }) => {
           </div>
         </form>
       </div>
+      
+      {/* Modal de confirmation */}
+      <ConfirmationModal
+        isOpen={confirmation.isOpen}
+        onClose={confirmation.hideConfirmation}
+        onConfirm={confirmation.handleConfirm}
+        title={confirmation.options?.title || ''}
+        message={confirmation.options?.message || ''}
+        confirmText={confirmation.options?.confirmText}
+        cancelText={confirmation.options?.cancelText}
+        type={confirmation.options?.type}
+        isLoading={confirmation.isLoading}
+      />
     </div>
   );
 };

@@ -222,12 +222,12 @@ function App() {
             {/* Routes Admin */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
             <Route path="/admin" element={<AdminLayoutWrapper />}>
+              <Route index element={<AdminDashboardPage />} />
               <Route path="dashboard" element={<AdminDashboardPage />} />
-
+              <Route path="formations" element={<AdminFormationsPage />} />
+              <Route path="users" element={<AdminUsersPage />} />
               <Route path="banks" element={<AdminBanksPage />} />
               <Route path="banks/:bankId" element={<BankDetailPage />} />
-              <Route path="users" element={<AdminUsersPage />} />
-              <Route path="formations" element={<AdminFormationsPage />} />
               <Route path="stats" element={<AdminStatsPage />} />
               <Route path="settings" element={<AdminSettingsPage />} />
             </Route>

@@ -1,19 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Archive, Eye, Users, BookOpen, Building2 } from 'lucide-react';
+import { 
+  Building2, 
+  Plus, 
+  Search, 
+  Filter, 
+  Eye, 
+  Edit, 
+  Archive, 
+  Trash2,
+  Users,
+  UserPlus,
+  Power,
+  PowerOff,
+  MoreVertical,
+  Grid,
+  List,
+  CheckCircle,
+  XCircle
+} from 'lucide-react';
 import { banksApi } from '../../../api/adminApi';
+import { useToast } from '../../../components/ui/use-toast';
 import { Bank } from '../types';
-import BankModal from './BankModal';
-import ConfirmModal from './ConfirmModal';
+
+interface BankWithStats extends Bank {
+  userCount?: number;
+  formationCount?: number;
+}
 
 const AdminBanksPage: React.FC = () => {
-  const [banks, setBanks] = useState<Bank[]>([]);
-  const [filteredBanks, setFilteredBanks] = useState<Bank[]>([]);
+  const [banks, setBanks] = useState<BankWithStats[]>([]);
+  const [filteredBanks, setFilteredBanks] = useState<BankWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showBankModal, setShowBankModal] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [selectedBank, setSelectedBank] = useState<Bank | null>(null);
-  const [action, setAction] = useState<'edit' | 'archive' | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  
+  const { toast } = useToast();
 
   useEffect(() => {
     loadBanks();
@@ -21,130 +44,218 @@ const AdminBanksPage: React.FC = () => {
 
   useEffect(() => {
     filterBanks();
-  }, [banks, searchTerm]);
+  }, [banks, searchTerm, statusFilter]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (!target.closest('.dropdown-trigger') && !target.closest('.dropdown-menu')) {
+        setActiveDropdown(null);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const loadBanks = async () => {
     try {
       setIsLoading(true);
       const response = await banksApi.getAll();
-      setBanks(response.data.data || []);
+      // Normaliser les données pour s'assurer que createdAt est un Date
+      const normalizedBanks = (response.data.data || []).map((bank: any) => ({
+        ...bank,
+        createdAt: bank.createdAt ? new Date(bank.createdAt) : new Date(),
+        updatedAt: bank.updatedAt ? new Date(bank.updatedAt) : new Date(),
+      }));
+      setBanks(normalizedBanks);
     } catch (error) {
-      console.error('Erreur lors du chargement des banques:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les banques",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
   const filterBanks = () => {
-    if (!searchTerm.trim()) {
-      setFilteredBanks(banks);
-    } else {
-      const filtered = banks.filter(bank =>
+    let filtered = banks;
+
+    // Filtre par recherche
+    if (searchTerm) {
+      filtered = filtered.filter(bank => 
         bank.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         bank.code.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredBanks(filtered);
     }
-  };
 
-  const handleCreateBank = () => {
-    setSelectedBank(null);
-    setAction('edit');
-    setShowBankModal(true);
-  };
-
-  const handleEditBank = (bank: Bank) => {
-    setSelectedBank(bank);
-    setAction('edit');
-    setShowBankModal(true);
-  };
-
-  const handleArchiveBank = (bank: Bank) => {
-    setSelectedBank(bank);
-    setAction('archive');
-    setShowConfirmModal(true);
-  };
-
-  const handleViewBankDetails = (bank: Bank) => {
-    // Navigation vers la vue détaillée de la banque
-    window.location.href = `/admin/banks/${bank.id}`;
-  };
-
-  const handleSaveBank = async (bankData: Partial<Bank>) => {
-    try {
-      if (selectedBank) {
-        await banksApi.update(selectedBank.id, bankData);
-      } else {
-        await banksApi.create(bankData);
-      }
-      setShowBankModal(false);
-      loadBanks();
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
+    // Filtre par statut
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(bank => 
+        statusFilter === 'active' ? bank.isActive : !bank.isActive
+      );
     }
-  };
 
-  const handleArchiveConfirm = async () => {
-    if (selectedBank) {
-      try {
-        await banksApi.archive(selectedBank.id);
-        setShowConfirmModal(false);
-        loadBanks();
-      } catch (error) {
-        console.error('Erreur lors de l\'archivage:', error);
-      }
-    }
+    setFilteredBanks(filtered);
   };
 
   const getStatusIcon = (isActive: boolean) => {
     return isActive ? (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-        Actif
-      </span>
+      <div className="flex items-center text-green-600">
+        <CheckCircle className="h-4 w-4 mr-1" />
+        <span className="text-sm">Active</span>
+      </div>
     ) : (
-      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-        Inactif
-      </span>
+      <div className="flex items-center text-red-600">
+        <XCircle className="h-4 w-4 mr-1" />
+        <span className="text-sm">Inactive</span>
+      </div>
     );
+  };
+
+  const handleViewBankDetails = (bank: BankWithStats) => {
+    console.log('Voir détails:', bank);
+    toast({
+      title: "Détails",
+      description: `Affichage des détails de ${bank.name}`,
+    });
+  };
+
+  const handleEditBank = (bank: BankWithStats) => {
+    console.log('Modifier:', bank);
+    toast({
+      title: "Modification",
+      description: `Modification de ${bank.name}`,
+    });
+  };
+
+  const handleToggleStatus = (bank: BankWithStats) => {
+    console.log('Changer statut:', bank);
+    toast({
+      title: "Statut",
+      description: `${bank.isActive ? 'Désactivation' : 'Activation'} de ${bank.name}`,
+    });
+  };
+
+  const handleAddCollaborators = (bank: BankWithStats) => {
+    console.log('Ajouter collaborateurs:', bank);
+    toast({
+      title: "Collaborateurs",
+      description: `Ajout de collaborateurs à ${bank.name}`,
+    });
+  };
+
+  const handleDeleteBank = (bank: BankWithStats) => {
+    console.log('Supprimer:', bank);
+    toast({
+      title: "Suppression",
+      description: `Suppression de ${bank.name}`,
+      variant: "destructive",
+    });
+  };
+
+  const toggleDropdown = (bankId: string) => {
+    setActiveDropdown(activeDropdown === bankId ? null : bankId);
   };
 
   return (
     <div className="space-y-6">
-      {/* En-tête */}
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Gestion des Banques</h1>
-        <button
-          onClick={handleCreateBank}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-        >
-          <Plus className="h-5 w-5" />
-          Nouvelle Banque
-        </button>
-      </div>
+      {/* En-tête avec filtres et vue */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Gestion des Banques</h1>
+            <p className="text-gray-600">Gérez les établissements bancaires et leurs collaborateurs</p>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            {/* Bouton vue */}
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'list' 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                title="Vue liste"
+              >
+                <List className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('cards')}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === 'cards' 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                title="Vue cartes"
+              >
+                                 <Grid className="h-4 w-4" />
+              </button>
+            </div>
 
-      {/* Barre de recherche */}
-      <div className="relative">
-        <input
-          type="text"
-          placeholder="Rechercher une banque..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
-      </div>
-
-      {/* Liste des banques */}
-      <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Banques</h2>
-          <span className="text-sm text-gray-500">{filteredBanks.length} banque(s)</span>
+            {/* Bouton nouvelle banque */}
+            <button
+              onClick={() => console.log('Créer nouvelle banque')}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
+              <Plus className="h-5 w-5" />
+              Nouvelle Banque
+            </button>
+          </div>
         </div>
 
-        {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        {/* Filtres */}
+        <div className="mt-6 flex flex-col sm:flex-row gap-4">
+          {/* Recherche */}
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <input
+              type="text"
+              placeholder="Rechercher une banque..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
-        ) : (
+
+          {/* Filtre statut */}
+          <div className="relative">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+              className="appearance-none bg-white border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="active">Actives uniquement</option>
+              <option value="inactive">Inactives uniquement</option>
+            </select>
+            <Filter className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+          </div>
+        </div>
+
+        {/* Compteur */}
+        <div className="mt-4 flex items-center justify-between">
+          <span className="text-sm text-gray-500">
+            {filteredBanks.length} banque(s) trouvée(s)
+          </span>
+          <span className="text-sm text-gray-500">
+            {banks.filter(b => b.isActive).length} active(s) / {banks.filter(b => !b.isActive).length} inactive(s)
+          </span>
+        </div>
+      </div>
+
+      {/* Contenu */}
+      {isLoading ? (
+        <div className="flex justify-center items-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        </div>
+      ) : viewMode === 'list' ? (
+        /* Vue Liste */
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -170,7 +281,7 @@ const AdminBanksPage: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {(filteredBanks || []).map((bank) => (
+                {filteredBanks.map((bank) => (
                   <tr key={bank.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -187,28 +298,81 @@ const AdminBanksPage: React.FC = () => {
                       {getStatusIcon(bank.isActive)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex space-x-2">
+                      <div className="relative">
                         <button
-                          onClick={() => handleViewBankDetails(bank)}
-                          className="text-blue-600 hover:text-blue-900 p-1"
-                          title="Voir les détails"
+                          onClick={() => toggleDropdown(bank.id)}
+                          className="dropdown-trigger p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Actions"
                         >
-                          <Eye className="h-4 w-4" />
+                          <MoreVertical className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => handleEditBank(bank)}
-                          className="text-indigo-600 hover:text-indigo-900 p-1"
-                          title="Modifier"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleArchiveBank(bank)}
-                          className="text-red-600 hover:text-red-900 p-1"
-                          title="Archiver"
-                        >
-                          <Archive className="h-4 w-4" />
-                        </button>
+                        
+                        {activeDropdown === bank.id && (
+                          <div className="dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                            <div className="py-1">
+                              <button
+                                onClick={() => {
+                                  handleViewBankDetails(bank);
+                                  setActiveDropdown(null);
+                                }}
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                <Eye className="h-4 w-4 mr-3" />
+                                Voir les détails
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleEditBank(bank);
+                                  setActiveDropdown(null);
+                                }}
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                <Edit className="h-4 w-4 mr-3" />
+                                Modifier
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleAddCollaborators(bank);
+                                  setActiveDropdown(null);
+                                }}
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                <UserPlus className="h-4 w-4 mr-3" />
+                                Ajouter des collaborateurs
+                              </button>
+                              <button
+                                onClick={() => {
+                                  handleToggleStatus(bank);
+                                  setActiveDropdown(null);
+                                }}
+                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                              >
+                                {bank.isActive ? (
+                                  <>
+                                    <PowerOff className="h-4 w-4 mr-3" />
+                                    Désactiver
+                                  </>
+                                ) : (
+                                  <>
+                                    <Power className="h-4 w-4 mr-3" />
+                                    Activer
+                                  </>
+                                )}
+                              </button>
+                              <hr className="my-1" />
+                              <button
+                                onClick={() => {
+                                  handleDeleteBank(bank);
+                                  setActiveDropdown(null);
+                                }}
+                                className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 mr-3" />
+                                Supprimer
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -216,28 +380,136 @@ const AdminBanksPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* Vue Cartes */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredBanks.map((bank) => (
+            <div key={bank.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center">
+                  <Building2 className="h-10 w-10 text-blue-600 mr-3" />
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{bank.name}</h3>
+                    <p className="text-sm text-gray-500">{bank.code}</p>
+                  </div>
+                </div>
+                
+                {/* Menu 3 points */}
+                <div className="relative">
+                  <button
+                    onClick={() => toggleDropdown(bank.id)}
+                    className="dropdown-trigger p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    title="Actions"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                  
+                  {activeDropdown === bank.id && (
+                    <div className="dropdown-menu absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            handleViewBankDetails(bank);
+                            setActiveDropdown(null);
+                          }}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <Eye className="h-4 w-4 mr-3" />
+                          Voir les détails
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleEditBank(bank);
+                            setActiveDropdown(null);
+                          }}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <Edit className="h-4 w-4 mr-3" />
+                          Modifier
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleAddCollaborators(bank);
+                            setActiveDropdown(null);
+                          }}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <UserPlus className="h-4 w-4 mr-3" />
+                          Ajouter des collaborateurs
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleToggleStatus(bank);
+                            setActiveDropdown(null);
+                          }}
+                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          {bank.isActive ? (
+                            <>
+                              <PowerOff className="h-4 w-4 mr-3" />
+                              Désactiver
+                            </>
+                          ) : (
+                            <>
+                              <Power className="h-4 w-4 mr-3" />
+                              Activer
+                            </>
+                          )}
+                        </button>
+                        <hr className="my-1" />
+                        <button
+                          onClick={() => {
+                            handleDeleteBank(bank);
+                            setActiveDropdown(null);
+                          }}
+                          className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4 mr-3" />
+                          Supprimer
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-      {/* Modal de création/édition */}
-      {showBankModal && (
-        <BankModal
-          bank={selectedBank}
-          onClose={() => setShowBankModal(false)}
-          onSave={handleSaveBank}
-        />
+              {/* Statut */}
+              <div className="mb-4">
+                {getStatusIcon(bank.isActive)}
+              </div>
+
+              {/* Statistiques */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600 flex items-center">
+                    <Users className="h-4 w-4 mr-2" />
+                    Utilisateurs
+                  </span>
+                  <span className="text-sm font-medium text-gray-900">{bank.userCount || 0}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Formations</span>
+                  <span className="text-sm font-medium text-gray-900">{bank.formationCount || 0}</span>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       )}
 
-      {/* Modal de confirmation */}
-      {showConfirmModal && (
-        <ConfirmModal
-          title="Archiver la banque"
-          message={`Êtes-vous sûr de vouloir archiver la banque "${selectedBank?.name}" ?`}
-          onConfirm={handleArchiveConfirm}
-          onCancel={() => setShowConfirmModal(false)}
-          confirmText="Archiver"
-          variant="danger"
-        />
+      {/* Message si aucune banque */}
+      {!isLoading && filteredBanks.length === 0 && (
+        <div className="text-center py-12">
+          <Building2 className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Aucune banque trouvée</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {searchTerm || statusFilter !== 'all' 
+              ? 'Essayez de modifier vos filtres de recherche.'
+              : 'Commencez par créer votre première banque.'
+            }
+          </p>
+        </div>
       )}
     </div>
   );

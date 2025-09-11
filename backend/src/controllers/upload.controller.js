@@ -4,6 +4,17 @@ import path from "path";
 
 const prisma = new PrismaClient();
 
+// Fonction utilitaire pour sanitizer les titres
+function sanitizeTitle(title) {
+  return title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Retirer les accents
+    .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
+    .replace(/_+/g, "_") // Remplacer les underscores multiples par un seul
+    .replace(/^_|_$/g, ""); // Retirer les underscores en début/fin
+}
+
 // Fonction helper pour déterminer le type de contenu basé sur le MIME type
 function getContentTypeFromMime(mimeType, filename) {
   const ext = path.extname(filename).toLowerCase();
@@ -126,12 +137,8 @@ function getMimeType(filename) {
 // Fonction helper pour vérifier les fichiers existants dans une leçon
 async function checkExistingLessonFiles(formationTitle, lessonTitle) {
   try {
-    const sanitizedFormationTitle = formationTitle
-      .replace(/[^a-zA-Z0-9_-]/g, "_")
-      .toLowerCase();
-    const sanitizedLessonTitle = lessonTitle
-      .replace(/[^a-zA-Z0-9_-]/g, "_")
-      .toLowerCase();
+    const sanitizedFormationTitle = sanitizeTitle(formationTitle);
+    const sanitizedLessonTitle = sanitizeTitle(lessonTitle);
 
     const lessonPath = path.join(
       "uploads",
@@ -169,12 +176,8 @@ async function checkExistingLessonFiles(formationTitle, lessonTitle) {
 // Fonction pour supprimer un fichier existant
 async function deleteExistingLessonFile(formationTitle, lessonTitle) {
   try {
-    const sanitizedFormationTitle = formationTitle
-      .replace(/[^a-zA-Z0-9_-]/g, "_")
-      .toLowerCase();
-    const sanitizedLessonTitle = lessonTitle
-      .replace(/[^a-zA-Z0-9_-]/g, "_")
-      .toLowerCase();
+    const sanitizedFormationTitle = sanitizeTitle(formationTitle);
+    const sanitizedLessonTitle = sanitizeTitle(lessonTitle);
 
     const lessonPath = path.join(
       "uploads",
@@ -450,12 +453,8 @@ export const uploadController = {
       }
 
       // Sanitizer les titres pour la sécurité
-      const sanitizedFormationTitle = formationTitle
-        .replace(/[^a-zA-Z0-9_-]/g, "_")
-        .toLowerCase();
-      const sanitizedLessonTitle = lessonTitle
-        .replace(/[^a-zA-Z0-9_-]/g, "_")
-        .toLowerCase();
+      const sanitizedFormationTitle = sanitizeTitle(formationTitle);
+      const sanitizedLessonTitle = sanitizeTitle(lessonTitle);
 
       // Construire le chemin du dossier de la leçon
       const lessonDir = path.join(
@@ -485,10 +484,12 @@ export const uploadController = {
       if (!filename) {
         try {
           const files = fs.readdirSync(lessonDir);
-          // console.log("🔍 getLessonFile - Fichiers dans le dossier:", files);
+          console.log("🔍 getLessonFile - Fichiers dans le dossier:", files);
 
-          // Chercher le fichier qui commence par 'file'
-          const lessonFile = files.find((file) => file.startsWith("file"));
+          // Chercher le fichier qui commence par 'file' ou 'video'
+          const lessonFile = files.find(
+            (file) => file.startsWith("file") || file.startsWith("video")
+          );
 
           if (!lessonFile) {
             console.log("❌ Aucun fichier de leçon trouvé dans:", lessonDir);
@@ -499,7 +500,7 @@ export const uploadController = {
           }
 
           targetFilename = lessonFile;
-          // console.log("🔍 getLessonFile - Fichier trouvé:", targetFilename);
+          console.log("🔍 getLessonFile - Fichier trouvé:", targetFilename);
         } catch (error) {
           console.error("❌ Erreur lecture dossier:", error);
           return res.status(500).json({

@@ -23,12 +23,14 @@ interface FormationModalProps {
   formation?: Formation | null;
   onClose: () => void;
   onSave: () => void;
+  universeId?: string;
 }
 
 export const FormationModal: React.FC<FormationModalProps> = ({
   formation,
   onClose,
-  onSave
+  onSave,
+  universeId
 }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -36,7 +38,15 @@ export const FormationModal: React.FC<FormationModalProps> = ({
     isActive: true,
     hasQuiz: false,
     quizRequired: true,
-    coverImage: ''
+    coverImage: '',
+    // Nouveaux champs dynamiques
+    code: '',
+    pedagogicalModality: 'E-learning',
+    organization: 'SHERPA Developpement',
+    prerequisites: 'Aucune connaissance préalable n\'est nécessaire.',
+    objectives: '',
+    detailedProgram: '',
+    targetAudience: ''
   });
   const [isLoading, setIsLoading] = useState(false);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
@@ -45,6 +55,22 @@ export const FormationModal: React.FC<FormationModalProps> = ({
   const { toast } = useToast();
 
   const isEditing = !!formation;
+
+  // Fonction pour convertir les JSON en textarea
+  const parseJsonToTextarea = (jsonString?: string): string => {
+    if (!jsonString) return '';
+    
+    try {
+      const parsed = JSON.parse(jsonString);
+      if (Array.isArray(parsed)) {
+        return parsed.join('\n');
+      }
+      return jsonString;
+    } catch (error) {
+      // Si ce n'est pas du JSON valide, retourner tel quel
+      return jsonString;
+    }
+  };
 
   useEffect(() => {
     if (formation) {
@@ -55,7 +81,15 @@ export const FormationModal: React.FC<FormationModalProps> = ({
         isActive: formation.isActive,
         hasQuiz: formation.hasQuiz || false,
         quizRequired: formation.quizRequired !== undefined ? formation.quizRequired : true,
-        coverImage: formation.coverImage || ''
+        coverImage: formation.coverImage || '',
+        // Nouveaux champs dynamiques
+        code: formation.code || '',
+        pedagogicalModality: formation.pedagogicalModality || 'E-learning',
+        organization: formation.organization || 'SHERPA Developpement',
+        prerequisites: formation.prerequisites || 'Aucune connaissance préalable n\'est nécessaire.',
+        objectives: parseJsonToTextarea(formation.objectives),
+        detailedProgram: parseJsonToTextarea(formation.detailedProgram),
+        targetAudience: parseJsonToTextarea(formation.targetAudience)
       });
     } else {
       // Mode création : réinitialiser complètement l'état
@@ -65,7 +99,15 @@ export const FormationModal: React.FC<FormationModalProps> = ({
         isActive: true,
         hasQuiz: false,
         quizRequired: true,
-        coverImage: ''
+        coverImage: '',
+        // Nouveaux champs dynamiques
+        code: '',
+        pedagogicalModality: 'E-learning',
+        organization: 'SHERPA Developpement',
+        prerequisites: 'Aucune connaissance préalable n\'est nécessaire.',
+        objectives: '',
+        detailedProgram: '',
+        targetAudience: ''
       });
       setCoverImageFile(null);
     }
@@ -125,12 +167,44 @@ export const FormationModal: React.FC<FormationModalProps> = ({
     }
   };
 
+  // Fonction pour convertir les textareas en JSON
+  const processFormData = (data: any) => {
+    const processed = { ...data };
+    
+    // Convertir les textareas en JSON arrays
+    if (processed.objectives) {
+      const objectivesArray = processed.objectives
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 0);
+      processed.objectives = JSON.stringify(objectivesArray);
+    }
+    
+    if (processed.detailedProgram) {
+      const programArray = processed.detailedProgram
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 0);
+      processed.detailedProgram = JSON.stringify(programArray);
+    }
+    
+    if (processed.targetAudience) {
+      const audienceArray = processed.targetAudience
+        .split('\n')
+        .map((line: string) => line.trim())
+        .filter((line: string) => line.length > 0);
+      processed.targetAudience = JSON.stringify(audienceArray);
+    }
+    
+    return processed;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      let finalFormData = { ...formData };
+      let finalFormData = processFormData(formData);
       let createdFormationId: string | null = null;
       
       // Créer ou mettre à jour la formation d'abord
@@ -162,8 +236,11 @@ export const FormationModal: React.FC<FormationModalProps> = ({
         });
       } else {
         // Mode création : créer la formation d'abord, puis uploader l'image
-        const newFormation = await formationsApi.createFormation(finalFormData);
-        createdFormationId = newFormation.id;
+        const newFormation = await formationsApi.createFormation({
+          ...finalFormData,
+          universeId: universeId
+        });
+        createdFormationId = newFormation.data.data.id;
         
         // Upload de l'image de couverture après la création
         if (coverImageFile) {
@@ -172,10 +249,12 @@ export const FormationModal: React.FC<FormationModalProps> = ({
             const imageUrl = await uploadCoverImage(coverImageFile);
             
             // Mettre à jour la formation avec l'image de couverture
-            await formationsApi.updateFormation(createdFormationId, {
-              ...finalFormData,
-              coverImage: imageUrl
-            });
+            if (createdFormationId) {
+              await formationsApi.updateFormation(createdFormationId, {
+                ...finalFormData,
+                coverImage: imageUrl
+              });
+            }
             
             toast({
               title: "Succès",
@@ -250,6 +329,97 @@ export const FormationModal: React.FC<FormationModalProps> = ({
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Description de la formation"
+              rows={3}
+            />
+          </div>
+
+          {/* Nouveaux champs dynamiques */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Code Formation
+              </label>
+              <Input
+                type="text"
+                value={formData.code}
+                onChange={(e) => handleInputChange('code', e.target.value)}
+                placeholder="Ex: NL001008"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Modalité Pédagogique
+              </label>
+              <select
+                value={formData.pedagogicalModality}
+                onChange={(e) => handleInputChange('pedagogicalModality', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="E-learning">E-learning</option>
+                <option value="Présentiel">Présentiel</option>
+                <option value="Hybride">Hybride</option>
+                <option value="Webinaire">Webinaire</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Organisme de Formation
+            </label>
+            <Input
+              type="text"
+              value={formData.organization}
+              onChange={(e) => handleInputChange('organization', e.target.value)}
+              placeholder="Ex: SHERPA Developpement"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Prérequis
+            </label>
+            <Textarea
+              value={formData.prerequisites}
+              onChange={(e) => handleInputChange('prerequisites', e.target.value)}
+              placeholder="Ex: Aucune connaissance préalable n'est nécessaire."
+              rows={2}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Objectifs Pédagogiques (un par ligne)
+            </label>
+            <Textarea
+              value={formData.objectives}
+              onChange={(e) => handleInputChange('objectives', e.target.value)}
+              placeholder="Ex:&#10;• Qualifier une opportunité d'achat&#10;• Guider les clients dans leur décision&#10;• Optimiser la mise en relation"
+              rows={4}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Programme Détaillé (un par ligne)
+            </label>
+            <Textarea
+              value={formData.detailedProgram}
+              onChange={(e) => handleInputChange('detailedProgram', e.target.value)}
+              placeholder="Ex:&#10;1. Introduction&#10;2. Comprendre l'immobilier locatif&#10;3. Rôle du conseiller&#10;4. Bon à savoir"
+              rows={4}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Public Concerné (un par ligne)
+            </label>
+            <Textarea
+              value={formData.targetAudience}
+              onChange={(e) => handleInputChange('targetAudience', e.target.value)}
+              placeholder="Ex:&#10;Chargé de clientèle&#10;particuliers&#10;Conseiller clientèle&#10;Téléconseiller"
               rows={3}
             />
           </div>

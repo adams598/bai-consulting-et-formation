@@ -42,7 +42,16 @@ export const getImageUrl = (imagePath: string | null | undefined): string => {
       const formationTitle = pathParts[2];
       const filename = pathParts[3];
       
-      const apiUrl = `http://localhost:3000/api/formations/${formationTitle}/${filename}`;
+      // Sanitizer le titre comme le fait le backend
+      const sanitizedFormationTitle = formationTitle
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Retirer les accents
+        .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
+        .replace(/_+/g, '_') // Remplacer les underscores multiples par un seul
+        .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
+      
+      const apiUrl = `http://localhost:3000/api/formations/${sanitizedFormationTitle}/${filename}`;
       //console.log('🔍 getImageUrl - URL API formation couverture générée:', apiUrl);
       return apiUrl;
     }
@@ -53,7 +62,23 @@ export const getImageUrl = (imagePath: string | null | undefined): string => {
       const lessonTitle = pathParts[4];
       const filename = pathParts[5];
       
-      const apiUrl = `http://localhost:3000/api/formations/${formationTitle}/lessons/${lessonTitle}/${filename}`;
+      // Sanitizer les titres comme le fait le backend
+      const sanitizedFormationTitle = formationTitle
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Retirer les accents
+        .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
+        .replace(/_+/g, '_') // Remplacer les underscores multiples par un seul
+        .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
+      const sanitizedLessonTitle = lessonTitle
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Retirer les accents
+        .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
+        .replace(/_+/g, '_') // Remplacer les underscores multiples par un seul
+        .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
+      
+      const apiUrl = `http://localhost:3000/api/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${filename}`;
       //console.log('🔍 getImageUrl - URL API leçon générée:', apiUrl);
       return apiUrl;
     }
@@ -63,8 +88,24 @@ export const getImageUrl = (imagePath: string | null | undefined): string => {
       const formationTitle = pathParts[2];
       const lessonTitle = pathParts[4];
       
+      // Sanitizer les titres comme le fait le backend
+      const sanitizedFormationTitle = formationTitle
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Retirer les accents
+        .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
+        .replace(/_+/g, '_') // Remplacer les underscores multiples par un seul
+        .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
+      const sanitizedLessonTitle = lessonTitle
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Retirer les accents
+        .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
+        .replace(/_+/g, '_') // Remplacer les underscores multiples par un seul
+        .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
+      
       // Utiliser la route admin qui récupère le fichier le plus récent
-      const apiUrl = `http://localhost:3000/api/admin/lesson-file/${formationTitle}/${lessonTitle}`;
+      const apiUrl = `http://localhost:3000/api/admin/lesson-file/${sanitizedFormationTitle}/${sanitizedLessonTitle}`;
       //console.log('🔍 getImageUrl - URL API dossier leçon générée:', apiUrl);
       return apiUrl;
     }
@@ -121,16 +162,20 @@ export const getLessonFileUrl = (
   
   // Sanitizer les titres pour correspondre au backend
   const sanitizedFormationTitle = formationTitle
-    .replace(/[^a-zA-ZÀ-ÿ0-9]/g, "_") // Remplacer les caractères non alphanumériques (sauf accents) par des underscores
-    .replace(/_+/g, "_") // Remplacer les underscores multiples par un seul
-    .replace(/^_|_$/g, "") // Supprimer les underscores au début et à la fin
-    .toLowerCase();
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Retirer les accents
+    .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
+    .replace(/_+/g, '_') // Remplacer les underscores multiples par un seul
+    .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
     
   const sanitizedLessonTitle = lessonTitle
-    .replace(/[^a-zA-ZÀ-ÿ0-9]/g, "_") // Remplacer les caractères non alphanumériques (sauf accents) par des underscores
-    .replace(/_+/g, "_") // Remplacer les underscores multiples par un seul
-    .replace(/^_|_$/g, "") // Supprimer les underscores au début et à la fin
-    .toLowerCase();
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Retirer les accents
+    .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
+    .replace(/_+/g, '_') // Remplacer les underscores multiples par un seul
+    .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
   
   // URL directe vers l'API qui récupère le fichier de la leçon
   const apiUrl = `http://localhost:3000/api/admin/lesson-file/${sanitizedFormationTitle}/${sanitizedLessonTitle}`;

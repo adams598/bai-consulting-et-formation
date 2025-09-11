@@ -334,7 +334,7 @@ const BankDetailPage: React.FC = () => {
                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Assigner une formation
+                Ajouter un accès
               </button>
             </div>
             
@@ -367,7 +367,7 @@ const BankDetailPage: React.FC = () => {
               <div className="flex items-center">
                 <BookOpen className="h-8 w-8 text-green-600 mr-3" />
                 <div>
-                  <p className="text-sm text-gray-500">Formations assignées</p>
+                  <p className="text-sm text-gray-500">Formations accessibles</p>
                   <p className="text-2xl font-bold text-gray-900">{bankFormations.length}</p>
                 </div>
               </div>

@@ -2,6 +2,17 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
+// Fonction utilitaire pour sanitizer les titres
+function sanitizeTitle(title) {
+  return title
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // Retirer les accents
+    .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
+    .replace(/_+/g, "_") // Remplacer les underscores multiples par un seul
+    .replace(/^_|_$/g, ""); // Retirer les underscores en début/fin
+}
+
 // Fonction pour déterminer le type de fichier
 const getFileType = (filename) => {
   const extension = path.extname(filename).toLowerCase();
@@ -141,12 +152,8 @@ const storage = multer.diskStorage({
 
         const formationTitle = req.body.formationTitle;
         const lessonTitle = req.body.lessonTitle;
-        const sanitizedFormationTitle = formationTitle
-          .replace(/[^a-zA-Z0-9_-]/g, "_")
-          .toLowerCase();
-        const sanitizedLessonTitle = lessonTitle
-          .replace(/[^a-zA-Z0-9_-]/g, "_")
-          .toLowerCase();
+        const sanitizedFormationTitle = sanitizeTitle(formationTitle);
+        const sanitizedLessonTitle = sanitizeTitle(lessonTitle);
 
         console.log("🔍 Middleware lesson-cover - Titres sanitizés:");
         console.log("  - formationTitle:", sanitizedFormationTitle);
@@ -199,12 +206,8 @@ const storage = multer.diskStorage({
         );
         console.log("🔍 Middleware lesson-file - lessonTitle:", lessonTitle);
 
-        const sanitizedFormationTitle = formationTitle
-          .replace(/[^a-zA-Z0-9_-]/g, "_")
-          .toLowerCase();
-        const sanitizedLessonTitle = lessonTitle
-          .replace(/[^a-zA-Z0-9_-]/g, "_")
-          .toLowerCase();
+        const sanitizedFormationTitle = sanitizeTitle(formationTitle);
+        const sanitizedLessonTitle = sanitizeTitle(lessonTitle);
 
         console.log("🔍 Middleware lesson-file - Titres sanitizés:");
         console.log("  - formationTitle:", sanitizedFormationTitle);
@@ -242,9 +245,7 @@ const storage = multer.diskStorage({
       }
 
       const formationTitle = req.params.formationTitle;
-      const sanitizedFormationTitle = formationTitle
-        .replace(/[^a-zA-Z0-9_-]/g, "_")
-        .toLowerCase();
+      const sanitizedFormationTitle = sanitizeTitle(formationTitle);
 
       console.log(
         "🔍 Middleware formation - Titre sanitizé:",
@@ -300,9 +301,7 @@ const storage = multer.diskStorage({
         const fileType = getFileType(file.originalname);
         const lessonTitle =
           req.params.lessonTitle || req.body.lessonTitle || "unknown";
-        const sanitizedLessonTitle = lessonTitle
-          .replace(/[^a-zA-Z0-9_-]/g, "_")
-          .toLowerCase();
+        const sanitizedLessonTitle = sanitizeTitle(lessonTitle);
         const timestamp = Date.now();
         const extension = path.extname(file.originalname);
         filename = `file-${fileType}-${sanitizedLessonTitle}-${timestamp}${extension}`;

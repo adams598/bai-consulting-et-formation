@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
+import ConfirmationModal from './ConfirmationModal';
+import { useConfirmation } from '../../../hooks/useConfirmation';
 
 interface UserModalProps {
   isOpen: boolean;
@@ -11,6 +13,9 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave }) => {
   const [users, setUsers] = useState<Array<{ email: string; firstName: string; lastName: string; department: string }>>([
     { email: '', firstName: '', lastName: '', department: '' }
   ]);
+  
+  // Hook de confirmation
+  const confirmation = useConfirmation();
 
   const addUser = () => {
     setUsers([...users, { email: '', firstName: '', lastName: '', department: '' }]);
@@ -37,7 +42,13 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave }) => {
     );
     
     if (validUsers.length === 0) {
-      alert('Au moins un utilisateur valide est requis');
+      confirmation.showConfirmation({
+        title: 'Utilisateurs requis',
+        message: 'Au moins un utilisateur valide est requis pour continuer.',
+        confirmText: 'Compris',
+        type: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
 
@@ -168,6 +179,19 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave }) => {
           </div>
         </form>
       </div>
+      
+      {/* Modal de confirmation */}
+      <ConfirmationModal
+        isOpen={confirmation.isOpen}
+        onClose={confirmation.hideConfirmation}
+        onConfirm={confirmation.handleConfirm}
+        title={confirmation.options?.title || ''}
+        message={confirmation.options?.message || ''}
+        confirmText={confirmation.options?.confirmText}
+        cancelText={confirmation.options?.cancelText}
+        type={confirmation.options?.type}
+        isLoading={confirmation.isLoading}
+      />
     </div>
   );
 };

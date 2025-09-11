@@ -1,0 +1,187 @@
+/* Styles pour le drag and drop */
+
+/* Indicateur de drag */
+.drag-indicator {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 8px;
+  height: 8px;
+  background-color: #6B7280;
+  border-radius: 50%;
+  opacity: 0.5;
+  transition: opacity 0.2s ease;
+}
+
+.draggable-item:hover .drag-indicator {
+  opacity: 1;
+}
+
+/* Cursor styles */
+.cursor-grab {
+  cursor: grab;
+}
+
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+/* Animation de drag */
+.dragging {
+  opacity: 0.5;
+  transform: rotate(5deg);
+  transition: all 0.2s ease;
+}
+
+/* Overlay de drag */
+.drag-overlay {
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 2px dashed #3B82F6;
+  border-radius: 8px;
+}
+
+/* Zone de drop */
+.drop-zone {
+  background-color: rgba(59, 130, 246, 0.05);
+  border: 2px dashed #3B82F6;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.drop-zone.active {
+  background-color: rgba(59, 130, 246, 0.1);
+  border-color: #1D4ED8;
+}
+
+/* Animation de réorganisation */
+.reorder-animation {
+  transition: transform 0.2s ease;
+}
+
+/* Styles pour les cartes draggables */
+.draggable-card {
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.draggable-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.draggable-card.dragging {
+  transform: rotate(5deg) scale(1.05);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+}
+
+/* Styles pour les univers draggables */
+.draggable-universe {
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.draggable-universe:hover {
+  transform: translateY(-2px);
+}
+
+.draggable-universe.dragging {
+  transform: rotate(5deg) scale(1.05);
+  z-index: 1000;
+}
+
+/* Feedback visuel pendant le drag */
+.drag-feedback {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 9999;
+  pointer-events: none;
+}
+
+/* Styles pour les zones de drop */
+.drop-target {
+  position: relative;
+}
+
+.drop-target::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(59, 130, 246, 0.1);
+  border: 2px dashed #3B82F6;
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  pointer-events: none;
+}
+
+.drop-target.drag-over::before {
+  opacity: 1;
+}
+
+/* Animation de réorganisation fluide */
+@keyframes reorderSlide {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(var(--slide-distance));
+  }
+}
+
+.reorder-slide {
+  animation: reorderSlide 0.3s ease-out;
+}
+
+/* Styles pour les indicateurs de position */
+.position-indicator {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-color: #3B82F6;
+  border-radius: 1px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.position-indicator.active {
+  opacity: 1;
+}
+
+/* Styles pour les cartes en cours de drag */
+.dragging-card {
+  opacity: 0.8;
+  transform: scale(1.05);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+}
+
+/* Styles pour les univers en cours de drag */
+.dragging-universe {
+  opacity: 0.8;
+  transform: scale(1.05);
+  z-index: 1000;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .draggable-card:hover {
+    transform: none;
+  }
+  
+  .draggable-universe:hover {
+    transform: none;
+  }
+}

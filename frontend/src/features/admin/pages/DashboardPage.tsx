@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 
 import { dashboardApi } from '../../../api/adminApi';
-import { AdminDashboardStats, BankStats } from '../types';
+import { DashboardStats, BankStats } from '../types';
 import { useToast } from '../../../components/ui/use-toast';
 
 interface StatCardProps {
@@ -57,7 +57,7 @@ interface RecentActivityItem {
 }
 
 export const DashboardPage: React.FC = () => {
-  const [stats, setStats] = useState<AdminDashboardStats | null>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [bankStats, setBankStats] = useState<BankStats[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivityItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,8 +82,8 @@ export const DashboardPage: React.FC = () => {
       console.log('🏦 Réponse banks:', banksResponse);
       
       // L'API retourne déjà response.data, pas besoin de .data.data
-      setStats(statsResponse.data);
-      setBankStats(banksResponse.data);
+      setStats(statsResponse.data.data);
+      setBankStats(banksResponse.data.data);
       setRecentActivity([]); // Pas d'activité récente pour l'instant
       
     } catch (error) {
@@ -303,12 +303,12 @@ export const DashboardPage: React.FC = () => {
             </div>
             <div className="p-6">
               <div className="space-y-4">
-                {stats && stats.activeAssignments > 0 && (
+                {stats && stats.pendingAssignments > 0 && (
                   <div className="flex items-center space-x-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
                     <AlertTriangle className="w-5 h-5 text-orange-600" />
                     <div>
                       <p className="text-sm font-medium text-orange-900">
-                        {stats.activeAssignments} assignations en attente
+                        {stats.pendingAssignments} assignations en attente
                       </p>
                       <p className="text-xs text-orange-700">
                         Des formations nécessitent votre attention
@@ -317,12 +317,12 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 )}
                 
-                {stats && stats.averageScore < 80 && (
+                {stats && stats.quizSuccessRate < 80 && (
                   <div className="flex items-center space-x-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <TrendingUp className="w-5 h-5 text-yellow-600" />
                     <div>
                       <p className="text-sm font-medium text-yellow-900">
-                        Score moyen: {stats.averageScore}%
+                        Taux de réussite quiz: {stats.quizSuccessRate}%
                       </p>
                       <p className="text-xs text-yellow-700">
                         Considérez améliorer le contenu des formations
@@ -331,7 +331,7 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 )}
 
-                {(!stats || (stats.activeAssignments === 0 && stats.averageScore >= 80)) && (
+                {(!stats || (stats.pendingAssignments === 0 && stats.quizSuccessRate >= 80)) && (
                   <div className="text-center py-4">
                     <CheckCircle className="mx-auto h-8 w-8 text-green-600" />
                     <p className="mt-2 text-sm font-medium text-green-900">Tout va bien !</p>

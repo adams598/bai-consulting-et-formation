@@ -504,7 +504,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                                   style={{ minHeight: '128px' }}
                                 />
                                 {/* Fallback si pas d'image */}
-                                <div className="hidden w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                                <div className="hidden w-full h-32 bg-gradient-to-br from-gray-100 to-gray-200 items-center justify-center">
                                   {getContentIcon(lesson.type)}
                                 </div>
                               </div>
@@ -654,7 +654,7 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
                                 style={{ minHeight: '128px' }}
                               />
                               {/* Fallback si pas d'image */}
-                              <div className="hidden w-full h-32 bg-gradient-to-br from-amber-100 to-amber-200 flex items-center justify-center">
+                              <div className="hidden w-full h-32 bg-gradient-to-br from-amber-100 to-amber-200 items-center justify-center">
                                 {getContentIcon(lesson.type)}
                               </div>
                               

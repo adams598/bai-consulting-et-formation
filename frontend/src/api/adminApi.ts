@@ -12,7 +12,8 @@ import {
   BankStats,
   ApiResponse,
   BankFormation,
-  UserFormationAssignment
+  UserFormationAssignment,
+  Universe
 } from '../features/admin/types';
 
 // ===== BANKS API =====
@@ -90,6 +91,18 @@ export const formationContentApi = {
   // Supprimer une section
   async deleteSection(sectionId: string) {
     const response = await api.delete(`/api/admin/formations/sections/${sectionId}`);
+    return response.data;
+  },
+
+  // Réorganiser l'ordre des leçons
+  async reorderLessons(formationId: string, lessonOrders: { id: string; order: number }[]) {
+    const response = await api.put(`/api/admin/formations/${formationId}/lessons/reorder`, { lessonOrders });
+    return response.data;
+  },
+
+  // Récupérer les progressions des leçons pour un utilisateur
+  async getLessonProgress(formationId: string, userId: string) {
+    const response = await api.get(`/api/admin/formations/${formationId}/progress/${userId}`);
     return response.data;
   }
 };
@@ -219,7 +232,13 @@ export const dashboardApi = {
   
   // Activité récente
   getRecentActivity: (bankId?: string) => 
-    api.get<ApiResponse<RecentActivity[]>>(`/api/admin/dashboard/recent-activity${bankId ? `?bankId=${bankId}` : ''}`)
+    api.get<ApiResponse<RecentActivity[]>>(`/api/admin/dashboard/recent-activity${bankId ? `?bankId=${bankId}` : ''}`),
+  
+  // Alertes
+  getAlerts: () => api.get<ApiResponse<Alert[]>>('/api/admin/dashboard/alerts'),
+  
+  // Performance des formations
+  getFormationPerformance: () => api.get<ApiResponse<FormationPerformance[]>>('/api/admin/dashboard/formation-performance')
 };
 
 // ===== AUTH API =====
@@ -325,4 +344,39 @@ export const userFormationAssignmentApi = {
     const response = await api.get(`/api/admin/bank-formations/${bankFormationId}/users`);
     return response.data;
   },
+};
+
+// ===== UNIVERSES API =====
+export const universesApi = {
+  // Récupérer tous les univers
+  getAll: () => api.get<ApiResponse<Universe[]>>('/api/admin/universes'),
+  
+  // Créer un nouvel univers
+  create: (data: Omit<Universe, 'id' | 'createdAt' | 'updatedAt' | 'formationCount'>) => 
+    api.post<ApiResponse<Universe>>('/api/admin/universes', data),
+  
+  // Mettre à jour un univers
+  update: (id: string, data: Partial<Universe>) => 
+    api.put<ApiResponse<Universe>>(`/api/admin/universes/${id}`, data),
+  
+  // Supprimer un univers
+  delete: (id: string) => api.delete<ApiResponse<void>>(`/api/admin/universes/${id}`),
+  
+  // Déplacer une formation vers un univers
+  moveFormation: (formationId: string, universeId: string | null) => 
+    api.post<ApiResponse<void>>('/api/admin/universes/move-formation', {
+      formationId,
+      universeId
+    }),
+  
+  // Récupérer les formations d'un univers
+  getFormations: (universeId: string) => 
+    api.get<ApiResponse<Formation[]>>(`/api/admin/universes/${universeId}/formations`)
+};
+
+// ===== OPPORTUNITIES API =====
+export const opportunitiesApi = {
+  // Récupérer tous les fichiers PDF de présentation des formations
+  getPresentationFiles: () => 
+    api.get<ApiResponse<any[]>>('/api/admin/opportunities/presentation-files')
 }; 

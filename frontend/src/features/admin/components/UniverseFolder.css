@@ -1,0 +1,218 @@
+/* Style des dossiers univers - Design moderne et professionnel */
+
+.universe-folder-card {
+  @apply flex flex-col items-center p-6 text-center;
+  min-height: 140px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.universe-folder-card:hover {
+  @apply transform scale-105;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.1),
+    0 8px 16px rgba(0, 0, 0, 0.06);
+}
+
+.universe-folder-icon {
+  @apply relative mb-4;
+  width: 72px;
+  height: 72px;
+}
+
+.folder-body {
+  @apply relative w-full h-full;
+  background: var(--universe-color, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+  border-radius: 12px 12px 8px 8px;
+  box-shadow: 
+    0 8px 16px rgba(0, 0, 0, 0.12),
+    0 4px 8px rgba(0, 0, 0, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.folder-tab {
+  @apply absolute top-0 left-0;
+  width: 28px;
+  height: 18px;
+  background: var(--universe-color, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+  border-radius: 12px 0 0 0;
+  box-shadow: 
+    0 4px 8px rgba(0, 0, 0, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  z-index: 2;
+}
+
+.folder-tab::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -6px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid var(--universe-tab-color, #764ba2);
+  border-top: 18px solid transparent;
+  border-bottom: 0 solid transparent;
+}
+
+.folder-content {
+  @apply absolute inset-0 flex items-center justify-center;
+  padding: 18px 8px 8px 8px;
+}
+
+.folder-document {
+  @apply relative;
+  width: 20px;
+  height: 28px;
+}
+
+.document-icon {
+  @apply w-full h-full;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 3px;
+  box-shadow: 
+    0 2px 4px rgba(0, 0, 0, 0.15),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.document-icon::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 4px;
+  right: 4px;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.document-icon::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 4px;
+  right: 4px;
+  height: 1px;
+  background: #e5e7eb;
+}
+
+.universe-folder-name {
+  @apply text-gray-800 text-base font-semibold mb-2;
+  max-width: 120px;
+  word-wrap: break-word;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.universe-folder-count {
+  @apply text-gray-500 text-sm font-medium;
+  background: rgba(107, 114, 128, 0.1);
+  padding: 4px 8px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+/* Animation au survol */
+.universe-folder-card:hover .folder-body {
+  transform: translateY(-3px);
+  box-shadow: 
+    0 12px 24px rgba(0, 0, 0, 0.15),
+    0 6px 12px rgba(0, 0, 0, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+}
+
+.universe-folder-card:hover .folder-tab {
+  box-shadow: 
+    0 6px 12px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+/* Style pour l'univers FSU (gris soft) */
+.universe-folder-card[data-universe-id="fsu"] .folder-body {
+  background: linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%);
+}
+
+.universe-folder-card[data-universe-id="fsu"] .folder-tab {
+  background: linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%);
+}
+
+.universe-folder-card[data-universe-id="fsu"] .folder-tab::before {
+  border-left-color: #6B7280;
+}
+
+/* Style pour le bouton d'ajout */
+.universe-folder-card.border-dashed .folder-body {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 2px dashed #d1d5db;
+}
+
+.universe-folder-card.border-dashed .folder-tab {
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+  border: 2px dashed #d1d5db;
+}
+
+.universe-folder-card.border-dashed:hover .folder-body {
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+  border-color: #9ca3af;
+}
+
+.universe-folder-card.border-dashed:hover .folder-tab {
+  background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);
+  border-color: #9ca3af;
+}
+
+/* Menu contextuel des univers */
+.universe-menu-trigger {
+  transition: all 0.2s ease;
+}
+
+.universe-menu-trigger:hover {
+  transform: scale(1.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.universe-menu {
+  animation: fadeInUp 0.2s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .universe-folder-icon {
+    width: 60px;
+    height: 60px;
+  }
+  
+  .folder-tab {
+    width: 24px;
+    height: 16px;
+  }
+  
+  .folder-tab::before {
+    right: -6px;
+    border-left-width: 6px;
+    border-top-width: 16px;
+  }
+  
+  .universe-folder-name {
+    font-size: 12px;
+    max-width: 80px;
+  }
+}

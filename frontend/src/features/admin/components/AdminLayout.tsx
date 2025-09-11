@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation, useParams } from 'react-router-dom';
 import '../styles/admin-typography.css';
 import { 
@@ -11,17 +11,23 @@ import {
   LogOut,
   User,
   Key,
-  Shield
+  Shield,
+  Menu,
+  ChevronLeft,
+  ChevronDown,
+  FileText
 } from 'lucide-react';
 import { User as UserType } from '../types';
 import { Button } from '../../../components/ui/button';
 import { useToast } from '../../../components/ui/use-toast';
 import { authService } from '../../../services/authService';
 import { profileApi } from '../../../api/adminApi';
+import { SidebarProvider, useSidebar } from '../../../contexts/SidebarContext';
 
 // Import des composants de contenu
-import { DashboardPage } from '../pages/DashboardPage';
+import { EnhancedDashboardPage } from './EnhancedDashboardPage';
 import AdminFormationsPage from './AdminFormationsPage';
+import AdminOpportunitiesPage from './AdminOpportunitiesPage';
 import AdminBanksPage from './AdminBanksPage';
 import AdminUsersPage from './AdminUsersPage';
 import AdminStatsPage from './AdminStatsPage';
@@ -45,9 +51,9 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    label: 'Tableau de bord',
-    icon: <LayoutDashboard className="w-5 h-5" />,
-    id: 'dashboard'
+    label: 'TRAITEMENT DES OPPORTUNITÉS COMMERCIALES (OC)',
+    icon: <FileText className="w-5 h-5" />,
+    id: 'opportunities'
   },
   {
     label: 'Formations',
@@ -65,6 +71,11 @@ const menuItems: MenuItem[] = [
     id: 'banks'
   },
   {
+    label: 'Tableau de bord',
+    icon: <LayoutDashboard className="w-5 h-5" />,
+    id: 'dashboard'
+  },
+  {
     label: 'Statistiques',
     icon: <BarChart3 className="w-5 h-5" />,
     id: 'stats'
@@ -76,13 +87,14 @@ const menuItems: MenuItem[] = [
   }
 ];
 
-export const AdminLayout: React.FC<AdminLayoutProps> = () => {
+const AdminLayoutContent: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeView, setActiveView] = useState('dashboard');
+  const [activeView, setActiveView] = useState('opportunities');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const { isCollapsed: isSidebarCollapsed, setIsCollapsed: setIsSidebarCollapsed, toggleSidebar } = useSidebar();
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -129,14 +141,41 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
     };
 
     initializeAdmin();
-  }, [navigate]);
+  }, []); // Exécuter seulement au montage du composant
 
   // Mettre à jour activeView quand l'URL change
   useEffect(() => {
-    if (location.pathname.includes('/admin/banks/') && params.bankId) {
-      setActiveView('banks');
+    const path = location.pathname;
+    console.log('📍 URL changée:', path, 'activeView actuel:', activeView);
+    
+    let newView = activeView;
+    
+    if (path.includes('/admin/banks/') && params.bankId) {
+      newView = 'banks';
+    } else if (path === '/admin' || path === '/admin/') {
+      newView = 'opportunities';
+    } else if (path.includes('/admin/opportunities')) {
+      newView = 'opportunities';
+    } else if (path.includes('/admin/dashboard')) {
+      newView = 'dashboard';
+    } else if (path.includes('/admin/formations')) {
+      newView = 'formations';
+    } else if (path.includes('/admin/users')) {
+      newView = 'users';
+    } else if (path.includes('/admin/banks')) {
+      newView = 'banks';
+    } else if (path.includes('/admin/stats')) {
+      newView = 'stats';
+    } else if (path.includes('/admin/settings')) {
+      newView = 'settings';
     }
-  }, [location.pathname, params.bankId]);
+    
+    // Mettre à jour seulement si la vue a changé
+    if (newView !== activeView) {
+      console.log('🔄 Mise à jour activeView:', activeView, '->', newView);
+      setActiveView(newView);
+    }
+  }, [location.pathname, params.bankId, activeView]);
 
   // Fermer le menu profil quand on clique ailleurs
   useEffect(() => {
@@ -154,14 +193,24 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
   }, [showProfileMenu]);
 
   // Fonction pour changer de vue
-  const handleViewChange = (viewId: string) => {
+  const handleViewChange = useCallback((viewId: string) => {
+    console.log('🔄 Changement de vue:', viewId, 'depuis:', location.pathname);
+    
+    // Éviter les changements inutiles
+    if (activeView === viewId) {
+      console.log('⚠️ Vue déjà active, pas de changement');
+      return;
+    }
+    
     setActiveView(viewId);
     
-    // Si on était sur une page de détail de banque et qu'on change de vue, naviguer vers la vue générale
-    if (location.pathname.includes('/admin/banks/') && params.bankId && viewId !== 'banks') {
-      navigate(`/admin/${viewId}`);
+    // Naviguer vers la nouvelle vue seulement si nécessaire
+    const targetPath = `/admin/${viewId}`;
+    if (location.pathname !== targetPath) {
+      console.log('🚀 Navigation vers:', targetPath);
+      navigate(targetPath, { replace: true });
     }
-  };
+  }, [activeView, location.pathname, navigate]);
 
   // Fonction pour rendre le contenu dynamique
   const renderContent = () => {
@@ -172,8 +221,10 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
 
     // Sinon, utiliser la navigation normale
     switch (activeView) {
+      case 'opportunities':
+        return <AdminOpportunitiesPage />;
       case 'dashboard':
-        return <DashboardPage />;
+        return <EnhancedDashboardPage />;
       case 'formations':
         return <AdminFormationsPage />;
       case 'users':
@@ -185,7 +236,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
       case 'settings':
         return <AdminSettingsPage />;
       default:
-        return <DashboardPage />;
+        return <EnhancedDashboardPage />;
     }
   };
 
@@ -280,10 +331,22 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
     }
   };
 
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+        <p className="ml-4 text-gray-600">Chargement de l'interface...</p>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-600">Redirection vers la page de connexion...</p>
+        </div>
       </div>
     );
   }
@@ -292,15 +355,37 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="flex h-screen bg-gray-100">
         {/* Sidebar */}
-        <aside className="hidden md:flex flex-col w-64 bg-gradient-to-b from-white to-blue-50">
+        <aside className={`hidden md:flex flex-col bg-gradient-to-b from-white to-blue-50 transition-all duration-300 ${
+          isSidebarCollapsed ? 'w-16' : 'w-64'
+        }`}>
           <div className="flex flex-col flex-1 overflow-y-auto">
             <nav className="flex flex-col flex-1 overflow-y-auto px-2 py-4 gap-10">
-              {/* Titre */}
-              <div>
-                <div className="flex items-center px-4 py-2 text-blue-900">
-                  <h1 className="text-xl font-bold">BAI Consulting</h1>
+              {/* Bouton toggle et Titre */}
+              <div className="flex flex-col gap-4">
+                {/* Bouton toggle */}
+                <div className="flex justify-end px-2">
+                  <button
+                    onClick={toggleSidebar}
+                    className="p-2 text-blue-900 hover:bg-blue-200 rounded-lg transition-colors flex items-center justify-center"
+                    title={isSidebarCollapsed ? 'Ouvrir la sidebar' : 'Fermer la sidebar'}
+                  >
+                    {isSidebarCollapsed ? (
+                      <Menu className="w-5 h-5 flex-shrink-0" />
+                    ) : (
+                      <ChevronLeft className="w-5 h-5 flex-shrink-0" />
+                    )}
+                  </button>
                 </div>
-                <p className="text-sm text-blue-700 px-4 mt-1">Administration</p>
+
+                {/* Titre */}
+                {!isSidebarCollapsed && (
+                  <div>
+                    <div className="flex items-center px-4 py-2 text-blue-900">
+                      <h1 className="text-xl font-bold">BAI Consulting</h1>
+                    </div>
+                    <p className="text-sm text-blue-900 px-4 mt-1">Administration</p>
+                  </div>
+                )}
               </div>
               
               {/* Navigation principale */}
@@ -310,19 +395,27 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => handleViewChange(item.id)}
-                      className={`flex items-center px-4 py-2 mt-2 text-blue-900 rounded-lg transition-colors ${
+                      onClick={() => {
+                        console.log('🖱️ Clic sur bouton:', item.id);
+                        handleViewChange(item.id);
+                      }}
+                      className={`flex items-center ${isSidebarCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-2'} mt-2 text-blue-900 rounded-lg transition-colors ${
                         isActive
                           ? 'bg-blue-500 text-white shadow-md'
                           : 'hover:bg-blue-400 hover:text-white hover:shadow-md'
                       }`}
+                      title={isSidebarCollapsed ? item.label : ''}
                     >
-                      <span className="mr-3">{item.icon}</span>
-                      <span className="flex-1 text-left">{item.label}</span>
-                      {item.badge && (
-                        <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
-                          {item.badge}
-                        </span>
+                      <span className={`flex-shrink-0 ${isSidebarCollapsed ? '' : 'mr-3'}`}>{item.icon}</span>
+                      {!isSidebarCollapsed && (
+                        <>
+                          <span className="flex-1 text-left">{item.label}</span>
+                          {item.badge && (
+                            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded-full">
+                              {item.badge}
+                            </span>
+                          )}
+                        </>
                       )}
                     </button>
                   );
@@ -332,14 +425,15 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
           </div>
 
           {/* Section Profil Utilisateur */}
-          <div className="p-4 border-t border-blue-50 bg-blue-50">
+          <div className={`p-4 border-t border-blue-50 bg-blue-50 ${isSidebarCollapsed ? 'px-2' : ''}`}>
             <div className="relative profile-menu">
               {/* Bouton profil */}
               <button
                 onClick={handleProfile}
-                className="w-full flex items-center px-3 py-2 text-sm font-medium text-blue-900 rounded-lg hover:bg-blue-200 transition-colors"
+                className={`w-full flex items-center ${isSidebarCollapsed ? 'px-2 py-3 justify-center' : 'px-3 py-2'} text-sm font-medium text-blue-900 rounded-lg hover:bg-blue-200 transition-colors`}
+                title={isSidebarCollapsed ? `${currentUser?.firstName} ${currentUser?.lastName}` : ''}
               >
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center mr-3 overflow-hidden">
+                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                   {currentUser?.avatar ? (
                     <img
                       src={currentUser.avatar}
@@ -347,35 +441,40 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <User className="w-4 h-4 text-white" />
+                    <User className="w-4 h-4 text-white flex-shrink-0" />
                   )}
                 </div>
-                <div className="flex-1 text-left">
-                  <div className="font-medium text-blue-900">
-                    {currentUser?.firstName} {currentUser?.lastName}
-                  </div>
-                  <div className="text-xs text-blue-700">
-                    {currentUser?.email}
-                  </div>
-                </div>
+                {!isSidebarCollapsed && (
+                  <>
+                    <div className="flex-1 text-left ml-3">
+                      <div className="font-medium text-blue-900">
+                        {currentUser?.firstName} {currentUser?.lastName}
+                      </div>
+                      <div className="text-xs text-blue-700">
+                        {currentUser?.email}
+                      </div>
+                    </div>
+                    <ChevronDown className={`w-4 h-4 text-blue-600 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
+                  </>
+                )}
               </button>
 
               {/* Menu déroulant du profil */}
               {showProfileMenu && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                <div className={`absolute bottom-full ${isSidebarCollapsed ? 'left-0 w-48' : 'left-0 right-0'} mb-2 bg-white border border-gray-200 rounded-md shadow-lg z-10`}>
                   <div className="py-1">
                     <button
                       onClick={handleEditProfile}
                       className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                      <User className="w-4 h-4 mr-3 text-gray-500" />
+                      <User className="w-4 h-4 mr-3 text-gray-500 flex-shrink-0" />
                       Modifier le profil
                     </button>
                     <button
                       onClick={handleChangePassword}
                       className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                     >
-                      <Key className="w-4 h-4 mr-3 text-gray-500" />
+                      <Key className="w-4 h-4 mr-3 text-gray-500 flex-shrink-0" />
                       Changer le mot de passe
                     </button>
                     <div className="border-t border-gray-200 my-1"></div>
@@ -383,7 +482,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
                       onClick={handleLogout}
                       className="w-full flex items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                     >
-                      <LogOut className="w-4 h-4 mr-3" />
+                      <LogOut className="w-4 h-4 mr-3 flex-shrink-0" />
                       Se déconnecter
                     </button>
                   </div>
@@ -394,16 +493,18 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
         </aside>
 
         {/* Contenu principal */}
-        <main className="flex flex-col flex-1 overflow-y-auto ml-4">
-          <div className="flex items-center justify-between h-16 bg-white border-b border-gray-200 rounded-lg shadow-sm">
+        <main className={`flex flex-col flex-1 overflow-y-auto transition-all duration-300 ${
+          isSidebarCollapsed ? 'ml-4' : 'ml-4'
+        }`}>
+          <div className="flex items-center justify-between h-12 bg-white border-b border-gray-200 rounded-lg shadow-sm">
             <div className="flex items-center px-4">
               <div className="relative mx-auto text-gray-600">
-                <input 
+                {/* <input 
                   className="border border-gray-300 h-10 w-96 px-5 pr-16 rounded-lg text-sm placeholder-current focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   type="search" 
                   name="search" 
                   placeholder="Search"
-                />
+                /> */}
                 <button type="submit" className="absolute right-1 top-0 mt-3 mr-4">
                   <svg className="text-gray-600 h-4 w-4 fill-current"
                        xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" version="1.1"
@@ -418,7 +519,7 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
             </div>
             {/* notification */}
             <div className="flex items-center space-x-4 mr-4">
-              <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">
+              {/* <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
                   <path fill="currentColor"
                       d="M6.429 2.413a.75.75 0 0 0-1.13-.986l-1.292 1.48a4.75 4.75 0 0 0-1.17 3.024L2.78 8.65a.75.75 0 1 0 1.5.031l.056-2.718a3.25 3.25 0 0 1 .801-2.069z" />
@@ -428,23 +529,23 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
                   <path fill="currentColor"
                       d="M17.643 1.355a.75.75 0 0 0-.072 1.058l1.292 1.48a3.25 3.25 0 0 1 .8 2.07l.057 2.717a.75.75 0 0 0 1.5-.031l-.057-2.718a4.75 4.75 0 0 0-1.17-3.024l-1.292-1.48a.75.75 0 0 0-1.058-.072" />
                 </svg>
-              </a>
+              </a> */}
               {/* parametre */}
-              <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">
+              {/* <a href="#" className="text-gray-600 hover:text-blue-600 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
                   <path fill="currentColor"
                       d="M19.9 12.66a1 1 0 0 1 0-1.32l1.28-1.44a1 1 0 0 0 .12-1.17l-2-3.46a1 1 0 0 0-1.07-.48l-1.88.38a1 1 0 0 1-1.15-.66l-.61-1.83a1 1 0 0 0-.95-.68h-4a1 1 0 0 0-1 .68l-.56 1.83a1 1 0 0 1-1.15.66L5 4.79a1 1 0 0 0-1 .48L2 8.73a1 1 0 0 0 .1 1.17l1.27 1.44a1 1 0 0 1 0 1.32L2.1 14.1a1 1 0 0 0-.1 1.17l2 3.46a1 1 0 0 0 1.07.48l1.88-.38a1 1 0 0 1 1.15.66l.61 1.83a1 1 0 0 0 1 .68h4a1 1 0 0 0 .95-.68l.61-1.83a1 1 0 0 1 1.15-.66l1.88.38a1 1 0 0 0 1.07-.48l2-3.46a1 1 0 0 0-.12-1.17ZM18.41 14l.8.9l-1.28 2.22l-1.18-.24a3 3 0 0 0-3.45 2L12.92 20h-2.56L10 18.86a3 3 0 0 0-3.45-2l-1.18.24l-1.3-2.21l.8-.9a3 3 0 0 0 0-4l-.8-.9l1.28-2.2l1.18.24a3 3 0 0 0 3.45-2L10.36 4h2.56l.38 1.14a3 3 0 0 0 3.45 2l1.18-.24l1.28 2.22l-.8.9a3 3 0 0 0 0 3.98m-6.77-6a4 4 0 1 0 4 4a4 4 0 0 0-4-4m0 6a2 2 0 1 1 2-2a2 2 0 0 1-2 2" />
                 </svg>
-              </a>
+              </a> */}
               {/* logout */}
-              <a href="#"
+              {/* <a href="#"
                   className="flex items-center text-gray-600 hover:text-blue-600 transition-colors">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
                   <path fill="currentColor"
                       d="M5 11h8v2H5v3l-5-4l5-4zm-1 7h2.708a8 8 0 1 0 0-12H4a9.985 9.985 0 0 1 8-4c5.523 0 10 4.477 10 10s-4.477 10-10 10a9.985 9.985 0 0 1-8-4" />
                 </svg>
                 <span className="font-bold">Logout</span>
-              </a>
+              </a> */}
             </div>
           </div>
 
@@ -454,8 +555,9 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
               <div>
                 <h1 className="admin-title-lg admin-title-spacing">{getActiveViewTitle()}</h1>
                 <p className="admin-text-lg admin-body-spacing">
+                  {activeView === 'opportunities' && 'Gérez les fichiers PDF de présentation des formations'}
                   {activeView === 'dashboard' && 'Vue d\'ensemble de votre plateforme de formation'}
-                  {/* {activeView === 'formations' && 'Gérez les formations de votre plateforme'} */}
+                  {activeView === 'formations' && 'Gérez les formations de votre plateforme'}
                   {activeView === 'users' && 'Gérez les collaborateurs de votre plateforme'}
                   {activeView === 'banks' && 'Gérez les banques de votre plateforme'}
                   {activeView === 'stats' && 'Analysez les performances de votre plateforme'}
@@ -487,5 +589,13 @@ export const AdminLayout: React.FC<AdminLayoutProps> = () => {
         />
       )}
     </div>
+  );
+};
+
+export const AdminLayout: React.FC<AdminLayoutProps> = () => {
+  return (
+    <SidebarProvider>
+      <AdminLayoutContent />
+    </SidebarProvider>
   );
 }; 

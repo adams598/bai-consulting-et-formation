@@ -836,6 +836,7 @@ export const formationsController = {
         hasQuiz,
         quizRequired,
         coverImage,
+        universeId,
       } = req.body;
       const userId = req.user.id;
 
@@ -857,6 +858,7 @@ export const formationsController = {
           quizRequired: quizRequired !== undefined ? quizRequired : true,
           coverImage: coverImage || null,
           createdBy: userId,
+          universeId: universeId || null,
         },
         include: {
           creator: {
@@ -890,6 +892,7 @@ export const formationsController = {
         hasQuiz,
         quizRequired,
         coverImage,
+        universeId,
       } = req.body;
 
       // Validation
@@ -929,6 +932,10 @@ export const formationsController = {
             coverImage !== undefined
               ? coverImage
               : existingFormation.coverImage,
+          universeId:
+            universeId !== undefined
+              ? universeId
+              : existingFormation.universeId,
         },
         include: {
           creator: {
@@ -1509,6 +1516,8 @@ export const usersController = {
 export const dashboardController = {
   async getStats(req, res) {
     try {
+      console.log("📊 Récupération des statistiques du dashboard...");
+
       // Compter le nombre total d'utilisateurs
       const totalUsers = await prisma.user.count();
 
@@ -1520,27 +1529,79 @@ export const dashboardController = {
         where: { isArchived: false },
       });
 
-      // Compter le nombre de formations terminées (pour l'instant, on met 0)
-      const completedFormations = 0;
-
       // Compter le nombre d'utilisateurs actifs
       const activeUsers = await prisma.user.count({
         where: { isActive: true },
       });
 
-      // Pour l'instant, on met 0 car le champ status n'existe pas encore dans le schéma
-      const pendingAssignments = 0;
+      // Compter les utilisateurs en ligne (connexions récentes - dernière heure)
+      const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+      const onlineUsers = await prisma.user.count({
+        where: {
+          lastLogin: {
+            gte: oneHourAgo,
+          },
+        },
+      });
+
+      // Calculer les formations terminées via les progressions
+      const completedFormations = await prisma.userProgress.count({
+        where: {
+          isCompleted: true,
+        },
+      });
+
+      // Calculer les assignations en attente (pas de statut dans UserFormationAssignment, on compte toutes les assignations)
+      const pendingAssignments = await prisma.userFormationAssignment.count();
+
+      // Calculer le temps moyen de complétion (en minutes)
+      const completedProgress = await prisma.userProgress.findMany({
+        where: {
+          isCompleted: true,
+          totalTime: {
+            not: null,
+          },
+        },
+        select: {
+          totalTime: true,
+        },
+      });
+
+      const averageCompletionTime =
+        completedProgress.length > 0
+          ? Math.round(
+              completedProgress.reduce(
+                (sum, p) => sum + (p.totalTime || 0),
+                0
+              ) /
+                completedProgress.length /
+                60
+            ) // Convertir en minutes
+          : 0;
+
+      // Calculer le taux de réussite des quiz (pour l'instant, on met 0 car le modèle QuizAttempt n'existe pas encore)
+      const quizAttempts = 0;
+      const successfulQuizAttempts = 0;
+      const quizSuccessRate = 0;
+
+      const stats = {
+        totalUsers,
+        totalFormations,
+        totalBanks,
+        completedFormations,
+        activeUsers,
+        pendingAssignments,
+        onlineUsers,
+        averageCompletionTime,
+        quizSuccessRate,
+        totalQuizAttempts: quizAttempts,
+      };
+
+      console.log("📊 Statistiques calculées:", stats);
 
       res.json({
         success: true,
-        data: {
-          totalUsers,
-          totalFormations,
-          totalBanks,
-          completedFormations,
-          activeUsers,
-          pendingAssignments,
-        },
+        data: stats,
       });
     } catch (error) {
       console.error("Erreur getDashboardStats:", error);
@@ -1553,29 +1614,84 @@ export const dashboardController = {
 
   async getBankStats(req, res) {
     try {
+      console.log("🏦 Récupération des statistiques par banque...");
+
       const banks = await prisma.bank.findMany({
         where: { isArchived: false },
         include: {
           users: {
             select: {
               id: true,
+              isActive: true,
             },
           },
           bankFormations: {
             select: {
               id: true,
+              formation: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
             },
           },
         },
       });
 
-      const bankStats = banks.map((bank) => ({
-        bankId: bank.id,
-        bankName: bank.name,
-        userCount: bank.users.length,
-        formationCount: bank.bankFormations.length,
-        completionRate: 0, // Pour l'instant, on met 0
-      }));
+      const bankStats = await Promise.all(
+        banks.map(async (bank) => {
+          // Compter les utilisateurs actifs de cette banque
+          const activeUserCount = bank.users.filter(
+            (user) => user.isActive
+          ).length;
+
+          // Compter les formations assignées à cette banque
+          const formationCount = bank.bankFormations.length;
+
+          // Calculer le taux de complétion pour cette banque
+          const bankUserIds = bank.users.map((user) => user.id);
+
+          const totalAssignments = await prisma.userFormationAssignment.count({
+            where: {
+              userId: {
+                in: bankUserIds,
+              },
+            },
+          });
+
+          // Pour les assignations complétées, on vérifie via UserProgress
+          const completedAssignments = await prisma.userProgress.count({
+            where: {
+              userId: {
+                in: bankUserIds,
+              },
+              isCompleted: true,
+            },
+          });
+
+          const completionRate =
+            totalAssignments > 0
+              ? Math.round((completedAssignments / totalAssignments) * 100)
+              : 0;
+
+          return {
+            bankId: bank.id,
+            bankName: bank.name,
+            userCount: activeUserCount,
+            formationCount: formationCount,
+            completionRate: completionRate,
+            totalAssignments: totalAssignments,
+            completedAssignments: completedAssignments,
+          };
+        })
+      );
+
+      console.log(
+        "🏦 Statistiques par banque calculées:",
+        bankStats.length,
+        "banques"
+      );
 
       res.json({
         success: true,
@@ -1592,11 +1708,270 @@ export const dashboardController = {
 
   async getRecentActivity(req, res) {
     try {
-      // Pour l'instant, on retourne un tableau vide
-      // TODO: Implémenter la logique d'activité récente
-      res.json({ success: true, data: [] });
+      console.log("📈 Récupération de l'activité récente...");
+
+      const limit = 20; // Limiter à 20 activités récentes
+
+      // Récupérer les progressions récentes
+      const recentProgress = await prisma.userProgress.findMany({
+        where: {
+          lastAccessedAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Dernière semaine
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          formation: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
+        orderBy: {
+          lastAccessedAt: "desc",
+        },
+        take: limit,
+      });
+
+      // Récupérer les nouvelles assignations
+      const recentAssignments = await prisma.userFormationAssignment.findMany({
+        where: {
+          assignedAt: {
+            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+            },
+          },
+          bankFormation: {
+            include: {
+              formation: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          assignedAt: "desc",
+        },
+        take: limit,
+      });
+
+      // Combiner et formater toutes les activités
+      const activities = [];
+
+      // Ajouter les progressions
+      recentProgress.forEach((progress) => {
+        let type = "progress_updated";
+        let description = `Progression mise à jour pour "${progress.formation.title}"`;
+
+        if (progress.isCompleted) {
+          type = "formation_completed";
+          description = `Formation "${progress.formation.title}" terminée`;
+        } else if (!progress.isCompleted && progress.progress === 0) {
+          type = "formation_started";
+          description = `Formation "${progress.formation.title}" démarrée`;
+        }
+
+        activities.push({
+          id: `progress_${progress.id}`,
+          type: type,
+          description: description,
+          user: `${progress.user.firstName} ${progress.user.lastName}`,
+          timestamp: progress.lastAccessedAt,
+          metadata: {
+            formationTitle: progress.formation.title,
+            progress: progress.progress,
+            status: progress.isCompleted ? "COMPLETED" : "IN_PROGRESS",
+          },
+        });
+      });
+
+      // Ajouter les nouvelles assignations
+      recentAssignments.forEach((assignment) => {
+        activities.push({
+          id: `assignment_${assignment.id}`,
+          type: "formation_assigned",
+          description: `Formation "${assignment.bankFormation.formation.title}" assignée`,
+          user: `${assignment.user.firstName} ${assignment.user.lastName}`,
+          timestamp: assignment.assignedAt,
+          metadata: {
+            formationTitle: assignment.bankFormation.formation.title,
+            dueDate: assignment.dueDate,
+            isMandatory: assignment.isMandatory,
+          },
+        });
+      });
+
+      // Trier par timestamp décroissant et limiter
+      const sortedActivities = activities
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, limit);
+
+      console.log(
+        "📈 Activités récentes récupérées:",
+        sortedActivities.length,
+        "activités"
+      );
+
+      res.json({
+        success: true,
+        data: sortedActivities,
+      });
     } catch (error) {
       console.error("Erreur getRecentActivity:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  async getAlerts(req, res) {
+    try {
+      console.log("🚨 Récupération des alertes...");
+
+      const alerts = [];
+
+      // Alerte 1: Formations en retard
+      const overdueAssignments = await prisma.userFormationAssignment.count({
+        where: {
+          dueDate: {
+            lt: new Date(),
+          },
+        },
+      });
+
+      if (overdueAssignments > 0) {
+        alerts.push({
+          id: "overdue_assignments",
+          type: "warning",
+          title: "Formations en retard",
+          message: "Des apprenants ont dépassé leur date limite",
+          count: overdueAssignments,
+          action: "Voir les détails",
+        });
+      }
+
+      // Alerte 2: Échecs aux quiz récents (pour l'instant, on met 0 car le modèle QuizAttempt n'existe pas encore)
+      const recentFailedQuizzes = 0;
+
+      if (recentFailedQuizzes > 0) {
+        alerts.push({
+          id: "failed_quizzes",
+          type: "error",
+          title: "Échecs aux quiz",
+          message: "Plusieurs échecs récents nécessitent une attention",
+          count: recentFailedQuizzes,
+          action: "Consulter",
+        });
+      }
+
+      // Alerte 3: Nouvelles assignations en attente
+      const pendingAssignments = await prisma.userFormationAssignment.count();
+
+      if (pendingAssignments > 0) {
+        alerts.push({
+          id: "pending_assignments",
+          type: "info",
+          title: "Nouvelles assignations",
+          message: "De nouveaux utilisateurs attendent une attribution",
+          count: pendingAssignments,
+          action: "Attribuer",
+        });
+      }
+
+      // Alerte 4: Utilisateurs inactifs depuis longtemps
+      const inactiveUsers = await prisma.user.count({
+        where: {
+          isActive: true,
+          lastLogin: {
+            lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 jours
+          },
+        },
+      });
+
+      if (inactiveUsers > 0) {
+        alerts.push({
+          id: "inactive_users",
+          type: "warning",
+          title: "Utilisateurs inactifs",
+          message: "Des utilisateurs ne se sont pas connectés depuis longtemps",
+          count: inactiveUsers,
+          action: "Relancer",
+        });
+      }
+
+      console.log("🚨 Alertes générées:", alerts.length, "alertes");
+
+      res.json({
+        success: true,
+        data: alerts,
+      });
+    } catch (error) {
+      console.error("Erreur getAlerts:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  async getFormationPerformance(req, res) {
+    try {
+      console.log("📊 Récupération des performances des formations...");
+
+      // Récupérer toutes les formations actives
+      const formations = await prisma.formation.findMany({
+        where: {
+          isActive: true,
+        },
+        select: {
+          id: true,
+          title: true,
+        },
+      });
+
+      // Pour chaque formation, calculer les statistiques de base
+      const performanceData = formations.map((formation) => {
+        return {
+          formationId: formation.id,
+          formationTitle: formation.title,
+          enrollments: 0, // Pour l'instant
+          completions: 0, // Pour l'instant
+          averageScore: 0, // Pour l'instant
+          averageTime: 0, // Pour l'instant
+          completionRate: 0, // Pour l'instant
+        };
+      });
+
+      console.log(
+        "📊 Performances des formations calculées:",
+        performanceData.length,
+        "formations"
+      );
+
+      res.json({
+        success: true,
+        data: performanceData,
+      });
+    } catch (error) {
+      console.error("Erreur getFormationPerformance:", error);
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
@@ -2988,3 +3363,288 @@ async function updateFormationDuration(formationId) {
     console.error("Erreur updateFormationDuration:", error);
   }
 }
+
+// Contrôleurs pour les univers
+export const universeController = {
+  // Récupérer tous les univers
+  async getAllUniverses(req, res) {
+    try {
+      const universes = await prisma.universe.findMany({
+        where: { isActive: true },
+        orderBy: { createdAt: "asc" },
+      });
+
+      // Ajouter le nombre de formations pour chaque univers
+      const universesWithCounts = await Promise.all(
+        universes.map(async (universe) => {
+          let formationCount = 0;
+
+          if (universe.id === "fsu") {
+            // Pour FSU, compter les formations sans univers
+            formationCount = await prisma.formation.count({
+              where: { universeId: null },
+            });
+          } else {
+            // Pour les autres univers, compter les formations dans l'univers
+            formationCount = await prisma.formation.count({
+              where: { universeId: universe.id },
+            });
+          }
+
+          return {
+            ...universe,
+            formationCount,
+          };
+        })
+      );
+
+      res.json({ success: true, data: universesWithCounts });
+    } catch (error) {
+      console.error("Erreur getAllUniverses:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Créer un nouvel univers
+  async createUniverse(req, res) {
+    try {
+      const { name, description, color, icon } = req.body;
+
+      if (!name) {
+        return res.status(400).json({
+          success: false,
+          message: "Le nom de l'univers est requis",
+        });
+      }
+
+      const universe = await prisma.universe.create({
+        data: {
+          name,
+          description,
+          color: color || "#3B82F6",
+          icon: icon || "folder",
+          isActive: true,
+        },
+      });
+
+      res.json({ success: true, data: universe });
+    } catch (error) {
+      console.error("Erreur createUniverse:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Mettre à jour un univers
+  async updateUniverse(req, res) {
+    try {
+      const { id } = req.params;
+      const { name, description, color, icon, isActive } = req.body;
+
+      const universe = await prisma.universe.update({
+        where: { id },
+        data: {
+          name,
+          description,
+          color,
+          icon,
+          isActive,
+        },
+      });
+
+      res.json({ success: true, data: universe });
+    } catch (error) {
+      console.error("Erreur updateUniverse:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Supprimer un univers
+  async deleteUniverse(req, res) {
+    try {
+      const { id } = req.params;
+
+      // Vérifier s'il y a des formations dans cet univers
+      const formationsCount = await prisma.formation.count({
+        where: { universeId: id },
+      });
+
+      if (formationsCount > 0) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "Impossible de supprimer un univers contenant des formations",
+        });
+      }
+
+      await prisma.universe.delete({
+        where: { id },
+      });
+
+      res.json({ success: true, message: "Univers supprimé avec succès" });
+    } catch (error) {
+      console.error("Erreur deleteUniverse:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Déplacer une formation vers un univers
+  async moveFormationToUniverse(req, res) {
+    try {
+      const { formationId, universeId } = req.body;
+
+      if (!formationId) {
+        return res.status(400).json({
+          success: false,
+          message: "ID de formation requis",
+        });
+      }
+
+      // Vérifier que la formation existe
+      const formation = await prisma.formation.findUnique({
+        where: { id: formationId },
+      });
+
+      if (!formation) {
+        return res.status(404).json({
+          success: false,
+          message: "Formation non trouvée",
+        });
+      }
+
+      // Si universeId est null ou vide, retirer de l'univers (placer dans FSU)
+      if (!universeId) {
+        await prisma.formation.update({
+          where: { id: formationId },
+          data: { universeId: null },
+        });
+      } else {
+        // Vérifier que l'univers existe
+        const universe = await prisma.universe.findUnique({
+          where: { id: universeId },
+        });
+
+        if (!universe) {
+          return res.status(404).json({
+            success: false,
+            message: "Univers non trouvé",
+          });
+        }
+
+        // Déplacer la formation vers l'univers
+        await prisma.formation.update({
+          where: { id: formationId },
+          data: { universeId },
+        });
+      }
+
+      res.json({ success: true, message: "Formation déplacée avec succès" });
+    } catch (error) {
+      console.error("Erreur moveFormationToUniverse:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Récupérer les formations d'un univers
+  async getUniverseFormations(req, res) {
+    try {
+      const { universeId } = req.params;
+
+      let formations = [];
+
+      if (universeId === "fsu") {
+        // Pour FSU, récupérer les formations sans univers
+        formations = await prisma.formation.findMany({
+          where: { universeId: null },
+          include: {
+            creator: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            _count: {
+              select: {
+                content: {
+                  where: { contentType: "LESSON" },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+      } else {
+        // Pour les autres univers, récupérer les formations de l'univers
+        formations = await prisma.formation.findMany({
+          where: { universeId },
+          include: {
+            creator: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            _count: {
+              select: {
+                content: {
+                  where: { contentType: "LESSON" },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        });
+      }
+
+      // Ajouter les statistiques pour chaque formation
+      const formationsWithStats = await Promise.all(
+        formations.map(async (formation) => {
+          const bankCount = await prisma.bankFormation.count({
+            where: { formationId: formation.id },
+          });
+
+          const userCount = await prisma.userFormationAssignment.count({
+            where: {
+              bankFormation: {
+                formationId: formation.id,
+              },
+            },
+          });
+
+          return {
+            ...formation,
+            lessonCount: formation._count.content,
+            bankCount,
+            userCount,
+          };
+        })
+      );
+
+      res.json({ success: true, data: formationsWithStats });
+    } catch (error) {
+      console.error("Erreur getUniverseFormations:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+};

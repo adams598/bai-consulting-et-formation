@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Save } from 'lucide-react';
+import { X, Plus, Trash2, Save, Eye, AlertCircle } from 'lucide-react';
 import { Quiz, QuizQuestion, QuizAnswer } from '../types';
+import QuizPreviewModal from './QuizPreviewModal';
+import ConfirmationModal from './ConfirmationModal';
+import { useConfirmation } from '../../../hooks/useConfirmation';
 
 interface QuizConfigModalProps {
   isOpen: boolean;
@@ -27,6 +30,10 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
 
   const [questions, setQuestions] = useState<Partial<QuizQuestion>[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  
+  // Hook de confirmation
+  const confirmation = useConfirmation();
 
   useEffect(() => {
     if (existingQuiz) {
@@ -51,6 +58,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
         type: 'multiple_choice',
         order: 1,
         points: 1,
+        isRequired: true,
         answers: [
           { answer: '', isCorrect: false, order: 1 },
           { answer: '', isCorrect: false, order: 2 }
@@ -69,6 +77,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
       type: 'multiple_choice',
       order: questions.length + 1,
       points: 1,
+      isRequired: true,
       answers: [
         { answer: '', isCorrect: false, order: 1 },
         { answer: '', isCorrect: false, order: 2 }
@@ -90,9 +99,33 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   };
 
   const updateQuestion = (index: number, field: keyof QuizQuestion, value: any) => {
-    setQuestions(prev => prev.map((q, i) => 
-      i === index ? { ...q, [field]: value } : q
-    ));
+    setQuestions(prev => prev.map((q, i) => {
+      if (i === index) {
+        const updatedQuestion = { ...q, [field]: value };
+        
+        // Si on change le type de question, adapter les réponses
+        if (field === 'type') {
+          if (value === 'true_false') {
+            updatedQuestion.answers = [
+              { answer: 'Vrai', isCorrect: true, order: 1 },
+              { answer: 'Faux', isCorrect: false, order: 2 }
+            ];
+          } else if (value === 'text') {
+            updatedQuestion.answers = [
+              { answer: 'Réponse libre', isCorrect: true, order: 1 }
+            ];
+          } else if (value === 'multiple_choice' && (!q.answers || q.answers.length < 2)) {
+            updatedQuestion.answers = [
+              { answer: '', isCorrect: false, order: 1 },
+              { answer: '', isCorrect: false, order: 2 }
+            ];
+          }
+        }
+        
+        return updatedQuestion;
+      }
+      return q;
+    }));
   };
 
   const addAnswer = (questionIndex: number) => {
@@ -159,12 +192,24 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     
     // Validation
     if (!quizData.title?.trim()) {
-      alert('Le titre du quiz est requis');
+      confirmation.showConfirmation({
+        title: 'Titre requis',
+        message: 'Le titre du quiz est requis pour continuer.',
+        confirmText: 'Compris',
+        type: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
 
     if (questions.length === 0) {
-      alert('Au moins une question est requise');
+      confirmation.showConfirmation({
+        title: 'Questions requises',
+        message: 'Au moins une question est requise pour créer le quiz.',
+        confirmText: 'Compris',
+        type: 'warning',
+        onConfirm: () => {}
+      });
       return;
     }
 
@@ -172,24 +217,48 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       if (!q.question?.trim()) {
-        alert(`Question ${i + 1}: Le texte de la question est requis`);
+        confirmation.showConfirmation({
+          title: 'Question incomplète',
+          message: `Question ${i + 1}: Le texte de la question est requis.`,
+          confirmText: 'Compris',
+          type: 'warning',
+          onConfirm: () => {}
+        });
         return;
       }
       
       if (!q.answers || q.answers.length < 2) {
-        alert(`Question ${i + 1}: Au moins 2 réponses sont requises`);
+        confirmation.showConfirmation({
+          title: 'Réponses insuffisantes',
+          message: `Question ${i + 1}: Au moins 2 réponses sont requises.`,
+          confirmText: 'Compris',
+          type: 'warning',
+          onConfirm: () => {}
+        });
         return;
       }
 
       const hasCorrectAnswer = q.answers.some(a => a.isCorrect);
       if (!hasCorrectAnswer) {
-        alert(`Question ${i + 1}: Une réponse correcte doit être sélectionnée`);
+        confirmation.showConfirmation({
+          title: 'Aucune réponse correcte',
+          message: `Question ${i + 1}: Une réponse correcte doit être sélectionnée.`,
+          confirmText: 'Compris',
+          type: 'warning',
+          onConfirm: () => {}
+        });
         return;
       }
 
       for (let j = 0; j < q.answers.length; j++) {
         if (!q.answers[j].answer?.trim()) {
-          alert(`Question ${i + 1}, Réponse ${j + 1}: Le texte de la réponse est requis`);
+          confirmation.showConfirmation({
+            title: 'Réponse incomplète',
+            message: `Question ${i + 1}, Réponse ${j + 1}: Le texte de la réponse est requis.`,
+            confirmText: 'Compris',
+            type: 'warning',
+            onConfirm: () => {}
+          });
           return;
         }
       }
@@ -342,17 +411,17 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Question *
                     </label>
-                    <input
-                      type="text"
+                    <textarea
                       value={question.question}
                       onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Texte de la question"
+                      rows={2}
                       required
                     />
                   </div>
@@ -364,10 +433,26 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                     <input
                       type="number"
                       min="1"
+                      max="10"
                       value={question.points}
                       onChange={(e) => updateQuestion(qIndex, 'points', parseInt(e.target.value))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
+                  </div>
+
+                  <div className="flex flex-col justify-end">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id={`required-${qIndex}`}
+                        checked={question.isRequired !== false}
+                        onChange={(e) => updateQuestion(qIndex, 'isRequired', e.target.checked)}
+                        className="rounded border-gray-300"
+                      />
+                      <label htmlFor={`required-${qIndex}`} className="text-sm text-gray-700">
+                        Obligatoire
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -387,71 +472,176 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                 </div>
 
                 {/* Réponses */}
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Réponses *
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => addAnswer(qIndex)}
-                      className="text-blue-600 hover:text-blue-700 text-sm"
-                    >
-                      + Ajouter réponse
-                    </button>
-                  </div>
-
-                  {question.answers?.map((answer, aIndex) => (
-                    <div key={aIndex} className="flex items-center space-x-3">
-                      <input
-                        type="radio"
-                        name={`correct-${qIndex}`}
-                        checked={answer.isCorrect}
-                        onChange={() => setCorrectAnswer(qIndex, aIndex)}
-                        className="text-blue-600 focus:ring-blue-500"
-                      />
-                      <input
-                        type="text"
-                        value={answer.answer}
-                        onChange={(e) => updateAnswer(qIndex, aIndex, 'answer', e.target.value)}
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder={`Réponse ${aIndex + 1}`}
-                        required
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeAnswer(qIndex, aIndex)}
-                        className="text-red-600 hover:text-red-700 p-1"
-                        disabled={question.answers!.length <= 2}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                {question.type !== 'text' && (
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <label className="block text-sm font-medium text-gray-700">
+                        {question.type === 'true_false' ? 'Réponse correcte *' : 'Réponses *'}
+                      </label>
+                      {question.type === 'multiple_choice' && (
+                        <button
+                          type="button"
+                          onClick={() => addAnswer(qIndex)}
+                          className="text-blue-600 hover:text-blue-700 text-sm"
+                          disabled={question.answers && question.answers.length >= 6}
+                        >
+                          + Ajouter réponse
+                        </button>
+                      )}
                     </div>
-                  ))}
-                </div>
+
+                    {question.type === 'true_false' ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="radio"
+                            name={`correct-${qIndex}`}
+                            checked={question.answers?.[0]?.isCorrect}
+                            onChange={() => setCorrectAnswer(qIndex, 0)}
+                            className="text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-green-600">Vrai</span>
+                        </div>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="radio"
+                            name={`correct-${qIndex}`}
+                            checked={question.answers?.[1]?.isCorrect}
+                            onChange={() => setCorrectAnswer(qIndex, 1)}
+                            className="text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className="text-sm font-medium text-red-600">Faux</span>
+                        </div>
+                      </div>
+                    ) : (
+                      question.answers?.map((answer, aIndex) => (
+                        <div key={aIndex} className="flex items-center space-x-3">
+                          <input
+                            type="radio"
+                            name={`correct-${qIndex}`}
+                            checked={answer.isCorrect}
+                            onChange={() => setCorrectAnswer(qIndex, aIndex)}
+                            className="text-blue-600 focus:ring-blue-500"
+                            title="Marquer comme réponse correcte"
+                          />
+                          <input
+                            type="text"
+                            value={answer.answer}
+                            onChange={(e) => updateAnswer(qIndex, aIndex, 'answer', e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder={`Réponse ${aIndex + 1}`}
+                            required
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeAnswer(qIndex, aIndex)}
+                            className="text-red-600 hover:text-red-700 p-1"
+                            disabled={question.answers!.length <= 2}
+                            title="Supprimer cette réponse"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                {/* Instructions pour question texte libre */}
+                {question.type === 'text' && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
+                    <div className="flex items-start space-x-2">
+                      <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
+                      <div className="text-sm text-blue-800">
+                        <p className="font-medium">Question à réponse libre</p>
+                        <p className="mt-1">Cette question sera évaluée manuellement par un formateur.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
 
+          {/* Résumé du quiz */}
+          <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+            <h4 className="text-sm font-medium text-gray-900 mb-2">Résumé du quiz</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <span className="text-gray-500">Questions :</span>
+                <span className="ml-1 font-medium">{questions.length}</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Points total :</span>
+                <span className="ml-1 font-medium">
+                  {questions.reduce((sum, q) => sum + (q.points || 1), 0)}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500">Seuil de réussite :</span>
+                <span className="ml-1 font-medium">{quizData.passingScore}%</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Limite de temps :</span>
+                <span className="ml-1 font-medium">
+                  {quizData.timeLimit ? `${quizData.timeLimit} min` : 'Aucune'}
+                </span>
+              </div>
+            </div>
+          </div>
+
           {/* Actions */}
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+          <div className="flex justify-between pt-6 border-t border-gray-200">
             <button
               type="button"
-              onClick={onClose}
-              className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              onClick={() => setShowPreview(true)}
+              className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 flex items-center gap-2"
+              disabled={questions.length === 0}
             >
-              Annuler
+              <Eye className="h-4 w-4" />
+              Prévisualiser
             </button>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-            >
-              <Save className="h-4 w-4" />
-              {isLoading ? 'Sauvegarde...' : 'Sauvegarder le Quiz'}
-            </button>
+
+            <div className="flex space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={isLoading || questions.length === 0}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+              >
+                <Save className="h-4 w-4" />
+                {isLoading ? 'Sauvegarde...' : 'Sauvegarder le Quiz'}
+              </button>
+            </div>
           </div>
         </form>
+
+        {/* Modal de prévisualisation */}
+        <QuizPreviewModal
+          isOpen={showPreview}
+          onClose={() => setShowPreview(false)}
+          quizData={quizData}
+          questions={questions}
+        />
+        
+        {/* Modal de confirmation */}
+        <ConfirmationModal
+          isOpen={confirmation.isOpen}
+          onClose={confirmation.hideConfirmation}
+          onConfirm={confirmation.handleConfirm}
+          title={confirmation.options?.title || ''}
+          message={confirmation.options?.message || ''}
+          confirmText={confirmation.options?.confirmText}
+          cancelText={confirmation.options?.cancelText}
+          type={confirmation.options?.type}
+          isLoading={confirmation.isLoading}
+        />
       </div>
     </div>
   );

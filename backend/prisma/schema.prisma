@@ -42,6 +42,8 @@ model User {
   userAssignments          UserFormationAssignment[]
   bankFormationAssignments BankFormation[]           @relation("BankFormationAssigner")
   userFormationAssignments UserFormationAssignment[] @relation("UserFormationAssigner")
+  quizAttempts             QuizAttempt[]
+  certificates             Certificate[]
 
   @@map("users")
 }
@@ -73,6 +75,16 @@ model Formation {
   hasQuiz      Boolean  @default(false) // indique si la formation a un quiz
   quizRequired Boolean  @default(true) // si le quiz est obligatoire pour valider
   coverImage   String?  // URL de l'image de couverture
+  
+  // Nouveaux champs pour rendre l'interface dynamique
+  code                String?  // Code de formation (ex: NL001008)
+  pedagogicalModality String?  // Modalité pédagogique (ex: E-learning, Présentiel, Hybride)
+  organization        String?  // Organisme de formation (ex: SHERPA Developpement)
+  prerequisites       String?  // Prérequis (ex: "Aucune connaissance préalable n'est nécessaire.")
+  objectives          String?  // Objectifs pédagogiques (JSON array)
+  detailedProgram     String?  // Programme détaillé (JSON array)
+  targetAudience      String?  // Public concerné (JSON array)
+  
   createdBy    String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -86,6 +98,10 @@ model Formation {
   bankFormations BankFormation[]
   Bank           Bank?                 @relation(fields: [bankId], references: [id])
   bankId         String?
+  universeId     String?
+  universe       Universe?             @relation(fields: [universeId], references: [id])
+  universeFormations UniverseFormation[]
+  certificates   Certificate[]
 
   @@map("formations")
 }
@@ -149,6 +165,7 @@ model Quiz {
   // Relations
   formation Formation      @relation(fields: [formationId], references: [id], onDelete: Cascade)
   questions QuizQuestion[]
+  attempts  QuizAttempt[]
 
   @@map("quizzes")
 }
@@ -218,6 +235,30 @@ model UserProgress {
   @@index([lessonId])
 }
 
+model QuizAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  quizId     String
+  score      Int      @default(0) // Score obtenu en pourcentage
+  totalScore Int      @default(0) // Score total possible
+  isPassed   Boolean  @default(false) // Si le score >= passingScore
+  timeSpent  Int?     // Temps passé en secondes
+  answers    String?  // Réponses données en JSON
+  startedAt  DateTime @default(now())
+  completedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, quizId])
+  @@index([userId])
+  @@index([quizId])
+  @@map("quiz_attempts")
+}
+
 model Notification {
   id        String   @id @default(cuid())
   userId    String
@@ -233,6 +274,23 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+model Certificate {
+  id               String   @id @default(cuid())
+  userId           String
+  formationId      String
+  certificateNumber String   @unique
+  issuedAt         DateTime @default(now())
+  completedAt      DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  formation Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  @@map("certificates")
 }
 
 // Modèle pour les sessions utilisateur (optionnel, pour la gestion des tokens)
@@ -287,4 +345,37 @@ model UserFormationAssignment {
 
   @@unique([bankFormationId, userId])
   @@map("user_formation_assignments")
+}
+
+model Universe {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String?  // couleur du dossier
+  icon        String?  // icône personnalisée
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  formations UniverseFormation[]
+  directFormations Formation[] // Formations directement assignées à cet univers
+
+  @@map("universes")
+}
+
+model UniverseFormation {
+  id          String   @id @default(cuid())
+  universeId  String
+  formationId String
+  order       Int      @default(0) // ordre dans l'univers
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  universe   Universe  @relation(fields: [universeId], references: [id], onDelete: Cascade)
+  formation  Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  @@unique([universeId, formationId])
+  @@map("universe_formations")
 }

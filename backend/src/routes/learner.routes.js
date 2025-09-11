@@ -4,10 +4,11 @@ import { learnerMiddleware } from "../middleware/learner.middleware.js";
 import {
   authController,
   formationsController,
-  progressController,
-  quizController,
-  notificationsController,
-} from "../controllers/learner.controllers.js";
+  formationContentController,
+} from "../controllers/admin.controllers.js";
+import { progressController } from "../controllers/progress.controller.js";
+import { quizController as learnerQuizController } from "../controllers/quiz.controller.js";
+import { notificationsController } from "../controllers/notifications.controller.js";
 
 const router = express.Router();
 
@@ -17,7 +18,7 @@ router.get("/auth/health", (req, res) => {
     status: "OK",
     message: "API Learner BAI Consulting opérationnelle",
     timestamp: new Date().toISOString(),
-    version: "1.0.0"
+    version: "1.0.0",
   });
 });
 
@@ -25,115 +26,68 @@ router.get("/auth/health", (req, res) => {
 router.post("/auth/login", authController.login);
 router.post("/auth/logout", authMiddleware, authController.logout);
 router.get("/auth/me", authMiddleware, authController.getCurrentUser);
-router.post("/auth/refresh", authController.refreshToken);
-router.post("/auth/change-password", authMiddleware, authController.changePassword);
 
-// Routes des formations pour apprenants
+// Routes de gestion du profil
+router.get("/profile", authMiddleware, authController.getProfile);
+router.put("/profile", authMiddleware, authController.updateProfile);
+router.put("/profile/password", authMiddleware, authController.changePassword);
+
+// Routes des formations
 router.get(
   "/formations",
   authMiddleware,
-  learnerMiddleware,
-  formationsController.getMyFormations
+  formationsController.getAllFormations
 );
 router.get(
   "/formations/:id",
   authMiddleware,
-  learnerMiddleware,
   formationsController.getFormationById
 );
-router.post(
-  "/formations/:id/start",
+router.get(
+  "/formations/:id/content",
   authMiddleware,
-  learnerMiddleware,
-  formationsController.startFormation
-);
-router.post(
-  "/formations/:id/complete",
-  authMiddleware,
-  learnerMiddleware,
-  formationsController.completeFormation
+  formationContentController.getByFormation
 );
 
-// Routes de progression
-router.get(
-  "/progress",
+// Routes des quiz pour apprenants
+router.get("/quiz/:id", authMiddleware, learnerQuizController.getQuizById);
+router.post(
+  "/quiz/:quizId/start",
   authMiddleware,
-  learnerMiddleware,
-  progressController.getMyProgress
-);
-router.get(
-  "/progress/:formationId",
-  authMiddleware,
-  learnerMiddleware,
-  progressController.getFormationProgress
+  learnerQuizController.startQuizAttempt
 );
 router.post(
-  "/progress/:formationId/update",
+  "/quiz/attempt/:attemptId/submit",
   authMiddleware,
-  learnerMiddleware,
-  progressController.updateProgress
+  learnerQuizController.submitQuizAttempt
+);
+router.get(
+  "/quiz/attempts",
+  authMiddleware,
+  learnerQuizController.getUserQuizAttempts
 );
 
-// Routes des quiz
-router.get(
-  "/quiz/:formationId",
-  authMiddleware,
-  learnerMiddleware,
-  quizController.getQuiz
-);
-router.post(
-  "/quiz/:formationId/submit",
-  authMiddleware,
-  learnerMiddleware,
-  quizController.submitQuiz
-);
+// Routes des progressions
+router.get("/progress", authMiddleware, progressController.getUserProgress);
+router.put("/progress/:id", authMiddleware, progressController.updateProgress);
+router.post("/progress/save", authMiddleware, progressController.saveProgress);
+router.get("/progress/get", authMiddleware, progressController.getProgress);
 
 // Routes des notifications
 router.get(
   "/notifications",
   authMiddleware,
-  learnerMiddleware,
-  notificationsController.getMyNotifications
+  notificationsController.getUserNotifications
 );
 router.patch(
   "/notifications/:id/read",
   authMiddleware,
-  learnerMiddleware,
   notificationsController.markAsRead
 );
-
-// Routes du dashboard apprenant
-router.get(
-  "/dashboard",
+router.delete(
+  "/notifications/:id",
   authMiddleware,
-  learnerMiddleware,
-  (req, res) => {
-    res.json({
-      success: true,
-      data: {
-        totalFormations: 6,
-        completedFormations: 2,
-        inProgressFormations: 1,
-        pendingFormations: 3,
-        averageScore: 85,
-        recentActivity: [
-          {
-            id: "1",
-            type: "FORMATION_COMPLETED",
-            title: "Compliance bancaire",
-            date: new Date().toISOString(),
-            score: 90
-          },
-          {
-            id: "2",
-            type: "FORMATION_STARTED",
-            title: "Gestion des risques",
-            date: new Date(Date.now() - 86400000).toISOString()
-          }
-        ]
-      }
-    });
-  }
+  notificationsController.deleteNotification
 );
 
-export default router; 
+export default router;

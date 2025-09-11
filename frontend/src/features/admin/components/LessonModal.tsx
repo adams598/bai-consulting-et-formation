@@ -5,6 +5,8 @@ import { uploadService } from '../../../services/imageUploadService';
 import { getLessonImageUrl } from '../../../utils/imageUtils';
 import '../../../components/LessonModal.css';
 import LessonDuration from './LessonDuration';
+import ConfirmationModal from './ConfirmationModal';
+import { useConfirmation } from '../../../hooks/useConfirmation';
 
 interface LessonModalProps {
   isOpen: boolean;
@@ -45,6 +47,9 @@ const LessonModal: React.FC<LessonModalProps> = ({
   const [existingFiles, setExistingFiles] = useState<any[]>([]);
   const [showReplaceConfirm, setShowReplaceConfirm] = useState(false);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
+  
+  // Hook de confirmation
+  const confirmation = useConfirmation();
 
   useEffect(() => {
     if (existingLesson) {
@@ -156,7 +161,13 @@ const LessonModal: React.FC<LessonModalProps> = ({
     if (file) {
       // Vérifier que le titre de la leçon est saisi avant l'upload
       if (!formData.title || formData.title.trim() === '') {
-        alert('Veuillez d\'abord saisir le titre de la leçon avant d\'ajouter une image de couverture');
+        confirmation.showConfirmation({
+          title: 'Titre requis',
+          message: 'Veuillez d\'abord saisir le titre de la leçon avant d\'ajouter une image de couverture.',
+          confirmText: 'Compris',
+          type: 'warning',
+          onConfirm: () => {}
+        });
         e.target.value = ''; // Réinitialiser l'input
         return;
       }
@@ -195,7 +206,13 @@ const LessonModal: React.FC<LessonModalProps> = ({
     if (file) {
       // Vérifier que le titre de la leçon est saisi avant l'upload
       if (!formData.title || formData.title.trim() === '') {
-        alert('Veuillez d\'abord saisir le titre de la leçon avant d\'ajouter un fichier joint');
+        confirmation.showConfirmation({
+          title: 'Titre requis',
+          message: 'Veuillez d\'abord saisir le titre de la leçon avant d\'ajouter un fichier joint.',
+          confirmText: 'Compris',
+          type: 'warning',
+          onConfirm: () => {}
+        });
         e.target.value = ''; // Réinitialiser l'input
         return;
       }
@@ -234,7 +251,13 @@ const LessonModal: React.FC<LessonModalProps> = ({
       console.log('✅ Fichier joint uploadé:', fileUrl);
     } catch (error) {
       console.error('❌ Erreur upload fichier joint:', error);
-      alert('Erreur lors de l\'upload du fichier joint');
+        confirmation.showConfirmation({
+          title: 'Erreur d\'upload',
+          message: 'Erreur lors de l\'upload du fichier joint. Veuillez réessayer.',
+          confirmText: 'Compris',
+          type: 'danger',
+          onConfirm: () => {}
+        });
     }
   };
 
@@ -259,11 +282,23 @@ const LessonModal: React.FC<LessonModalProps> = ({
         await uploadFile(pendingFile);
         setExistingFiles([]);
       } else {
-        alert('Erreur lors de la suppression des fichiers existants');
+        confirmation.showConfirmation({
+          title: 'Erreur de suppression',
+          message: 'Erreur lors de la suppression des fichiers existants. Veuillez réessayer.',
+          confirmText: 'Compris',
+          type: 'danger',
+          onConfirm: () => {}
+        });
       }
     } catch (error) {
       console.error('❌ Erreur lors du remplacement:', error);
-      alert('Erreur lors du remplacement du fichier');
+      confirmation.showConfirmation({
+        title: 'Erreur de remplacement',
+        message: 'Erreur lors du remplacement du fichier. Veuillez réessayer.',
+        confirmText: 'Compris',
+        type: 'danger',
+        onConfirm: () => {}
+      });
     } finally {
       setShowReplaceConfirm(false);
       setPendingFile(null);
@@ -656,6 +691,19 @@ const LessonModal: React.FC<LessonModalProps> = ({
           </div>
         </div>
       )}
+      
+      {/* Modal de confirmation */}
+      <ConfirmationModal
+        isOpen={confirmation.isOpen}
+        onClose={confirmation.hideConfirmation}
+        onConfirm={confirmation.handleConfirm}
+        title={confirmation.options?.title || ''}
+        message={confirmation.options?.message || ''}
+        confirmText={confirmation.options?.confirmText}
+        cancelText={confirmation.options?.cancelText}
+        type={confirmation.options?.type}
+        isLoading={confirmation.isLoading}
+      />
     </div>
   );
 };

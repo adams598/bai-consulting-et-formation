@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function loadUserFromSession() {
       const token = getSecureToken();
       if (token) {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/learner';
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/learner';
         console.log('API URL used for profile:', apiUrl);
         try {
           const response = await fetch(`${apiUrl}/profile`, {
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const requestPasswordReset = async (email: string) => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/learner';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/learner';
     const response = await fetch(`${apiUrl}/forgot-password`, {
       method: 'POST',
       headers: {

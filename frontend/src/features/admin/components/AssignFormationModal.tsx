@@ -131,10 +131,10 @@ const AssignFormationModal: React.FC<AssignFormationModalProps> = ({
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <div>
               <h2 className="text-xl font-semibold text-gray-900">
-                Assigner des formations à la banque
+                Donner accès à des formations
               </h2>
               <p className="text-sm text-gray-600 mt-1">
-                Sélectionnez les formations que vous souhaitez assigner
+                Sélectionnez les formations que vous souhaitez rendre accessibles à la banque
               </p>
             </div>
             <button

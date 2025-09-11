@@ -81,10 +81,14 @@ export default function LessonPlayer({ formation, lessons, onClose }: LessonPlay
 
   // Fonction pour construire l'URL du fichier de la leçon
   const buildLessonFileUrl = (lesson: FormationContent) => {
-    // console.log('🔍 buildLessonFileUrl - lesson:', lesson);
+    console.log('🔍 buildLessonFileUrl - lesson:', lesson);
+    console.log('🔍 buildLessonFileUrl - formation.title:', formation.title);
+    console.log('🔍 buildLessonFileUrl - lesson.title:', lesson.title);
     
     // Utiliser la fonction importée de imageUtils
-    return getLessonFileUrl(formation.title, lesson.title);
+    const url = getLessonFileUrl(formation.title, lesson.title);
+    console.log('🔍 buildLessonFileUrl - URL générée:', url);
+    return url;
   };
 
   // Fonction pour récupérer l'ID de l'utilisateur connecté
