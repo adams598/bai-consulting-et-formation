@@ -1,4 +1,7 @@
 import { api } from '../config/api';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+
 import {
   Bank,
   User,
@@ -13,7 +16,10 @@ import {
   ApiResponse,
   BankFormation,
   UserFormationAssignment,
-  Universe
+  Universe,
+  RecentActivity,
+  Alert,
+  FormationPerformance
 } from '../features/admin/types';
 
 // ===== BANKS API =====
@@ -48,6 +54,8 @@ export const banksApi = {
 // ===== FORMATIONS API =====
 export const formationsApi = {
   getAllFormations: () => api.get<ApiResponse<Formation[]>>('/api/admin/formations'),
+  // Route spéciale pour les COLLABORATOR - récupère leurs formations assignées
+  getMyAssignedFormations: () => api.get<ApiResponse<any[]>>('/api/admin/formations/my-assignments'),
   getFormationById: (id: string) => api.get<ApiResponse<Formation>>(`/api/admin/formations/${id}`),
   createFormation: (data: Partial<Formation>) => api.post<ApiResponse<Formation>>('/api/admin/formations', data),
   updateFormation: (id: string, data: Partial<Formation>) => api.put<ApiResponse<Formation>>(`/api/admin/formations/${id}`, data),
@@ -96,7 +104,7 @@ export const formationContentApi = {
 
   // Réorganiser l'ordre des leçons
   async reorderLessons(formationId: string, lessonOrders: { id: string; order: number }[]) {
-    const response = await api.put(`/api/admin/formations/${formationId}/lessons/reorder`, { lessonOrders });
+    const response = await api.put(`/api/admin/formations/${formationId}/reorder`, { content: lessonOrders });
     return response.data;
   },
 
@@ -300,6 +308,15 @@ export const bankFormationApi = {
     return response.data;
   },
 
+  // Récupérer les statistiques de toutes les formations en une seule requête
+  getAllFormationsStats: async (): Promise<ApiResponse<Record<string, {
+    bankCount: number;
+    userCount: number;
+  }>>> => {
+    const response = await api.get(`/api/admin/formations/stats/all`);
+    return response.data;
+  },
+
   // Mettre à jour le statut obligatoire d'une formation pour une banque
   updateFormationMandatory: async (id: string, data: { isMandatory: boolean }): Promise<ApiResponse<BankFormation>> => {
     const response = await api.patch(`/api/admin/bank-formations/${id}/mandatory`, data);
@@ -324,6 +341,12 @@ export const userFormationAssignmentApi = {
   // Assigner des utilisateurs par groupe
   assignUsersByGroup: async (bankFormationId: string, data: { groupType: string; groupValue: string; isMandatory?: boolean; dueDate?: string }): Promise<ApiResponse<UserFormationAssignment[]>> => {
     const response = await api.post(`/api/admin/bank-formations/${bankFormationId}/users/group`, data);
+    return response.data;
+  },
+
+  // Assigner plusieurs formations à des utilisateurs (assignation en lot)
+  bulkAssignFormationsToUsers: async (data: { formationIds: string[]; userIds: string[]; bankId: string; isMandatory?: boolean; dueDate?: string }): Promise<ApiResponse<UserFormationAssignment[]>> => {
+    const response = await api.post('/api/admin/assignments/bulk-formations', data);
     return response.data;
   },
 
@@ -378,5 +401,24 @@ export const universesApi = {
 export const opportunitiesApi = {
   // Récupérer tous les fichiers PDF de présentation des formations
   getPresentationFiles: () => 
-    api.get<ApiResponse<any[]>>('/api/admin/opportunities/presentation-files')
+    api.get<ApiResponse<any[]>>('/api/admin/opportunities/files'),
+  
+  // Upload d'un nouveau fichier PDF
+  uploadPresentationFile: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/api/admin/opportunities/files', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+  },
+  
+  // Supprimer un fichier PDF
+  deletePresentationFile: (fileName: string) => 
+    api.delete(`/api/admin/opportunities/files/${fileName}`),
+  
+  // Obtenir l'URL d'un fichier PDF
+  getPresentationFileUrl: (fileName: string) => 
+    `${API_BASE_URL}/api/admin/opportunities/files/${fileName}`,
 }; 

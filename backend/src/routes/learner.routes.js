@@ -3,12 +3,14 @@ import { authMiddleware } from "../middleware/auth.middleware.js";
 import { learnerMiddleware } from "../middleware/learner.middleware.js";
 import {
   authController,
-  formationsController,
   formationContentController,
 } from "../controllers/admin.controllers.js";
-import { progressController } from "../controllers/progress.controller.js";
+import { 
+  formationsController,
+  progressController,
+  notificationsController 
+} from "../controllers/learner.controllers.js";
 import { quizController as learnerQuizController } from "../controllers/quiz.controller.js";
-import { notificationsController } from "../controllers/notifications.controller.js";
 
 const router = express.Router();
 
@@ -33,11 +35,7 @@ router.put("/profile", authMiddleware, authController.updateProfile);
 router.put("/profile/password", authMiddleware, authController.changePassword);
 
 // Routes des formations
-router.get(
-  "/formations",
-  authMiddleware,
-  formationsController.getAllFormations
-);
+router.get("/formations", authMiddleware, formationsController.getMyFormations);
 router.get(
   "/formations/:id",
   authMiddleware,
@@ -47,6 +45,11 @@ router.get(
   "/formations/:id/content",
   authMiddleware,
   formationContentController.getByFormation
+);
+router.post(
+  "/formations/schedule",
+  authMiddleware,
+  formationsController.scheduleFormation
 );
 
 // Routes des quiz pour apprenants
@@ -68,26 +71,46 @@ router.get(
 );
 
 // Routes des progressions
-router.get("/progress", authMiddleware, progressController.getUserProgress);
+router.get("/progress", authMiddleware, progressController.getMyProgress);
+router.get("/progress/stats", authMiddleware, progressController.getStats);
 router.put("/progress/:id", authMiddleware, progressController.updateProgress);
 router.post("/progress/save", authMiddleware, progressController.saveProgress);
 router.get("/progress/get", authMiddleware, progressController.getProgress);
 
 // Routes des notifications
-router.get(
-  "/notifications",
-  authMiddleware,
-  notificationsController.getUserNotifications
-);
-router.patch(
-  "/notifications/:id/read",
-  authMiddleware,
-  notificationsController.markAsRead
-);
-router.delete(
-  "/notifications/:id",
-  authMiddleware,
-  notificationsController.deleteNotification
-);
+router.get("/notifications", authMiddleware, notificationsController.getMyNotifications);
+router.get("/notifications/unread-count", authMiddleware, notificationsController.getUnreadCount);
+router.patch("/notifications/:id/read", authMiddleware, notificationsController.markAsRead);
+router.delete("/notifications/:id", authMiddleware, notificationsController.deleteNotification);
+
+// Routes de suivi de contenu
+router.post("/content/visit", authMiddleware, (req, res) => {
+  // Endpoint temporaire qui retourne un succès
+  res.json({
+    success: true,
+    data: {
+      id: "temp",
+      ...req.body,
+      userId: req.user.userId,
+      visitedAt: new Date(),
+    },
+  });
+});
+
+router.get("/content/visits", authMiddleware, (req, res) => {
+  // Endpoint temporaire qui retourne des données vides
+  res.json({
+    success: true,
+    data: [],
+  });
+});
+
+// Route temporaire pour les certificats
+router.get("/certificates", authMiddleware, (req, res) => {
+  res.json({
+    success: true,
+    data: [],
+  });
+});
 
 export default router;

@@ -150,3 +150,10 @@ const QuizResult: React.FC<QuizResultProps> = ({
 };
 
 export default QuizResult;
+
+
+
+
+
+
+

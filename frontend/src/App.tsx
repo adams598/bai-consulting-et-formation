@@ -16,10 +16,12 @@ import AdminDashboardPage from './app/admin/dashboard/page';
 import AdminBanksPage from './app/admin/banks/page';
 import AdminUsersPage from './app/admin/users/page';
 import AdminFormationsPage from './features/admin/components/AdminFormationsPage';
+import AdminOpportunitiesPage from './features/admin/components/AdminOpportunitiesPage';
 import AdminStatsPage from './app/admin/stats/page';
 import AdminSettingsPage from './app/admin/settings/page';
 import BankDetailPage from './features/admin/components/BankDetailPage';
-import { AdminLayoutWrapper } from './app/admin/layout';
+import { UnifiedLayoutWrapper } from './app/admin/layout/UnifiedLayoutWrapper';
+import { IntranetGuard } from './components/guards/IntranetGuard';
 
 const slides = [
   {
@@ -145,12 +147,15 @@ const BanquePage = lazy(() => import('./app/banque/page'));
 const AssurancePage = lazy(() => import('./app/assurance/page'));
 const ImmobilierPage = lazy(() => import('./app/immobilier/page'));
 const SolutionsPage = lazy(() => import('./app/solutions/page'));
-// Pages de formation (à implémenter plus tard)
-// const CoursesPage = lazy(() => import('./features/learner/pages/CoursesPage'));
-// const CourseDetailPage = lazy(() => import('./features/learner/pages/CourseDetailPage'));
-// const CertificatesPage = lazy(() => import('./features/learner/pages/CertificatesPage'));
-// const SettingsPage = lazy(() => import('./features/learner/pages/SettingsPage'));
-// const ProgressionPage = lazy(() => import('./features/learner/pages/ProgressionPage'));
+// Pages de formation pour apprenants
+const CoursesPage = lazy(() => import('./features/learner/pages/CoursesPage'));
+const CourseDetailPage = lazy(() => import('./features/learner/pages/CourseDetailPage'));
+const CertificatesPage = lazy(() => import('./features/learner/pages/CertificatesPage'));
+const SettingsPage = lazy(() => import('./features/learner/pages/SettingsPage'));
+const ProgressionPage = lazy(() => import('./features/learner/pages/ProgressionPage'));
+const OpportunitiesPage = lazy(() => import('./features/learner/pages/OpportunitiesPage'));
+const CalendarPage = lazy(() => import('./features/learner/pages/CalendarPage'));
+
 
 // Fonction utilitaire pour précharger une image
 function preloadImage(src: string): Promise<void> {
@@ -221,28 +226,76 @@ function App() {
         <Routes>
             {/* Routes Admin */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
-            <Route path="/admin" element={<AdminLayoutWrapper />}>
+            <Route path="/admin" element={
+              <IntranetGuard allowedRoles={['SUPER_ADMIN', 'BANK_ADMIN', 'COLLABORATOR']}>
+                <UnifiedLayoutWrapper />
+              </IntranetGuard>
+            }>
               <Route index element={<AdminDashboardPage />} />
               <Route path="dashboard" element={<AdminDashboardPage />} />
+              <Route path="opportunities" element={<AdminOpportunitiesPage />} />
               <Route path="formations" element={<AdminFormationsPage />} />
               <Route path="users" element={<AdminUsersPage />} />
               <Route path="banks" element={<AdminBanksPage />} />
               <Route path="banks/:bankId" element={<BankDetailPage />} />
               <Route path="stats" element={<AdminStatsPage />} />
               <Route path="settings" element={<AdminSettingsPage />} />
+              {/* Routes spécifiques aux apprenants */}
+              <Route path="progress" element={<div>Page de progression des apprenants</div>} />
+              <Route path="certificates" element={<div>Page des certificats des apprenants</div>} />
+              <Route path="calendar" element={<CalendarPage />} />
             </Route>
+          
+          {/* Route de connexion unifiée */}
+          <Route path="/login" element={<LoginPage />} />
           
           {/* Routes Apprenant */}
           <Route path="/apprenant/connexion" element={<LoginPage />} />
-          <Route path="/apprenant/dashboard" element={<DashboardPage />} />
-          <Route path="/apprenant" element={<DashboardPage />} />
-          {/* Routes de formation temporairement désactivées
-          <Route path="/apprenant/courses" element={<CoursesPage />} />
-          <Route path="/apprenant/courses/:id" element={<CourseDetailPage />} />
-          <Route path="/apprenant/certificates" element={<CertificatesPage />} />
-          <Route path="/apprenant/parametres" element={<SettingsPage />} />
-          <Route path="/apprenant/progression" element={<ProgressionPage />} />
-          */}
+          <Route path="/apprenant/dashboard" element={
+            <IntranetGuard allowedRoles={['COLLABORATOR']}>
+              <DashboardPage />
+            </IntranetGuard>
+          } />
+          <Route path="/apprenant" element={
+            <IntranetGuard allowedRoles={['COLLABORATOR']}>
+              <DashboardPage />
+            </IntranetGuard>
+          } />
+          <Route path="/apprenant/courses" element={
+            <IntranetGuard allowedRoles={['COLLABORATOR']}>
+              <CoursesPage />
+            </IntranetGuard>
+          } />
+          <Route path="/apprenant/courses/:id" element={
+            <IntranetGuard allowedRoles={['COLLABORATOR']}>
+              <CourseDetailPage />
+            </IntranetGuard>
+          } />
+          <Route path="/apprenant/certificates" element={
+            <IntranetGuard allowedRoles={['COLLABORATOR']}>
+              <CertificatesPage />
+            </IntranetGuard>
+          } />
+          <Route path="/apprenant/parametres" element={
+            <IntranetGuard allowedRoles={['COLLABORATOR']}>
+              <SettingsPage />
+            </IntranetGuard>
+          } />
+          <Route path="/apprenant/progression" element={
+            <IntranetGuard allowedRoles={['COLLABORATOR']}>
+              <ProgressionPage />
+            </IntranetGuard>
+          } />
+          <Route path="/apprenant/opportunities" element={
+            <IntranetGuard allowedRoles={['COLLABORATOR']}>
+              <OpportunitiesPage />
+            </IntranetGuard>
+          } />
+          <Route path="/apprenant/agenda" element={
+            <IntranetGuard allowedRoles={['COLLABORATOR']}>
+              <CalendarPage />
+            </IntranetGuard>
+          } />
           
           {/* Routes Publiques */}
           <Route path="/" element={<HomePage />} />

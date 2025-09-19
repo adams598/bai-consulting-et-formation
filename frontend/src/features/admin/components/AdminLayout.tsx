@@ -71,7 +71,7 @@ const menuItems: MenuItem[] = [
     id: 'banks'
   },
   {
-    label: 'Tableau de bord',
+    label: '',
     icon: <LayoutDashboard className="w-5 h-5" />,
     id: 'dashboard'
   },
@@ -90,7 +90,7 @@ const menuItems: MenuItem[] = [
 const AdminLayoutContent: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<UserType | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeView, setActiveView] = useState('opportunities');
+  const [activeView, setActiveView] = useState('dashboard');
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
@@ -153,7 +153,7 @@ const AdminLayoutContent: React.FC = () => {
     if (path.includes('/admin/banks/') && params.bankId) {
       newView = 'banks';
     } else if (path === '/admin' || path === '/admin/') {
-      newView = 'opportunities';
+      newView = 'dashboard';
     } else if (path.includes('/admin/opportunities')) {
       newView = 'opportunities';
     } else if (path.includes('/admin/dashboard')) {
@@ -555,7 +555,7 @@ const AdminLayoutContent: React.FC = () => {
               <div>
                 <h1 className="admin-title-lg admin-title-spacing">{getActiveViewTitle()}</h1>
                 <p className="admin-text-lg admin-body-spacing">
-                  {activeView === 'opportunities' && 'Gérez les fichiers PDF de présentation des formations'}
+                  {activeView === 'opportunities' && ''}
                   {activeView === 'dashboard' && 'Vue d\'ensemble de votre plateforme de formation'}
                   {activeView === 'formations' && 'Gérez les formations de votre plateforme'}
                   {activeView === 'users' && 'Gérez les collaborateurs de votre plateforme'}

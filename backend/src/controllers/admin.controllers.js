@@ -6,9 +6,9 @@ import { sendEmail } from "../services/email.service.js";
 
 const prisma = new PrismaClient();
 
-// Contrôleur d'authentification
+// Contrôleur d'authentification unifié (Admin + Apprenant)
 export const authController = {
-  // Connexion
+  // Connexion unifiée pour tous les rôles (SUPER_ADMIN, BANK_ADMIN, COLLABORATOR)
   async login(req, res) {
     try {
       const { email, password } = req.body;
@@ -61,16 +61,20 @@ export const authController = {
       }
 
       // Mettre à jour la dernière connexion
+      const loginTime = new Date();
       await prisma.user.update({
         where: { id: user.id },
-        data: { lastLogin: new Date() },
+        data: {
+          lastLogin: loginTime,
+          lastLoginAt: loginTime,
+        },
       });
 
-      // Générer les tokens
+      // Générer les tokens - durée plus longue pour éviter l'expiration pendant l'utilisation
       const accessToken = jwt.sign(
         { userId: user.id, role: user.role },
         process.env.JWT_SECRET,
-        { expiresIn: "1h" }
+        { expiresIn: "24h" } // 24h au lieu de 1h - la session backend gère l'inactivité
       );
 
       const refreshToken = jwt.sign(
@@ -78,6 +82,22 @@ export const authController = {
         process.env.JWT_REFRESH_SECRET,
         { expiresIn: "7d" }
       );
+
+      // Créer une session utilisateur avec timeout d'inactivité de 10 minutes
+      const now = new Date();
+      const sessionExpiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes d'inactivité
+
+      await prisma.userSession.create({
+        data: {
+          userId: user.id,
+          token: accessToken,
+          refreshToken: refreshToken,
+          expiresAt: sessionExpiresAt,
+          lastActivity: now,
+          userAgent: req.headers["user-agent"] || "Unknown",
+          ipAddress: req.ip || req.connection.remoteAddress || "Unknown",
+        },
+      });
 
       // Retourner la réponse
       res.json({
@@ -111,7 +131,17 @@ export const authController = {
   // Déconnexion
   async logout(req, res) {
     try {
-      // TODO: Invalider le token côté serveur si nécessaire
+      const token = req.token;
+
+      if (token) {
+        // Supprimer la session utilisateur
+        await prisma.userSession.deleteMany({
+          where: {
+            token: token,
+          },
+        });
+      }
+
       res.json({ success: true, message: "Déconnexion réussie" });
     } catch (error) {
       console.error("Erreur de déconnexion:", error);
@@ -691,37 +721,293 @@ export const banksController = {
 };
 
 export const formationsController = {
-  async getAllFormations(req, res) {
+  // Récupérer les statistiques de toutes les formations en une seule requête
+  async getAllFormationsStats(req, res) {
     try {
-      const formations = await prisma.formation.findMany({
-        where: { isActive: true },
-        orderBy: { title: "asc" },
-        include: {
-          creator: {
+      console.log("📊 Récupération des statistiques de toutes les formations");
+
+      // Récupérer toutes les formations avec leurs statistiques
+      const formationsWithStats = await prisma.formation.findMany({
+        select: {
+          id: true,
+          title: true,
+          _count: {
             select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-            },
-          },
-          content: {
-            where: { contentType: "LESSON" },
-            orderBy: { order: "asc" },
-          },
-          quiz: {
-            include: {
-              questions: {
-                include: {
-                  answers: true,
-                },
-              },
+              bankFormations: true,
             },
           },
         },
       });
 
-      // Calculer la durée totale et le nombre de leçons pour chaque formation
+      // Récupérer les statistiques d'utilisateurs séparément
+      const userStats = await prisma.userFormationAssignment.groupBy({
+        by: ["bankFormationId"],
+        _count: {
+          userId: true,
+        },
+      });
+
+      // Créer un mapping bankFormationId -> userCount
+      const bankFormationUserCounts = {};
+      userStats.forEach((stat) => {
+        bankFormationUserCounts[stat.bankFormationId] = stat._count.userId;
+      });
+
+      // Récupérer les bankFormations pour mapper formationId -> userCount
+      const bankFormations = await prisma.bankFormation.findMany({
+        select: {
+          id: true,
+          formationId: true,
+        },
+      });
+
+      // Créer un mapping formationId -> total userCount
+      const formationUserCounts = {};
+      bankFormations.forEach((bf) => {
+        if (!formationUserCounts[bf.formationId]) {
+          formationUserCounts[bf.formationId] = 0;
+        }
+        formationUserCounts[bf.formationId] +=
+          bankFormationUserCounts[bf.id] || 0;
+      });
+
+      // Transformer les données pour correspondre au format attendu
+      const stats = {};
+      formationsWithStats.forEach((formation) => {
+        stats[formation.id] = {
+          bankCount: formation._count.bankFormations,
+          userCount: formationUserCounts[formation.id] || 0,
+        };
+      });
+
+      console.log(
+        `📊 Statistiques récupérées pour ${
+          Object.keys(stats).length
+        } formations`
+      );
+
+      res.json({
+        success: true,
+        data: stats,
+      });
+    } catch (error) {
+      console.error("Erreur getAllFormationsStats:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Obtenir toutes les formations (sans pagination) pour le frontend
+  async getAllFormationsSimple(req, res) {
+    try {
+      const { search = "", isActive = true } = req.query;
+
+      // Construction des filtres
+      const whereClause = {
+        isActive: isActive === "true" || isActive === true,
+        ...(search && {
+          OR: [
+            { title: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+          ],
+        }),
+      };
+
+      // Vérifier le cache
+      const cacheService = (await import("../services/cache.service.js"))
+        .default;
+      const cacheKey = `formations-simple:${JSON.stringify({
+        search,
+        isActive,
+      })}`;
+      const cachedData = await cacheService.get(cacheKey);
+
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          fromCache: true,
+        });
+      }
+
+      // Requête optimisée sans pagination
+      const formations = await prisma.formation.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          duration: true,
+          isActive: true,
+          hasQuiz: true,
+          quizRequired: true,
+          coverImage: true,
+          code: true,
+          pedagogicalModality: true,
+          organization: true,
+          prerequisites: true,
+          objectives: true,
+          detailedProgram: true,
+          targetAudience: true,
+          createdAt: true,
+          updatedAt: true,
+          content: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              type: true,
+              contentType: true,
+              sectionId: true,
+              order: true,
+              duration: true,
+              fileUrl: true,
+              fileSize: true,
+              coverImage: true,
+              metadata: true,
+            },
+            orderBy: { order: "asc" },
+          },
+          quiz: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              passingScore: true,
+              timeLimit: true,
+              isActive: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      // Mettre en cache pour 5 minutes
+      await cacheService.set(cacheKey, formations, 300);
+
+      res.json({
+        success: true,
+        data: formations,
+        fromCache: false,
+      });
+    } catch (error) {
+      console.error("Erreur getAllFormationsSimple:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+        error:
+          process.env.NODE_ENV === "development"
+            ? error.message
+            : "Erreur interne du serveur",
+      });
+    }
+  },
+
+  async getAllFormations(req, res) {
+    try {
+      // Paramètres de pagination et filtres
+      const {
+        page = 1,
+        limit = 20,
+        search = "",
+        universeId = null,
+        isActive = true,
+      } = req.query;
+
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+
+      // Construction des filtres
+      const whereClause = {
+        isActive: isActive === "true" || isActive === true,
+        ...(universeId && { universeId }),
+        ...(search && {
+          OR: [
+            { title: { contains: search, mode: "insensitive" } },
+            { description: { contains: search, mode: "insensitive" } },
+          ],
+        }),
+      };
+
+      // Vérifier le cache
+      const cacheService = (await import("../services/cache.service.js"))
+        .default;
+      const cachedData = await cacheService.getCachedFormations({
+        page,
+        limit,
+        search,
+        universeId,
+        isActive,
+      });
+
+      if (cachedData) {
+        return res.json({
+          success: true,
+          data: cachedData,
+          fromCache: true,
+        });
+      }
+
+      // Requête optimisée avec pagination
+      const [formations, totalCount] = await Promise.all([
+        prisma.formation.findMany({
+          where: whereClause,
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            duration: true,
+            isActive: true,
+            hasQuiz: true,
+            quizRequired: true,
+            coverImage: true,
+            code: true,
+            pedagogicalModality: true,
+            organization: true,
+            prerequisites: true,
+            objectives: true,
+            detailedProgram: true,
+            targetAudience: true,
+            createdBy: true,
+            createdAt: true,
+            updatedAt: true,
+            universeId: true,
+            creator: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+            content: {
+              where: { contentType: "LESSON" },
+              select: {
+                id: true,
+                duration: true,
+                order: true,
+              },
+              orderBy: { order: "asc" },
+            },
+            quiz: {
+              select: {
+                id: true,
+                title: true,
+                passingScore: true,
+                timeLimit: true,
+                isActive: true,
+              },
+            },
+          },
+          orderBy: { updatedAt: "desc" },
+          take: parseInt(limit),
+          skip: offset,
+        }),
+        prisma.formation.count({ where: whereClause }),
+      ]);
+
+      // Calculer les statistiques pour chaque formation
       const formationsWithStats = formations.map((formation) => {
         const totalDuration = formation.content.reduce(
           (sum, lesson) => sum + (lesson.duration || 0),
@@ -733,19 +1019,44 @@ export const formationsController = {
           ...formation,
           totalDuration,
           lessonCount,
-          coverImage: formation.coverImage || null, // Assurer la compatibilité
+          coverImage: formation.coverImage || null,
         };
       });
 
-      res.json({ success: true, data: formationsWithStats });
+      // Données de pagination
+      const paginationData = {
+        formations: formationsWithStats,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: totalCount,
+          pages: Math.ceil(totalCount / parseInt(limit)),
+          hasNext: offset + parseInt(limit) < totalCount,
+          hasPrev: parseInt(page) > 1,
+        },
+      };
+
+      // Mettre en cache pour 5 minutes
+      await cacheService.cacheFormations(
+        { page, limit, search, universeId, isActive },
+        paginationData,
+        300
+      );
+
+      res.json({
+        success: true,
+        data: paginationData,
+        fromCache: false,
+      });
     } catch (error) {
       console.error("Erreur getAllFormations:", error);
-      console.error("Stack trace:", error.stack);
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
         error:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
+          process.env.NODE_ENV === "development"
+            ? error.message
+            : "Erreur interne du serveur",
       });
     }
   },
@@ -836,7 +1147,6 @@ export const formationsController = {
         hasQuiz,
         quizRequired,
         coverImage,
-        universeId,
       } = req.body;
       const userId = req.user.id;
 
@@ -858,7 +1168,6 @@ export const formationsController = {
           quizRequired: quizRequired !== undefined ? quizRequired : true,
           coverImage: coverImage || null,
           createdBy: userId,
-          universeId: universeId || null,
         },
         include: {
           creator: {
@@ -871,6 +1180,11 @@ export const formationsController = {
           },
         },
       });
+
+      // Invalider le cache des formations
+      const cacheService = (await import("../services/cache.service.js"))
+        .default;
+      await cacheService.invalidate("formations-simple:*");
 
       res.status(201).json({ success: true, data: formation });
     } catch (error) {
@@ -892,7 +1206,6 @@ export const formationsController = {
         hasQuiz,
         quizRequired,
         coverImage,
-        universeId,
       } = req.body;
 
       // Validation
@@ -932,10 +1245,6 @@ export const formationsController = {
             coverImage !== undefined
               ? coverImage
               : existingFormation.coverImage,
-          universeId:
-            universeId !== undefined
-              ? universeId
-              : existingFormation.universeId,
         },
         include: {
           creator: {
@@ -948,6 +1257,11 @@ export const formationsController = {
           },
         },
       });
+
+      // Invalider le cache des formations
+      const cacheService = (await import("../services/cache.service.js"))
+        .default;
+      await cacheService.invalidate("formations-simple:*");
 
       res.json({ success: true, data: formation });
     } catch (error) {
@@ -1001,6 +1315,11 @@ export const formationsController = {
         where: { id },
       });
 
+      // Invalider le cache des formations
+      const cacheService = (await import("../services/cache.service.js"))
+        .default;
+      await cacheService.invalidate("formations-simple:*");
+
       res.json({
         success: true,
         message: "Formation supprimée avec succès",
@@ -1037,6 +1356,11 @@ export const formationsController = {
           isActive: !formation.isActive,
         },
       });
+
+      // Invalider le cache des formations
+      const cacheService = (await import("../services/cache.service.js"))
+        .default;
+      await cacheService.invalidate("formations-simple:*");
 
       res.json({
         success: true,
@@ -3196,6 +3520,113 @@ export const userFormationAssignmentController = {
     }
   },
 
+  // Assigner plusieurs formations à des utilisateurs (assignation en lot)
+  async bulkAssignFormationsToUsers(req, res) {
+    try {
+      const { formationIds, userIds, bankId, isMandatory, dueDate } = req.body;
+      const { userId } = req.user; // ID de l'admin qui fait l'assignation
+
+      // Validation
+      if (
+        !formationIds ||
+        !userIds ||
+        !bankId ||
+        !Array.isArray(formationIds) ||
+        !Array.isArray(userIds)
+      ) {
+        return res.status(400).json({
+          success: false,
+          message:
+            "IDs de formations, IDs d'utilisateurs et ID de banque requis",
+        });
+      }
+
+      const assignments = [];
+
+      // Pour chaque formation
+      for (const formationId of formationIds) {
+        // Vérifier que la formation existe et est assignée à la banque
+        const bankFormation = await prisma.bankFormation.findFirst({
+          where: {
+            bankId,
+            formationId,
+          },
+        });
+
+        if (!bankFormation) {
+          // Créer l'assignation formation-banque si elle n'existe pas
+          const newBankFormation = await prisma.bankFormation.create({
+            data: {
+              bankId,
+              formationId,
+              isMandatory: isMandatory || false,
+              assignedBy: userId,
+            },
+          });
+          bankFormation = newBankFormation;
+        }
+
+        // Pour chaque utilisateur
+        for (const targetUserId of userIds) {
+          // Vérifier si l'assignation existe déjà
+          const existingAssignment =
+            await prisma.userFormationAssignment.findFirst({
+              where: {
+                bankFormationId: bankFormation.id,
+                userId: targetUserId,
+              },
+            });
+
+          if (!existingAssignment) {
+            const assignment = await prisma.userFormationAssignment.create({
+              data: {
+                bankFormationId: bankFormation.id,
+                userId: targetUserId,
+                isMandatory: isMandatory || false,
+                dueDate: dueDate ? new Date(dueDate) : null,
+                assignedBy: userId,
+              },
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    department: true,
+                  },
+                },
+                bankFormation: {
+                  include: {
+                    formation: {
+                      select: {
+                        id: true,
+                        title: true,
+                      },
+                    },
+                  },
+                },
+              },
+            });
+            assignments.push(assignment);
+          }
+        }
+      }
+
+      res.status(201).json({
+        success: true,
+        data: assignments,
+        message: `${assignments.length} assignation(s) créée(s) avec succès`,
+      });
+    } catch (error) {
+      console.error("Erreur bulkAssignFormationsToUsers:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
   // Mettre à jour le statut obligatoire d'un utilisateur pour une formation
   async updateUserFormationMandatory(req, res) {
     try {
@@ -3364,46 +3795,36 @@ async function updateFormationDuration(formationId) {
   }
 }
 
-// Contrôleurs pour les univers
+// Contrôleur pour les univers
 export const universeController = {
   // Récupérer tous les univers
   async getAllUniverses(req, res) {
     try {
       const universes = await prisma.universe.findMany({
-        where: { isActive: true },
-        orderBy: { createdAt: "asc" },
+        include: {
+          formations: {
+            include: {
+              formation: true,
+            },
+            orderBy: {
+              order: "asc",
+            },
+          },
+        },
+        orderBy: {
+          name: "asc",
+        },
       });
 
-      // Ajouter le nombre de formations pour chaque univers
-      const universesWithCounts = await Promise.all(
-        universes.map(async (universe) => {
-          let formationCount = 0;
-
-          if (universe.id === "fsu") {
-            // Pour FSU, compter les formations sans univers
-            formationCount = await prisma.formation.count({
-              where: { universeId: null },
-            });
-          } else {
-            // Pour les autres univers, compter les formations dans l'univers
-            formationCount = await prisma.formation.count({
-              where: { universeId: universe.id },
-            });
-          }
-
-          return {
-            ...universe,
-            formationCount,
-          };
-        })
-      );
-
-      res.json({ success: true, data: universesWithCounts });
+      res.json({
+        success: true,
+        data: universes,
+      });
     } catch (error) {
       console.error("Erreur getAllUniverses:", error);
       res.status(500).json({
         success: false,
-        message: "Erreur interne du serveur",
+        message: "Erreur lors de la récupération des univers",
       });
     }
   },
@@ -3424,18 +3845,21 @@ export const universeController = {
         data: {
           name,
           description,
-          color: color || "#3B82F6",
-          icon: icon || "folder",
-          isActive: true,
+          color,
+          icon,
         },
       });
 
-      res.json({ success: true, data: universe });
+      res.status(201).json({
+        success: true,
+        data: universe,
+        message: "Univers créé avec succès",
+      });
     } catch (error) {
       console.error("Erreur createUniverse:", error);
       res.status(500).json({
         success: false,
-        message: "Erreur interne du serveur",
+        message: "Erreur lors de la création de l'univers",
       });
     }
   },
@@ -3444,7 +3868,7 @@ export const universeController = {
   async updateUniverse(req, res) {
     try {
       const { id } = req.params;
-      const { name, description, color, icon, isActive } = req.body;
+      const { name, description, color, icon } = req.body;
 
       const universe = await prisma.universe.update({
         where: { id },
@@ -3453,16 +3877,19 @@ export const universeController = {
           description,
           color,
           icon,
-          isActive,
         },
       });
 
-      res.json({ success: true, data: universe });
+      res.json({
+        success: true,
+        data: universe,
+        message: "Univers mis à jour avec succès",
+      });
     } catch (error) {
       console.error("Erreur updateUniverse:", error);
       res.status(500).json({
         success: false,
-        message: "Erreur interne du serveur",
+        message: "Erreur lors de la mise à jour de l'univers",
       });
     }
   },
@@ -3472,29 +3899,19 @@ export const universeController = {
     try {
       const { id } = req.params;
 
-      // Vérifier s'il y a des formations dans cet univers
-      const formationsCount = await prisma.formation.count({
-        where: { universeId: id },
-      });
-
-      if (formationsCount > 0) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Impossible de supprimer un univers contenant des formations",
-        });
-      }
-
       await prisma.universe.delete({
         where: { id },
       });
 
-      res.json({ success: true, message: "Univers supprimé avec succès" });
+      res.json({
+        success: true,
+        message: "Univers supprimé avec succès",
+      });
     } catch (error) {
       console.error("Erreur deleteUniverse:", error);
       res.status(500).json({
         success: false,
-        message: "Erreur interne du serveur",
+        message: "Erreur lors de la suppression de l'univers",
       });
     }
   },
@@ -3503,13 +3920,6 @@ export const universeController = {
   async moveFormationToUniverse(req, res) {
     try {
       const { formationId, universeId } = req.body;
-
-      if (!formationId) {
-        return res.status(400).json({
-          success: false,
-          message: "ID de formation requis",
-        });
-      }
 
       // Vérifier que la formation existe
       const formation = await prisma.formation.findUnique({
@@ -3523,38 +3933,47 @@ export const universeController = {
         });
       }
 
-      // Si universeId est null ou vide, retirer de l'univers (placer dans FSU)
-      if (!universeId) {
-        await prisma.formation.update({
-          where: { id: formationId },
-          data: { universeId: null },
+      // Supprimer les anciennes associations
+      await prisma.universeFormation.deleteMany({
+        where: { formationId },
+      });
+
+      let result;
+
+      if (universeId) {
+        // Créer la nouvelle association avec un univers spécifique
+        result = await prisma.universeFormation.create({
+          data: {
+            universeId,
+            formationId,
+          },
+          include: {
+            universe: true,
+            formation: true,
+          },
         });
       } else {
-        // Vérifier que l'univers existe
-        const universe = await prisma.universe.findUnique({
-          where: { id: universeId },
-        });
-
-        if (!universe) {
-          return res.status(404).json({
-            success: false,
-            message: "Univers non trouvé",
-          });
-        }
-
-        // Déplacer la formation vers l'univers
-        await prisma.formation.update({
-          where: { id: formationId },
-          data: { universeId },
-        });
+        // Si universeId est null, la formation va dans l'univers FSU (pas d'association)
+        result = {
+          formationId,
+          universeId: null,
+          formation: formation,
+          universe: null,
+        };
       }
 
-      res.json({ success: true, message: "Formation déplacée avec succès" });
+      res.json({
+        success: true,
+        data: result,
+        message: universeId
+          ? "Formation déplacée avec succès"
+          : "Formation déplacée vers l'univers FSU",
+      });
     } catch (error) {
       console.error("Erreur moveFormationToUniverse:", error);
       res.status(500).json({
         success: false,
-        message: "Erreur interne du serveur",
+        message: "Erreur lors du déplacement de la formation",
       });
     }
   },
@@ -3562,88 +3981,38 @@ export const universeController = {
   // Récupérer les formations d'un univers
   async getUniverseFormations(req, res) {
     try {
-      const { universeId } = req.params;
+      const { id } = req.params;
 
-      let formations = [];
-
-      if (universeId === "fsu") {
-        // Pour FSU, récupérer les formations sans univers
-        formations = await prisma.formation.findMany({
-          where: { universeId: null },
-          include: {
-            creator: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
+      const universe = await prisma.universe.findUnique({
+        where: { id },
+        include: {
+          formations: {
+            include: {
+              formation: true,
             },
-            _count: {
-              select: {
-                content: {
-                  where: { contentType: "LESSON" },
-                },
-              },
+            orderBy: {
+              order: "asc",
             },
           },
-          orderBy: { createdAt: "desc" },
-        });
-      } else {
-        // Pour les autres univers, récupérer les formations de l'univers
-        formations = await prisma.formation.findMany({
-          where: { universeId },
-          include: {
-            creator: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
-              },
-            },
-            _count: {
-              select: {
-                content: {
-                  where: { contentType: "LESSON" },
-                },
-              },
-            },
-          },
-          orderBy: { createdAt: "desc" },
+        },
+      });
+
+      if (!universe) {
+        return res.status(404).json({
+          success: false,
+          message: "Univers non trouvé",
         });
       }
 
-      // Ajouter les statistiques pour chaque formation
-      const formationsWithStats = await Promise.all(
-        formations.map(async (formation) => {
-          const bankCount = await prisma.bankFormation.count({
-            where: { formationId: formation.id },
-          });
-
-          const userCount = await prisma.userFormationAssignment.count({
-            where: {
-              bankFormation: {
-                formationId: formation.id,
-              },
-            },
-          });
-
-          return {
-            ...formation,
-            lessonCount: formation._count.content,
-            bankCount,
-            userCount,
-          };
-        })
-      );
-
-      res.json({ success: true, data: formationsWithStats });
+      res.json({
+        success: true,
+        data: universe,
+      });
     } catch (error) {
       console.error("Erreur getUniverseFormations:", error);
       res.status(500).json({
         success: false,
-        message: "Erreur interne du serveur",
+        message: "Erreur lors de la récupération des formations de l'univers",
       });
     }
   },

@@ -74,3 +74,5 @@ export const getFormationPrerequisites = (formation: any): string => {
 };
 
 
+
+

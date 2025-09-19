@@ -3,7 +3,9 @@
 import { createContext, useContext, useEffect, useState } from "react";
 // import type { User } from "@prisma/client"; // Retirer l'importation de Prisma
 import { useNavigate } from 'react-router-dom';
-import { login as authLoginApi } from '../api/authApi'; // Importez le login depuis authApi
+// Import unifié pour l'authentification
+import { currentEnv } from '../config/environments';
+import { useToast } from '../components/ui/use-toast';
 
 // Définir le type User pour le frontend, en accord avec le backend
 interface User {
@@ -11,10 +13,11 @@ interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: "ADMIN" | "LEARNER"; 
+  role: "SUPER_ADMIN" | "BANK_ADMIN" | "COLLABORATOR"; 
   avatar?: string;
-  company?: string;
-  position?: string;
+  department?: string;
+  phone?: string;
+  bankId?: string;
 }
 
 interface AuthContextType {
@@ -28,71 +31,68 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Fonction pour stocker le token de manière sécurisée
+// Fonction pour stocker le token de manière sécurisée (unifié admin/apprenant)
 const setSecureToken = (token: string) => {
-  // En production, utiliser des cookies httpOnly
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    // Essayer d'utiliser des cookies sécurisés
-    document.cookie = `auth_token=${token}; path=/; secure; samesite=strict; max-age=${7 * 24 * 60 * 60}`;
-  } else {
-    // Fallback vers localStorage avec préfixe sécurisé
-    localStorage.setItem('bai_auth_token', token);
-  }
+  // Utiliser le même système que l'admin
+  localStorage.setItem('bai_auth_token', token);
+  localStorage.setItem('accessToken', token); // Fallback pour compatibilité
+  localStorage.setItem('auth_token', token); // Fallback pour compatibilité
+  sessionStorage.setItem('auth_token', token);
 };
 
 const getSecureToken = (): string | null => {
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    // Récupérer depuis les cookies
-    const cookies = document.cookie.split(';');
-    const tokenCookie = cookies.find(cookie => cookie.trim().startsWith('auth_token='));
-    if (tokenCookie) {
-      return tokenCookie.split('=')[1];
-    }
-  }
-  return localStorage.getItem('bai_auth_token');
+  return localStorage.getItem('bai_auth_token') || 
+         localStorage.getItem('accessToken') || 
+         localStorage.getItem('auth_token') || 
+         sessionStorage.getItem('auth_token');
 };
 
 const removeSecureToken = () => {
-  if (typeof window !== 'undefined' && window.location.protocol === 'https:') {
-    document.cookie = 'auth_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-  }
   localStorage.removeItem('bai_auth_token');
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('auth_token');
+  sessionStorage.removeItem('auth_token');
   localStorage.removeItem('user');
+  localStorage.removeItem('currentUser');
 };
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     async function loadUserFromSession() {
       const token = getSecureToken();
       if (token) {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/learner';
-        console.log('API URL used for profile:', apiUrl);
         try {
-          const response = await fetch(`${apiUrl}/profile`, {
+          // Utiliser l'API admin unifiée pour tous les utilisateurs
+          const response = await fetch(`${currentEnv.apiUrl}/api/admin/auth/me`, {
+            method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
             },
           });
 
           if (response.ok) {
             const data = await response.json();
-            setUser(data);
-          } else {
-            let errorMessage = 'Échec de la récupération de profil.';
-            try {
-              const errorData = await response.json();
-              errorMessage = errorData.message || errorMessage;
-            } catch (jsonError) {
-              const textError = await response.text();
-              errorMessage = textError || errorMessage;
-              console.warn("La réponse d'erreur n'est pas JSON:", textError);
+            if (data.success && data.data) {
+              setUser(data.data);
+              localStorage.setItem('user', JSON.stringify(data.data));
+              localStorage.setItem('currentUser', JSON.stringify(data.data));
             }
-            console.error("Erreur de récupération de profil:", errorMessage);
-            removeSecureToken(); 
+          } else {
+            // Token invalide ou expiré
+            console.warn('Token invalide ou expiré, redirection vers la connexion');
+            removeSecureToken();
+            
+            // Si on est sur une page protégée, rediriger vers login
+            const currentPath = window.location.pathname;
+            if (currentPath.startsWith('/admin') || currentPath.startsWith('/apprenant')) {
+              window.location.href = '/login';
+            }
           }
         } catch (error) {
           console.error("Échec de la récupération de la session utilisateur:", error);
@@ -111,15 +111,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
-      const { token, user: userData } = await authLoginApi(email, password);
-      setSecureToken(token);
-      setUser(userData);
+      // Utiliser l'API admin unifiée pour tous les utilisateurs
+      const response = await fetch(`${currentEnv.apiUrl}/api/admin/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      // Redirection basée sur le rôle de l'utilisateur
-      if (userData.role === "ADMIN") {
-        navigate("/admin"); // Assurez-vous d'avoir une route /admin
-      } else {
-        navigate("/apprenant/dashboard"); // Redirection vers le dashboard apprenant
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erreur de connexion');
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        const { user: userData, accessToken } = data.data;
+        
+        setUser(userData);
+        setSecureToken(accessToken);
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('currentUser', JSON.stringify(userData));
+
+        // Redirection unifiée - tous les utilisateurs authentifiés vont vers /admin
+        // Le UnifiedLayoutWrapper s'occupera d'afficher l'interface selon le rôle
+        navigate("/admin");
       }
     } catch (error) {
       console.error("Erreur de connexion:", error);
@@ -129,29 +147,197 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const logout = () => {
-    removeSecureToken();
-    setUser(null);
-    navigate("/");
+  const logout = async () => {
+    try {
+      // Utiliser l'API admin unifiée pour la déconnexion
+      const token = getSecureToken();
+      if (token) {
+        await fetch(`${currentEnv.apiUrl}/api/admin/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+      }
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+    } finally {
+      removeSecureToken();
+      setUser(null);
+      navigate("/login"); // Utiliser la page de login unifiée
+    }
   };
 
   const requestPasswordReset = async (email: string) => {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/learner';
-    const response = await fetch(`${apiUrl}/forgot-password`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email }),
-    });
+    // Cette fonctionnalité sera implémentée plus tard côté backend
+    throw new Error('Fonctionnalité de réinitialisation de mot de passe non encore disponible');
+  };
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Erreur lors de la demande de réinitialisation');
+  // Gestion de l'expiration de session - géré directement dans AuthProvider
+  const [sessionTimeoutRef, setSessionTimeoutRef] = useState<NodeJS.Timeout | null>(null);
+  const [sessionWarningRef, setSessionWarningRef] = useState<NodeJS.Timeout | null>(null);
+  const [lastActivity, setLastActivity] = useState<number>(Date.now());
+  
+  const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 minutes
+  const WARNING_TIME = 2 * 60 * 1000; // Avertir 2 minutes avant l'expiration
+
+  const clearSessionTimers = () => {
+    if (sessionTimeoutRef) {
+      clearTimeout(sessionTimeoutRef);
+      setSessionTimeoutRef(null);
+    }
+    if (sessionWarningRef) {
+      clearTimeout(sessionWarningRef);
+      setSessionWarningRef(null);
+    }
+  };
+
+  const refreshUserToken = async () => {
+    try {
+      const currentToken = getSecureToken();
+      if (!currentToken) return;
+
+      // Appeler l'endpoint /me pour rafraîchir la session côté serveur
+      const response = await fetch(`${currentEnv.apiUrl}/api/admin/auth/me`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${currentToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          // Mettre à jour les données utilisateur
+          setUser(data.data);
+          localStorage.setItem('user', JSON.stringify(data.data));
+          localStorage.setItem('currentUser', JSON.stringify(data.data));
+        }
+      }
+    } catch (error) {
+      console.warn('Erreur lors du rafraîchissement du token:', error);
+    }
+  };
+
+  const resetSessionTimer = async () => {
+    if (!user) return;
+
+    clearSessionTimers();
+    setLastActivity(Date.now());
+    
+    // Vérifier si le token doit être rafraîchi (toutes les heures)
+    const currentToken = getSecureToken();
+    if (currentToken) {
+      try {
+        // Décoder le token pour vérifier sa date d'expiration
+        const payload = JSON.parse(atob(currentToken.split('.')[1]));
+        const tokenExpiry = payload.exp * 1000; // Convertir en millisecondes
+        const now = Date.now();
+        const timeUntilExpiry = tokenExpiry - now;
+        
+        // Si le token expire dans moins de 30 minutes, le rafraîchir
+        if (timeUntilExpiry < 30 * 60 * 1000) {
+          await refreshUserToken();
+        }
+      } catch (error) {
+        // Si on ne peut pas décoder le token, on continue sans rafraîchir
+        console.warn('Impossible de décoder le token pour vérification');
+      }
     }
 
-    return response.json();
+    // Timer d'avertissement - notification discrète 2min avant expiration
+    const warningTimer = setTimeout(() => {
+      toast({
+        title: "⏰ Session bientôt expirée",
+        description: "Votre session expirera dans 2 minutes d'inactivité. Bougez la souris pour la prolonger.",
+        duration: 8000, // Afficher pendant 8 secondes
+      });
+    }, INACTIVITY_TIMEOUT - WARNING_TIME);
+    setSessionWarningRef(warningTimer);
+
+    // Timer d'expiration - rechargement automatique
+    const timeoutTimer = setTimeout(() => {
+      // Nettoyer les tokens
+      removeSecureToken();
+      
+      // Notification rapide avant rechargement
+      toast({
+        title: "🔒 Session expirée",
+        description: "Redirection vers la page de connexion...",
+        variant: "destructive",
+        duration: 2000,
+      });
+      
+      // Recharger la page après un court délai pour voir la notification
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    }, INACTIVITY_TIMEOUT);
+    setSessionTimeoutRef(timeoutTimer);
+
   };
+
+  const trackActivity = () => {
+    if (!user) return;
+    resetSessionTimer();
+  };
+
+  // Gestionnaire d'activité avec throttle
+  useEffect(() => {
+    if (!user) {
+      clearSessionTimers();
+      return;
+    }
+
+    // Initialiser le timer
+    resetSessionTimer();
+
+    // Liste des événements à surveiller pour l'activité
+    const events = [
+      'mousedown',
+      'mousemove', 
+      'keypress',
+      'scroll',
+      'touchstart',
+      'click'
+    ];
+
+    // Throttle pour éviter trop d'appels - mais reset immédiat
+    let lastResetTime = 0;
+    const throttledTrackActivity = (eventType: string) => {
+      const now = Date.now();
+      const timeSinceLastReset = now - lastResetTime;
+      
+      // Throttle plus court pour permettre le reset régulier
+      if (timeSinceLastReset < 2000) { // 2 secondes de throttle
+        return;
+      }
+      lastResetTime = now;
+      trackActivity();
+    };
+
+    // Ajouter les listeners d'événements
+    const listeners: { [key: string]: () => void } = {};
+    events.forEach(event => {
+      const listener = () => throttledTrackActivity(event);
+      listeners[event] = listener;
+      document.addEventListener(event, listener, true);
+    });
+
+    // Cleanup
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, listeners[event], true);
+      });
+      
+      clearSessionTimers();
+    };
+  }, [user]);
+
+  // Les fonctions d'extension de session ne sont plus nécessaires
+  // car l'activité de l'utilisateur prolonge automatiquement la session
 
   // Les fonctions requestPasswordReset et resetPassword sont commentées car les routes backend ne sont pas encore prêtes pour cela.
   // Si vous les implémentez côté backend, vous pourrez les décommenter ici et les connecter à authApi.ts.

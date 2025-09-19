@@ -9,12 +9,14 @@ import { Shield, Lock, AlertTriangle } from 'lucide-react';
 interface IntranetGuardProps {
   children: React.ReactNode;
   requiredRole?: string;
+  allowedRoles?: string[];
   fallback?: React.ReactNode;
 }
 
 export const IntranetGuard: React.FC<IntranetGuardProps> = ({
   children,
   requiredRole,
+  allowedRoles,
   fallback
 }) => {
   const [isChecking, setIsChecking] = useState(true);
@@ -63,11 +65,20 @@ export const IntranetGuard: React.FC<IntranetGuardProps> = ({
         return;
       }
 
-      // Vérifier si l'utilisateur peut accéder à l'admin
-      if (user.role !== 'SUPER_ADMIN' && user.role !== 'BANK_ADMIN') {
-        setError('Accès administrateur requis');
-        setHasAccess(false);
-        return;
+      // Vérifier les rôles autorisés
+      if (allowedRoles && allowedRoles.length > 0) {
+        if (!allowedRoles.includes(user.role)) {
+          setError(`Accès réservé aux rôles: ${allowedRoles.join(', ')}`);
+          setHasAccess(false);
+          return;
+        }
+      } else {
+        // Comportement par défaut : accès admin uniquement
+        if (user.role !== 'SUPER_ADMIN' && user.role !== 'BANK_ADMIN') {
+          setError('Accès administrateur requis');
+          setHasAccess(false);
+          return;
+        }
       }
 
       // Vérifier le rôle spécifique si demandé
@@ -88,7 +99,7 @@ export const IntranetGuard: React.FC<IntranetGuardProps> = ({
   };
 
   const handleLogin = () => {
-    navigate('/admin/login');
+    navigate('/login');
   };
 
   const handleLogout = () => {
@@ -165,4 +176,4 @@ export const IntranetGuard: React.FC<IntranetGuardProps> = ({
   }
 
   return <>{children}</>;
-}; 
+};

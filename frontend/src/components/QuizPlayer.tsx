@@ -283,3 +283,10 @@ const QuizPlayer: React.FC<QuizPlayerProps> = ({ quiz, onComplete, onClose }) =>
 };
 
 export default QuizPlayer;
+
+
+
+
+
+
+

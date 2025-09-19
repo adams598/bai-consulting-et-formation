@@ -27,7 +27,7 @@ interface TestViewerProps {
 }
 
 export default function TestViewer({ lesson, fileUrl, formationId, userId, onProgressUpdate }: TestViewerProps) {
-  const { saveProgress: saveGlobalProgress, loadProgress: loadGlobalProgress, getProgress: getGlobalProgress } = useProgress();
+  const { updateProgress: saveGlobalProgress, loadProgress: loadGlobalProgress, getProgress: getGlobalProgress } = useProgress();
   
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState<string>("");
@@ -47,12 +47,15 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
    const [totalTime, setTotalTime] = useState<number>(0);
    const [isTrackingProgress, setIsTrackingProgress] = useState<boolean>(false);
    const [scrollMode, setScrollMode] = useState<'vertical' | 'horizontal'>('vertical');
-   const [pdfError, setPdfError] = useState<boolean>(false);
-   const [retryCount, setRetryCount] = useState<number>(0);
-   const videoRef = useRef<HTMLVideoElement | null>(null);
-   const audioRef = useRef<HTMLAudioElement | null>(null);
-   const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
-   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
+  const [pdfError, setPdfError] = useState<boolean>(false);
+  const [retryCount, setRetryCount] = useState<number>(0);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [showControls, setShowControls] = useState<boolean>(true);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
+  const pdfContainerRef = useRef<HTMLDivElement | null>(null);
+  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Effet pour bloquer les raccourcis clavier et captures d'écran
   useEffect(() => {
@@ -366,6 +369,46 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     setIsTrackingProgress(false);
   };
 
+  // Fonctions pour les contrôles vidéo personnalisés
+  const togglePlayPause = () => {
+    if (videoRef.current) {
+      if (videoRef.current.paused) {
+        videoRef.current.play();
+        setIsPlaying(true);
+      } else {
+        videoRef.current.pause();
+        setIsPlaying(false);
+      }
+    }
+  };
+
+  const handleVideoClick = () => {
+    togglePlayPause();
+  };
+
+  const handleVideoMouseMove = () => {
+    setShowControls(true);
+    
+    // Masquer les contrôles après 3 secondes d'inactivité
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  };
+
+  const handleVideoMouseLeave = () => {
+    // Masquer les contrôles quand la souris quitte la vidéo
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current);
+    }
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 1000);
+  };
+
      // Fonction pour mettre à jour la progression
    const updateProgress = () => {
      console.log(`📊 updateProgress appelée - mimeType: ${mimeType}, pageCount: ${pageCount}, currentPage: ${currentPage}`);
@@ -602,6 +645,11 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
       console.log('🧹 TestViewer - Nettoyage du composant');
       stopProgressTracking();
       
+      // Nettoyer les timeouts
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+      
       // Nettoyer les URLs blob
       if (blobUrl) {
         URL.revokeObjectURL(blobUrl);
@@ -808,12 +856,11 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                              {/* Vidéos */}
                {mimeType.startsWith("video/") && (
                  <div className="w-full h-[calc(100vh-120px)] border rounded bg-white">
-                   <div className="relative">
+                   <div className="relative group">
                      <video
                        ref={videoRef}
                        src={blobUrl}
-                       controls
-                       className="w-full h-full object-contain bg-black select-none"
+                       className="w-full h-full object-contain bg-black select-none cursor-pointer"
                        style={{
                          userSelect: 'none',
                          WebkitUserSelect: 'none',
@@ -822,8 +869,10 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                          pointerEvents: 'auto'
                        }}
                        preload="metadata"
-                       controlsList="nodownload nofullscreen noremoteplayback"
                        disablePictureInPicture
+                       onClick={handleVideoClick}
+                       onMouseMove={handleVideoMouseMove}
+                       onMouseLeave={handleVideoMouseLeave}
                        onLoadedMetadata={() => {
                          console.log('🎬 onLoadedMetadata - Événement déclenché');
                          if (videoRef.current) {
@@ -891,6 +940,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                          }
                        }}
                        onEnded={() => {
+                         setIsPlaying(false);
                          stopProgressTracking();
                          if (onProgressUpdate) {
                            onProgressUpdate({
@@ -900,10 +950,49 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                            });
                          }
                        }}
+                       onPlay={() => setIsPlaying(true)}
+                       onPause={() => setIsPlaying(false)}
                        onContextMenu={(e) => e.preventDefault()}
                        onDragStart={(e) => e.preventDefault()}
                        onDrop={(e) => e.preventDefault()}
                      />
+                     
+                     {/* Contrôles personnalisés */}
+                     <div className={`absolute bottom-4 left-1/2 transform -translate-x-1/2 transition-opacity duration-300 ${
+                       showControls ? 'opacity-100' : 'opacity-0'
+                     }`}>
+                       <div className="bg-black/70 backdrop-blur-sm rounded-lg px-4 py-2 flex items-center space-x-4">
+                         {/* Bouton Play/Pause */}
+                         <button
+                           onClick={togglePlayPause}
+                           className="text-white hover:text-blue-400 transition-colors"
+                           aria-label={isPlaying ? 'Pause' : 'Lecture'}
+                         >
+                           {isPlaying ? (
+                             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                               <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/>
+                             </svg>
+                           ) : (
+                             <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                               <path d="M8 5v14l11-7z"/>
+                             </svg>
+                           )}
+                         </button>
+                         
+                         {/* Temps actuel */}
+                         <span className="text-white text-sm font-mono">
+                           {Math.floor(currentTime / 60)}:{(currentTime % 60).toFixed(0).padStart(2, '0')}
+                         </span>
+                         
+                         {/* Séparateur */}
+                         <span className="text-white/50">/</span>
+                         
+                         {/* Temps total */}
+                         <span className="text-white text-sm font-mono">
+                           {Math.floor(totalTime / 60)}:{(totalTime % 60).toFixed(0).padStart(2, '0')}
+                         </span>
+                       </div>
+                     </div>
                    </div>
                  </div>
                )}

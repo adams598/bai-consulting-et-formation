@@ -1,275 +1,111 @@
+// ProgressContext.tsx - Contexte global pour la gestion des progressions
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-
-interface ProgressData {
-  lessonId: string;
-  formationId: string;
-  userId: string;
-  currentPage?: number;
-  totalPages?: number;
-  currentTime?: number;
-  totalTime?: number;
-  progress: number;
-  completed: boolean;
-  lastAccessedAt: string;
-}
+import progressService, { LessonProgress } from '../services/progressService';
 
 interface ProgressContextType {
-  // État global de la progression
-  globalProgress: Record<string, ProgressData>;
-  
-  // Actions
-  saveProgress: (data: ProgressData) => Promise<void>;
-  loadProgress: (lessonId: string, formationId: string, userId: string) => Promise<ProgressData | null>;
-  updateProgress: (lessonId: string, formationId: string, userId: string, updates: Partial<ProgressData>) => void;
-  getProgress: (lessonId: string, formationId: string, userId: string) => ProgressData | null;
-  getAllProgress: (userId: string) => ProgressData[];
-  
-  // État de chargement
+  lessonProgress: { [lessonId: string]: LessonProgress };
+  updateProgress: (lessonId: string, progress: Partial<Omit<LessonProgress, 'lessonId' | 'lastUpdated'>>) => void;
+  loadProgress: (formationId: string, userId: string, lessons: any[]) => void;
+  getProgress: (lessonId: string, formationId: string, userId: string) => LessonProgress | undefined;
+  clearProgress: () => void;
   isLoading: boolean;
-  error: string | null;
+  setLessons: (lessons: any[]) => void;
 }
 
 const ProgressContext = createContext<ProgressContextType | undefined>(undefined);
 
-export const useProgress = () => {
-  const context = useContext(ProgressContext);
-  if (!context) {
-    throw new Error('useProgress doit être utilisé dans un ProgressProvider');
-  }
-  return context;
-};
-
 interface ProgressProviderProps {
   children: ReactNode;
+  formationId: string;
+  lessons?: any[];
 }
 
-export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) => {
-  const [globalProgress, setGlobalProgress] = useState<Record<string, ProgressData>>({});
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [lastSaveTime, setLastSaveTime] = useState<number>(0);
+export const ProgressProvider: React.FC<ProgressProviderProps> = ({ 
+  children, 
+  formationId, 
+  lessons 
+}) => {
+  const [lessonProgress, setLessonProgress] = useState<{ [lessonId: string]: LessonProgress }>({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentLessons, setCurrentLessons] = useState<any[]>(lessons || []);
 
-  // Créer une clé unique pour chaque progression
-  const getProgressKey = (lessonId: string, formationId: string, userId: string) => {
-    return `${userId}-${formationId}-${lessonId}`;
-  };
+  // Mettre à jour currentLessons quand lessons change
+  useEffect(() => {
+    setCurrentLessons(lessons || []);
+  }, [lessons]);
 
-  // Configuration de l'API URL selon l'environnement
-  const getApiUrl = () => {
-    if (import.meta.env.VITE_API_URL) {
-      return import.meta.env.VITE_API_URL;
-    }
-    // En développement, utiliser localhost:3000
-    return 'http://localhost:3000';
-  };
-
-  // Sauvegarder la progression dans la base de données et l'état global
-  const saveProgress = async (data: ProgressData) => {
-    // Sauvegarder immédiatement en base de données
-    console.log('📤 Sauvegarde de la progression en base de données...');
-
-    setIsLoading(true);
-    setError(null);
-    setLastSaveTime(Date.now());
-    
-    try {
-      // Nettoyer et valider les données avant envoi
-      const cleanData = {
-        lessonId: data.lessonId || '',
-        formationId: data.formationId || '',
-        userId: data.userId || '',
-        currentPage: data.currentPage || null,
-        totalPages: data.totalPages || null,
-        currentTime: data.currentTime || 0,
-        totalTime: data.totalTime || 0,
-        progress: data.progress || 0,
-        completed: data.completed || false,
-        lastAccessedAt: new Date().toISOString(),
-      };
-
-      console.log('📤 Envoi des données de progression:', cleanData);
-      
-      const accessToken = localStorage.getItem('accessToken');
-      console.log('🔑 Token d\'authentification:', accessToken ? 'Présent' : 'Absent');
-
-      const response = await fetch(`${getApiUrl()}/api/admin/progress/save`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(cleanData),
-      });
-      
-      console.log('📡 Réponse du serveur:', response.status, response.statusText);
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('📊 Progression sauvegardée globalement:', result);
-        
-        // Mettre à jour l'état global
-        const progressKey = getProgressKey(data.lessonId, data.formationId, data.userId);
-        setGlobalProgress(prev => ({
-          ...prev,
-          [progressKey]: {
-            ...data,
-            lastAccessedAt: new Date().toISOString()
-          }
-        }));
-      } else {
-        // Erreur du backend - lancer une exception pour forcer la gestion d'erreur
-        const errorText = await response.text();
-        throw new Error(`Erreur ${response.status}: ${errorText}`);
+  // Charger les progressions quand currentLessons change
+  useEffect(() => {
+    const loadProgressData = () => {
+      try {
+        const userId = progressService.getCurrentUserId();
+        const progress = progressService.getProgress(formationId, userId, currentLessons);
+        setLessonProgress(progress);
+        console.log('📊 Progressions chargées depuis le localStorage:', progress);
+      } catch (error) {
+        console.error('❌ Erreur lors du chargement des progressions:', error);
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('❌ Erreur lors de la sauvegarde globale:', error);
-      // Ne plus sauvegarder en local en cas d'erreur - forcer la résolution du problème
-      setError(error instanceof Error ? error.message : 'Erreur inconnue');
-      throw error; // Propager l'erreur pour que le composant puisse la gérer
-    } finally {
+    };
+
+    if (currentLessons.length > 0) {
+      loadProgressData();
+    } else {
       setIsLoading(false);
     }
-  };
+  }, [formationId, currentLessons]);
 
-  // Charger la progression depuis la base de données
-  const loadProgress = async (lessonId: string, formationId: string, userId: string): Promise<ProgressData | null> => {
-    // Toujours charger depuis la base de données pour avoir les données les plus récentes
-    console.log('📊 Chargement de la progression depuis la base de données...');
-
-    setIsLoading(true);
-    setError(null);
+  // Mettre à jour une progression
+  const updateProgress = (lessonId: string, progress: Partial<Omit<LessonProgress, 'lessonId' | 'lastUpdated'>>) => {
+    const userId = progressService.getCurrentUserId();
     
-    try {
-      const response = await fetch(
-        `${getApiUrl()}/api/admin/progress/get?lessonId=${lessonId}&formationId=${formationId}&userId=${userId}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        console.log('📊 Réponse du serveur pour loadProgress:', data);
-        
-        if (data.progress) {
-          const progressData: ProgressData = {
-            lessonId,
-            formationId,
-            userId,
-            currentPage: data.progress.currentPage || 1,
-            totalPages: data.progress.totalPages || 1,
-            currentTime: data.progress.currentTime || 0,
-            totalTime: data.progress.totalTime || 0,
-            progress: data.progress.progress || 0,
-            completed: data.progress.isCompleted || false,
-            lastAccessedAt: data.progress.lastAccessedAt || new Date().toISOString()
-          };
-          
-          // Mettre à jour l'état global
-          const progressKey = getProgressKey(lessonId, formationId, userId);
-          setGlobalProgress(prev => ({
-            ...prev,
-            [progressKey]: progressData
-          }));
-          
-          console.log('📊 Progression chargée globalement:', progressData);
-          return progressData;
-        }
-      }
-      return null;
-    } catch (error) {
-      console.error('❌ Erreur lors du chargement global:', error);
-      setError(error instanceof Error ? error.message : 'Erreur inconnue');
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Mettre à jour la progression localement (sans sauvegarde en base)
-  const updateProgress = (lessonId: string, formationId: string, userId: string, updates: Partial<ProgressData>) => {
-    const progressKey = getProgressKey(lessonId, formationId, userId);
-    setGlobalProgress(prev => ({
+    // Mettre à jour dans le service
+    progressService.updateProgress(formationId, userId, lessonId, progress);
+    
+    // Mettre à jour l'état local
+    setLessonProgress(prev => ({
       ...prev,
-      [progressKey]: {
-        ...prev[progressKey],
-        ...updates,
-        lastAccessedAt: new Date().toISOString()
+      [lessonId]: {
+        ...prev[lessonId],
+        ...progress,
+        lessonId,
+        lastUpdated: new Date().toISOString()
       }
     }));
   };
 
-  // Récupérer la progression depuis l'état global
-  const getProgress = (lessonId: string, formationId: string, userId: string): ProgressData | null => {
-    const progressKey = getProgressKey(lessonId, formationId, userId);
-    return globalProgress[progressKey] || null;
+  // Charger les progressions manuellement
+  const loadProgress = (formationId: string, userId: string, lessons: any[]) => {
+    const progress = progressService.getProgress(formationId, userId, lessons || []);
+    setLessonProgress(progress);
   };
 
-  // Récupérer toutes les progressions d'un utilisateur
-  const getAllProgress = (userId: string): ProgressData[] => {
-    return Object.values(globalProgress).filter(progress => progress.userId === userId);
-  };
-
-  // Charger toutes les progressions d'un utilisateur au démarrage
-  useEffect(() => {
-    const userId = localStorage.getItem('userInfo') ? JSON.parse(localStorage.getItem('userInfo')!).id : null;
-    const accessToken = localStorage.getItem('accessToken');
-    
-    if (userId && accessToken && Object.keys(globalProgress).length === 0) {
-      console.log('📊 Chargement initial des progressions pour l\'utilisateur:', userId);
-      
-      // Charger toutes les progressions de l'utilisateur
-      fetch(`http://localhost:3000/api/admin/progress/user/${userId}/all`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-        },
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        return response.json();
-      })
-      .then(data => {
-        if (data.progress && Array.isArray(data.progress)) {
-          const progressMap: Record<string, ProgressData> = {};
-          data.progress.forEach((item: any) => {
-            const progressKey = getProgressKey(item.lessonId, item.formationId, item.userId);
-            progressMap[progressKey] = {
-              lessonId: item.lessonId,
-              formationId: item.formationId,
-              userId: item.userId,
-              currentPage: item.currentPage || 1,
-              totalPages: item.totalPages || 1,
-              currentTime: item.timeSpent || 0,
-              totalTime: item.totalTime || 0,
-              progress: item.progress || 0,
-              completed: item.completed || false,
-              lastAccessedAt: item.lastAccessedAt || new Date().toISOString()
-            };
-          });
-          setGlobalProgress(progressMap);
-          console.log('📊 Toutes les progressions chargées:', Object.keys(progressMap).length, 'progression(s)');
-        }
-      })
-      .catch(error => {
-        console.error('❌ Erreur lors du chargement des progressions:', error);
-        // Ne pas bloquer l'application si le chargement échoue
-      });
+  // Récupérer la progression d'une leçon spécifique
+  const getProgress = (lessonId: string, formationId: string, userId: string): LessonProgress | undefined => {
+    try {
+      return progressService.getProgress(formationId, userId, [])[lessonId];
+    } catch (error) {
+      console.error('❌ Erreur lors de la récupération de la progression:', error);
+      return undefined;
     }
-  }, []); // Dépendances vides pour ne s'exécuter qu'une seule fois
+  };
+
+  // Effacer toutes les progressions
+  const clearProgress = () => {
+    const userId = progressService.getCurrentUserId();
+    progressService.clearProgress(formationId, userId);
+    setLessonProgress({});
+  };
 
   const value: ProgressContextType = {
-    globalProgress,
-    saveProgress,
-    loadProgress,
+    lessonProgress,
     updateProgress,
+    loadProgress,
     getProgress,
-    getAllProgress,
+    clearProgress,
     isLoading,
-    error
+    setLessons: setCurrentLessons
   };
 
   return (
@@ -277,4 +113,13 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({ children }) 
       {children}
     </ProgressContext.Provider>
   );
+};
+
+// Hook pour utiliser le contexte de progression
+export const useProgress = () => {
+  const context = useContext(ProgressContext);
+  if (context === undefined) {
+    throw new Error('useProgress doit être utilisé dans un ProgressProvider');
+  }
+  return context;
 };

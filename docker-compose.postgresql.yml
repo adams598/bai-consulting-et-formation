@@ -1,0 +1,126 @@
+version: "3.8"
+
+services:
+  # PostgreSQL pour la production
+  postgres:
+    image: postgres:15-alpine
+    container_name: bai-postgres-prod
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bai_consulting}
+      POSTGRES_USER: ${POSTGRES_USER:-bai_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bai_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/prisma/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - bai-prod-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-bai_user} -d ${POSTGRES_DB:-bai_consulting}",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Redis pour le cache
+  redis:
+    image: redis:7-alpine
+    container_name: bai-redis-prod
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    networks:
+      - bai-prod-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Backend avec PostgreSQL
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bai-backend-prod
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-bai_user}:${POSTGRES_PASSWORD:-bai_password}@postgres:5432/${POSTGRES_DB:-bai_consulting}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PORT=3000
+      - LOG_LEVEL=info
+      - RATE_LIMIT_MAX_REQUESTS=100
+      - AUTH_RATE_LIMIT_MAX_REQUESTS=5
+    volumes:
+      - ./backend/uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - bai-prod-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/admin/auth/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Frontend avec SSL
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: bai-frontend-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - NODE_ENV=production
+      - VITE_API_URL=https://api.votre-domaine.com
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/nginx-ssl.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/ssl/custom:ro  # Certificats SSL personnalisés
+    networks:
+      - bai-prod-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  bai-prod-network:
+    driver: bridge

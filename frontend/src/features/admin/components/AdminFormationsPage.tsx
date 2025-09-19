@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Eye, BookOpen, Users, Settings, FolderOpen, Clock, Database, MoreVertical, Play, HelpCircle, UserPlus, Folder, Grid, List, ArrowLeft, Move, AlertTriangle, Info } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { Plus, Edit, Trash2, Eye, BookOpen, Users, Settings, FolderOpen, Clock, Database, MoreVertical, Play, HelpCircle, UserPlus, Folder, Grid, List, ArrowLeft, Move, AlertTriangle, Info, Calendar } from 'lucide-react';
 import './AdminFormationsPage.css';
 import './UniverseFolder.css';
 import './DragDrop.css';
 import '../styles/admin-typography.css';
-import { formationsApi, quizApi, bankFormationApi, universesApi } from '../../../api/adminApi';
+import { formationsApi, quizApi, bankFormationApi, universesApi, assignmentsApi } from '../../../api/adminApi';
+import { formationsApi as learnerFormationsApi } from '../../../api/learnerApi';
 import { Formation, Universe, UniverseFormation } from '../types';
 import { getFormationCoverImageUrl } from '../../../utils/imageUtils';
 import { authService } from '../../../services/authService';
+import { useFormationsCache } from '../../../hooks/useFormationsCache';
 import { FormationModal } from './FormationModal';
 import ConfirmModal from './ConfirmModal';
 import ConfirmationModal from './ConfirmationModal';
@@ -18,11 +20,33 @@ import BanksListView from './BanksListView';
 import FormationAssignmentModal from './FormationAssignmentModal';
 import { useConfirmation } from '../../../hooks/useConfirmation';
 import { useSidebar } from '../../../contexts/SidebarContext';
+import { useToast } from '../../../components/ui/use-toast';
 
 const AdminFormationsPage: React.FC = () => {
-  const [formations, setFormations] = useState<Formation[]>([]);
+  // Hook optimisé pour le cache des données (pour les admins)
+  const {
+    data: cacheData,
+    isLoading: adminLoading,
+    error: cacheError,
+    loadData,
+    invalidateCache,
+    updateFormationInCache,
+    addFormationToCache,
+    removeFormationFromCache,
+    updateFormationStatsInCache
+  } = useFormationsCache();
+
+  // Vérifier si l'utilisateur est admin (MÉMORISÉ)
+  const isAdminUser = useMemo(() => {
+    const user = authService.getCurrentUser();
+    return !!(user && (user.role === 'SUPER_ADMIN' || user.role === 'BANK_ADMIN'));
+  }, []);
+
+  const isAdmin = (): boolean => isAdminUser;
+
+
+  // États locaux
   const [filteredFormations, setFilteredFormations] = useState<Formation[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFormationModal, setShowFormationModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -31,16 +55,44 @@ const AdminFormationsPage: React.FC = () => {
   const [showFormationDetail, setShowFormationDetail] = useState(false);
   const [showBanksList, setShowBanksList] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [selectedFormation, setSelectedFormation] = useState<Formation | null>(null);
   const [action, setAction] = useState<'edit' | 'delete' | 'quiz' | null>(null);
-  const [formationStats, setFormationStats] = useState<Record<string, { bankCount: number; userCount: number }>>({});
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
 
   // États pour le système d'univers
   const [viewMode, setViewMode] = useState<'formations' | 'universes'>('formations');
   const [universeViewMode, setUniverseViewMode] = useState<'list' | 'cards'>('cards');
-  const [universes, setUniverses] = useState<Universe[]>([]);
   const [selectedUniverse, setSelectedUniverse] = useState<Universe | null>(null);
+
+  // États spécifiques pour les apprenants
+  const [learnerFormations, setLearnerFormations] = useState<Formation[]>([]);
+  const [learnerLoading, setLearnerLoading] = useState(false);
+
+  // Variables dérivées selon le rôle
+  const formations = isAdminUser ? (cacheData?.formations || []) : learnerFormations;
+  const formationStats = cacheData?.formationStats || {};
+  const isLoading = isAdminUser ? adminLoading : learnerLoading;
+  
+  // Pour les COLLABORATOR, créer un univers par défaut si nécessaire
+  const universes = useMemo(() => {
+    if (isAdminUser) {
+      return cacheData?.universes || [];
+    } else {
+      // Pour les COLLABORATOR, créer un univers par défaut "Mes Formations"
+      return [
+        {
+          id: 'mes-formations',
+          name: 'Mes Formations',
+          description: 'Formations qui vous sont assignées',
+          color: '#3B82F6',
+          isActive: true,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+      ];
+    }
+  }, [isAdminUser, cacheData?.universes]);
   const [showUniverseModal, setShowUniverseModal] = useState(false);
   const [showMoveFormationModal, setShowMoveFormationModal] = useState(false);
   const [formationToMove, setFormationToMove] = useState<Formation | null>(null);
@@ -48,38 +100,65 @@ const AdminFormationsPage: React.FC = () => {
   const [universeToEdit, setUniverseToEdit] = useState<Universe | null>(null);
   const [activeUniverseDropdown, setActiveUniverseDropdown] = useState<string | null>(null);
   
+  // États pour la sélection multiple
+  const [selectedFormations, setSelectedFormations] = useState<string[]>([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [showBulkMoveModal, setShowBulkMoveModal] = useState(false);
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
   
   // Hook de confirmation
   const confirmation = useConfirmation();
   
   // Hook pour contrôler la sidebar
   const { setIsCollapsed } = useSidebar();
+  
+  // Hook pour les notifications
+  const { toast } = useToast();
+
+  // Mémorisation des formations par univers pour éviter les recalculs
+  const formationsByUniverse = useMemo(() => {
+    const grouped: Record<string, Formation[]> = {};
+    universes.forEach(universe => {
+      if (universe.id === 'fsu') {
+        grouped[universe.id] = formations.filter(f => !f.universeId);
+      } else {
+        grouped[universe.id] = formations.filter(f => f.universeId === universe.id);
+      }
+    });
+    return grouped;
+  }, [formations, universes]);
+
+  // Mémorisation des statistiques par univers
+  const universeStats = useMemo(() => {
+    const stats: Record<string, { count: number; totalDuration: number }> = {};
+    Object.entries(formationsByUniverse).forEach(([universeId, universeFormations]) => {
+      stats[universeId] = {
+        count: universeFormations.length,
+        totalDuration: universeFormations.reduce((total, f) => total + (f.totalDuration || f.duration), 0)
+      };
+    });
+    return stats;
+  }, [formationsByUniverse]);
 
   // Fonctions utilitaires pour les mises à jour optimistes
   const addFormationOptimistically = (newFormation: Formation) => {
-    setFormations(prev => [newFormation, ...prev]);
-    setFormationStats(prev => ({
-      ...prev,
-      [newFormation.id]: { bankCount: 0, userCount: 0 }
-    }));
+    // Utiliser le hook de cache pour ajouter la formation
+    addFormationToCache(newFormation);
   };
 
   const updateFormationOptimistically = (updatedFormation: Formation) => {
-    setFormations(prev => 
-      prev.map(f => f.id === updatedFormation.id ? updatedFormation : f)
-    );
+    // Utiliser le hook de cache pour mettre à jour la formation
+    updateFormationInCache(updatedFormation);
     if (selectedFormation?.id === updatedFormation.id) {
       setSelectedFormation(updatedFormation);
     }
   };
 
   const removeFormationOptimistically = (formationId: string) => {
-    setFormations(prev => prev.filter(f => f.id !== formationId));
-    setFormationStats(prev => {
-      const newStats = { ...prev };
-      delete newStats[formationId];
-      return newStats;
-    });
+    // Utiliser le hook de cache pour supprimer la formation
+    removeFormationFromCache(formationId);
     if (selectedFormation?.id === formationId) {
       setSelectedFormation(null);
     }
@@ -87,40 +166,53 @@ const AdminFormationsPage: React.FC = () => {
 
   // Fonctions utilitaires pour les mises à jour optimistes des univers
   const addUniverseOptimistically = (newUniverse: Universe) => {
-    setUniverses(prev => [...prev, newUniverse]);
+    // Pour l'ajout d'univers, on peut éviter le rechargement complet
+    console.log('✅ Univers ajouté - rechargement léger uniquement');
+    // On ne recharge que si nécessaire
   };
 
   const updateUniverseOptimistically = (updatedUniverse: Universe) => {
-    setUniverses(prev => 
-      prev.map(u => u.id === updatedUniverse.id ? updatedUniverse : u)
-    );
+    // Mise à jour locale sans rechargement complet
     if (selectedUniverse?.id === updatedUniverse.id) {
       setSelectedUniverse(updatedUniverse);
     }
+    console.log('✅ Univers mis à jour - pas de rechargement nécessaire');
   };
 
   const removeUniverseOptimistically = (universeId: string) => {
-    setUniverses(prev => prev.filter(u => u.id !== universeId));
+    // Mise à jour locale sans rechargement complet
     if (selectedUniverse?.id === universeId) {
       setSelectedUniverse(null);
     }
+    console.log('✅ Univers supprimé - pas de rechargement nécessaire');
   };
 
-  // Vérifier si l'utilisateur est admin
-  const isAdmin = (): boolean => {
-    const user = authService.getCurrentUser();
-    return !!(user && (user.role === 'SUPER_ADMIN' || user.role === 'BANK_ADMIN'));
-  };
-
+  // Fonction de filtrage mémorisée
+  const filterFormations = useCallback(() => {
+    if (!searchTerm.trim()) {
+      setFilteredFormations(formations);
+    } else {
+      const filtered = formations.filter(formation =>
+        formation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        formation.description.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+      setFilteredFormations(filtered);
+    }
+  }, [formations, searchTerm]);
 
   useEffect(() => {
-    loadFormations();
-    loadUniverses();
-  }, []);
+    // Chargement une seule fois au montage du composant
+    if (isAdminUser) {
+      loadData();
+    } else {
+      // Pour les COLLABORATOR, chargement simple sans cache
+      loadSimpleFormations();
+    }
+  }, []); // Pas de dépendances pour éviter la boucle
 
   useEffect(() => {
     filterFormations();
-  }, [formations, searchTerm]);
+  }, [filterFormations]);
 
   // Fermer le menu déroulant quand on clique ailleurs
   useEffect(() => {
@@ -141,35 +233,18 @@ const AdminFormationsPage: React.FC = () => {
     };
   }, [activeDropdown, activeUniverseDropdown]);
 
-  const loadFormations = async () => {
-    try {
-      setIsLoading(true);
-      const response = await formationsApi.getAllFormations();
-      // L'API retourne { success: true, data: [...] }
-      const formationsData = response.data.data || [];
-      setFormations(formationsData);
-      
-      // Charger les statistiques pour chaque formation
-      const stats: Record<string, { bankCount: number; userCount: number }> = {};
-      for (const formation of formationsData) {
-        try {
-          const statsResponse = await bankFormationApi.getFormationStats(formation.id);
-          stats[formation.id] = statsResponse.data || { bankCount: 0, userCount: 0 };
-        } catch (error) {
-          console.error(`Erreur lors du chargement des stats pour la formation ${formation.id}:`, error);
-          stats[formation.id] = { bankCount: 0, userCount: 0 };
-        }
-      }
-      setFormationStats(stats);
-    } catch (error) {
-      console.error('Erreur lors du chargement des formations:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Gérer l'affichage des actions en lot
+  useEffect(() => {
+    setShowBulkActions(selectedFormations.length > 0);
+  }, [selectedFormations]);
 
-  // Fonction pour formater le titre des formations
-  const formatFormationTitle = (title: string): string => {
+  // Fonction de chargement optimisée (utilise le hook)
+  const refreshData = useCallback(async () => {
+    await loadData(true); // Force refresh
+  }, [loadData]);
+
+  // Fonction pour formater le titre des formations (mémorisée)
+  const formatFormationTitle = useCallback((title: string): string => {
     const maxLength = 25; // Limite de caractères pour l'alignement des titres
     
     if (title.length <= maxLength) {
@@ -178,10 +253,10 @@ const AdminFormationsPage: React.FC = () => {
     
     // Tronquer à la limite et ajouter des points de suspension
     return title.substring(0, maxLength).trim() + '...';
-  };
+  }, []);
 
-  // Fonction pour formater la description des formations
-  const formatFormationDescription = (description: string | undefined): string => {
+  // Fonction pour formater la description des formations (mémorisée)
+  const formatFormationDescription = useCallback((description: string | undefined): string => {
     const defaultDescription = "Aucune description disponible pour cette formation.";
     const maxLength = 80; // Limite de caractères pour l'alignement
     
@@ -195,73 +270,62 @@ const AdminFormationsPage: React.FC = () => {
     
     // Tronquer à la limite et ajouter des points de suspension
     return description.substring(0, maxLength).trim() + '...';
-  };
+  }, []);
 
-  const loadUniverses = async () => {
+  // Fonction de chargement simple pour les COLLABORATOR
+  const loadSimpleFormations = async () => {
     try {
-      const response = await universesApi.getAll();
-      if (response.data.success) {
-        // Ajouter l'univers FSU pour les formations sans univers
-        // Calculer la date de modification la plus récente des formations sans univers
-        const formationsWithoutUniverse = formations.filter(f => !f.universeId);
-        const latestFSUUpdate = formationsWithoutUniverse.length > 0 
-          ? new Date(Math.max(...formationsWithoutUniverse.map(f => new Date(f.updatedAt).getTime())))
-          : new Date('2025-01-01'); // Date fixe si aucune formation FSU
-
-        const fsuUniverse: Universe = {
-          id: 'fsu',
-          name: 'FSU',
-          description: 'Formations Sans Univers',
-          color: '#6B7280',
-          isActive: true,
-          createdAt: new Date('2025-01-01'),
-          updatedAt: latestFSUUpdate,
-          formationCount: 0
-        };
-        
-        // Calculer le nombre de formations par univers
-        const universesWithCounts = [fsuUniverse, ...response.data.data].map(universe => {
-          if (universe.id === 'fsu') {
-            // Pour FSU, compter les formations sans univers
-            const formationsWithoutUniverse = formations.filter(f => !f.universeId);
-            return { ...universe, formationCount: formationsWithoutUniverse.length };
-          } else {
-            // Pour les autres univers, compter les formations avec cet univers
-            const formationsInUniverse = formations.filter(f => f.universeId === universe.id);
-            return { ...universe, formationCount: formationsInUniverse.length };
+      setLearnerLoading(true);
+      
+      // Utiliser la nouvelle API admin spéciale pour COLLABORATOR
+      const response = await formationsApi.getMyAssignedFormations();
+      
+      // Transformer les assignations en formations pour compatibilité
+      if (response.data?.success && response.data.data) {
+        const transformedFormations: Formation[] = response.data.data.map((assignment: any) => {
+          if (!assignment.formation) {
+            console.error('Formation manquante dans assignation:', assignment);
+            return null;
           }
-        });
+
+          return {
+            id: assignment.formation.id,
+            title: assignment.formation.title,
+            description: assignment.formation.description,
+            duration: assignment.formation.duration,
+            totalDuration: assignment.formation.totalDuration || assignment.formation.duration,
+            coverImage: assignment.formation.coverImage,
+            code: assignment.formation.code,
+            isActive: assignment.formation.isActive,
+            lessonCount: assignment.formation.lessonCount || 0,
+            createdAt: assignment.formation.createdAt,
+            updatedAt: assignment.formation.updatedAt,
+            universeId: assignment.formation.universeId || undefined,
+            hasQuiz: assignment.formation.hasQuiz || false,
+            createdBy: assignment.formation.createdBy || '',
+            quizRequired: false,
+            
+            // Informations d'assignation
+            assignmentStatus: assignment.status,
+            assignmentProgress: assignment.progress || 0,
+            assignedAt: assignment.assignedAt,
+            dueDate: assignment.dueDate,
+          };
+        }).filter(formation => formation !== null);
         
-        setUniverses(universesWithCounts);
+        setLearnerFormations(transformedFormations);
+      } else {
+        setLearnerFormations([]);
       }
     } catch (error) {
-      console.error('Erreur lors du chargement des univers:', error);
-      // En cas d'erreur, créer au moins l'univers FSU
-      const fsuUniverse: Universe = {
-        id: 'fsu',
-        name: 'FSU',
-        description: 'Formations Sans Univers',
-        color: '#6B7280',
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        formationCount: 0
-      };
-      setUniverses([fsuUniverse]);
+      console.error('Erreur lors du chargement des formations:', error);
+      setLearnerFormations([]);
+    } finally {
+      setLearnerLoading(false);
     }
   };
 
-  const filterFormations = () => {
-    if (!searchTerm.trim()) {
-      setFilteredFormations(formations);
-    } else {
-      const filtered = formations.filter(formation =>
-        formation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        formation.description.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredFormations(filtered);
-    }
-  };
+  // Les univers sont maintenant gérés par le hook de cache
 
   const handleCreateFormation = () => {
     setSelectedFormation(null);
@@ -336,12 +400,12 @@ const AdminFormationsPage: React.FC = () => {
         }
       } else {
         // Fallback : recharger les formations si pas de données spécifiques
-        await loadFormations();
+        await refreshData();
       }
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
       // En cas d'erreur, recharger les données pour s'assurer de la cohérence
-      await loadFormations();
+      await refreshData();
     }
   };
 
@@ -352,7 +416,7 @@ const AdminFormationsPage: React.FC = () => {
         // TODO: Vérifier si un quiz existe déjà
         await quizApi.createQuiz(selectedFormation.id, quizData);
         setShowQuizModal(false);
-        loadFormations();
+        refreshData();
       }
     } catch (error) {
       console.error('Erreur lors de la sauvegarde du quiz:', error);
@@ -378,7 +442,7 @@ const AdminFormationsPage: React.FC = () => {
       } catch (error) {
         console.error('Erreur lors de la suppression:', error);
         // En cas d'erreur, recharger les données pour restaurer l'état correct
-        await loadFormations();
+        await refreshData();
       }
     }
   };
@@ -393,8 +457,8 @@ const AdminFormationsPage: React.FC = () => {
       await formationsApi.toggleActive(formation.id);
     } catch (error) {
       console.error('Erreur lors du changement de statut:', error);
-      // En cas d'erreur, recharger les données pour restaurer l'état correct
-      await loadFormations();
+        // En cas d'erreur, recharger les données pour restaurer l'état correct
+        await refreshData();
     }
   };
 
@@ -403,15 +467,154 @@ const AdminFormationsPage: React.FC = () => {
     setShowAssignmentModal(true);
   };
 
+  const handleScheduleFormation = (formation: Formation) => {
+    setSelectedFormation(formation);
+    setShowScheduleModal(true);
+  };
+
   const handleSaveAssignments = async (assignments: any[]) => {
     try {
-      // TODO: Appel API pour sauvegarder les attributions individuelles
-      console.log('Sauvegarde des attributions:', assignments);
-      // await assignmentApi.assignFormationToUsers(selectedFormation!.id, assignments);
+      if (!selectedFormation) return;
+
+      // Utiliser notre nouvelle API d'assignation directe
+      const assignmentPromises = assignments.map(assignment => 
+        assignmentsApi.create({
+          userId: assignment.userId,
+          formationId: selectedFormation.id,
+          assignedBy: authService.getCurrentUser()?.id || '',
+          status: 'ASSIGNED',
+          isMandatory: assignment.isMandatory || false,
+          dueDate: assignment.dueDate
+        })
+      );
+
+      await Promise.all(assignmentPromises);
+
+      toast({
+        title: "Succès",
+        description: `${assignments.length} assignation(s) créée(s) avec succès`,
+      });
+
       setShowAssignmentModal(false);
-      loadFormations(); // Recharger pour mettre à jour les stats
-    } catch (error) {
+      refreshData(); // Recharger pour mettre à jour les stats
+    } catch (error: any) {
       console.error('Erreur lors de l\'attribution:', error);
+      toast({
+        title: "Erreur",
+        description: error.response?.data?.message || "Erreur lors de l'assignation des formations",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Fonctions pour la sélection multiple
+  const handleSelectFormation = (formationId: string) => {
+    setSelectedFormations(prev => {
+      if (prev.includes(formationId)) {
+        return prev.filter(id => id !== formationId);
+      } else {
+        return [...prev, formationId];
+      }
+    });
+  };
+
+  const handleSelectAllFormations = () => {
+    const formationsToDisplay = getFormationsToDisplay();
+    if (selectedFormations.length === formationsToDisplay.length) {
+      setSelectedFormations([]);
+    } else {
+      setSelectedFormations(formationsToDisplay.map(f => f.id));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      setBulkActionLoading(true);
+      
+      // Supprimer chaque formation sélectionnée
+      for (const formationId of selectedFormations) {
+        await formationsApi.deleteFormation(formationId);
+      }
+      
+      // Recharger les formations et réinitialiser la sélection
+      await refreshData();
+      setSelectedFormations([]);
+      setShowBulkDeleteModal(false);
+      setShowBulkActions(false);
+      
+    } catch (error) {
+      console.error('Erreur lors de la suppression en lot:', error);
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkMove = async (targetUniverseId: string | null) => {
+    // TypeScript: targetUniverseId peut être null pour FSU
+    try {
+      setBulkActionLoading(true);
+      
+      // Fermer le modal immédiatement
+      setShowBulkMoveModal(false);
+      setShowBulkActions(false);
+      
+      console.log(`🔄 Déplacement en lot de ${selectedFormations.length} formations vers l'univers ${targetUniverseId || 'FSU'}`);
+      
+      // Mise à jour optimiste : mettre à jour toutes les formations sélectionnées
+      const formationsToUpdate = formations.filter(f => selectedFormations.includes(f.id));
+      formationsToUpdate.forEach(formation => {
+        const updatedFormation = { ...formation, universeId: targetUniverseId || undefined };
+        updateFormationOptimistically(updatedFormation);
+      });
+      
+      // Réinitialiser la sélection
+      setSelectedFormations([]);
+      
+      // Déplacer chaque formation sélectionnée en parallèle
+      await Promise.all(
+        selectedFormations.map(formationId => 
+          universesApi.moveFormation(formationId, targetUniverseId)
+        )
+      );
+      
+      console.log('✅ Déplacement en lot réussi - pas de rechargement nécessaire');
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du déplacement en lot:', error);
+      // En cas d'erreur, recharger pour restaurer l'état correct
+      await refreshData();
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkAssign = async (assignments: any[]) => {
+    try {
+      setBulkActionLoading(true);
+      
+      // Utiliser la nouvelle API d'assignation en lot
+      const { userFormationAssignmentApi } = await import('../../../api/adminApi');
+      
+      const result = await userFormationAssignmentApi.bulkAssignFormationsToUsers({
+        formationIds: selectedFormations,
+        userIds: assignments.map(a => a.userId),
+        bankId: assignments[0]?.bankId || 'default-bank', // TODO: Récupérer la banque de l'utilisateur connecté
+        isMandatory: assignments[0]?.isMandatory || false,
+        dueDate: assignments[0]?.dueDate || null,
+      });
+      
+      console.log('Assignation en lot réussie:', result);
+      
+      // Recharger les formations et réinitialiser la sélection
+      await refreshData();
+      setSelectedFormations([]);
+      setShowBulkAssignModal(false);
+      setShowBulkActions(false);
+      
+    } catch (error) {
+      console.error('Erreur lors de l\'assignation en lot:', error);
+    } finally {
+      setBulkActionLoading(false);
     }
   };
 
@@ -455,7 +658,7 @@ const AdminFormationsPage: React.FC = () => {
         } catch (error) {
           console.error('Erreur lors de la suppression de l\'univers:', error);
           // En cas d'erreur, recharger les données pour restaurer l'état correct
-          await loadUniverses();
+          await refreshData();
         }
       }
     });
@@ -477,7 +680,7 @@ const AdminFormationsPage: React.FC = () => {
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'univers:', error);
       // En cas d'erreur, recharger les données pour restaurer l'état correct
-      await loadUniverses();
+      await refreshData();
     }
   };
 
@@ -500,74 +703,50 @@ const AdminFormationsPage: React.FC = () => {
     if (!formationToMove) return;
     
     try {
-      // Mise à jour optimiste : modifier immédiatement l'universId de la formation
-      const updatedFormation = { 
-        ...formationToMove, 
-        universeId: targetUniverseId === '' ? undefined : targetUniverseId 
-      };
-      updateFormationOptimistically(updatedFormation);
-      
+      // Fermer le modal immédiatement pour une meilleure UX
       setShowMoveFormationModal(false);
       setFormationToMove(null);
       
-      // Appel API en arrière-plan
-      if (targetUniverseId === '') {
-        // Retirer de l'univers (placer dans FSU)
-        if (formationToMove.universeId) {
-          await universesApi.moveFormation(formationToMove.id, null);
-        }
-      } else {
-        // Déplacer vers un univers
-        if (formationToMove.universeId) {
-          // Retirer de l'ancien univers
-          await universesApi.moveFormation(formationToMove.id, null);
-        }
-        // Ajouter au nouvel univers
-        await universesApi.moveFormation(formationToMove.id, targetUniverseId);
-      }
+      // Mise à jour optimiste : modifier immédiatement l'universeId de la formation
+      const newUniverseId = targetUniverseId === '' ? null : targetUniverseId;
+      const updatedFormation = { 
+        ...formationToMove, 
+        universeId: newUniverseId || undefined
+      };
+      updateFormationOptimistically(updatedFormation);
       
-      // Recharger les univers pour mettre à jour les compteurs
-      await loadUniverses();
+      console.log(`🔄 Déplacement de la formation ${formationToMove.id} vers l'univers ${newUniverseId || 'FSU'}`);
+      
+      // Un seul appel API pour déplacer la formation
+      await universesApi.moveFormation(formationToMove.id, newUniverseId);
+      
+      console.log('✅ Déplacement réussi - pas de rechargement nécessaire');
+      
     } catch (error) {
-      console.error('Erreur lors du déplacement:', error);
-      // En cas d'erreur, recharger les données pour restaurer l'état correct
-      await loadFormations();
-      await loadUniverses();
+      console.error('❌ Erreur lors du déplacement:', error);
+      
+      // En cas d'erreur, restaurer l'état original et recharger
+      updateFormationOptimistically(formationToMove);
+      await refreshData();
     }
   };
 
 
-  // Grouper les formations par univers pour l'affichage
-  const getFormationsByUniverse = () => {
-    const grouped: Record<string, Formation[]> = {};
-    
-    universes.forEach(universe => {
-      if (universe.id === 'fsu') {
-        // FSU contient les formations sans univers
-        grouped[universe.id] = formations.filter(f => !f.universeId);
-      } else {
-        // Autres univers contiennent leurs formations
-        grouped[universe.id] = formations.filter(f => f.universeId === universe.id);
-      }
-    });
-    
-    return grouped;
-  };
+  // Grouper les formations par univers pour l'affichage (utilise les données mémorisées)
+  const getFormationsByUniverse = useCallback(() => {
+    return formationsByUniverse;
+  }, [formationsByUniverse]);
 
-  // Obtenir les formations à afficher selon le contexte
-  const getFormationsToDisplay = () => {
+  // Obtenir les formations à afficher selon le contexte (utilise les données mémorisées)
+  const getFormationsToDisplay = useCallback(() => {
     if (selectedUniverse) {
       // Si on est dans un univers spécifique, afficher ses formations
-      if (selectedUniverse.id === 'fsu') {
-        return formations.filter(f => !f.universeId);
-      } else {
-        return formations.filter(f => f.universeId === selectedUniverse.id);
-      }
+      return formationsByUniverse[selectedUniverse.id] || [];
     } else {
       // Sinon, afficher toutes les formations
       return filteredFormations;
     }
-  };
+  }, [selectedUniverse, formationsByUniverse, filteredFormations]);
 
   // Grouper les formations par univers pour l'affichage avec sections
   const getFormationsGroupedByUniverse = () => {
@@ -578,6 +757,9 @@ const AdminFormationsPage: React.FC = () => {
       
       if (universe.id === 'fsu') {
         universeFormations = filteredFormations.filter(f => !f.universeId);
+      } else if (universe.id === 'mes-formations') {
+        // Pour l'univers "Mes Formations" des COLLABORATOR, afficher toutes les formations
+        universeFormations = filteredFormations;
       } else {
         universeFormations = filteredFormations.filter(f => f.universeId === universe.id);
       }
@@ -605,7 +787,7 @@ const AdminFormationsPage: React.FC = () => {
   };
 
   // Fonction pour formater la durée
-  const formatDuration = (minutes: number) => {
+  const formatDuration = useCallback((minutes: number) => {
     if (minutes < 60) {
       return `${minutes} min`;
     }
@@ -615,7 +797,7 @@ const AdminFormationsPage: React.FC = () => {
       return `${hours}h`;
     }
     return `${hours}h ${remainingMinutes}min`;
-  };
+  }, []);
 
   if (isLoading) {
     return (
@@ -667,6 +849,61 @@ const AdminFormationsPage: React.FC = () => {
         </button>
       </div> */}
 
+      {/* Barre d'actions en lot - Visible uniquement pour les admins */}
+      {showBulkActions && isAdmin() && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-blue-900">
+                {selectedFormations.length} formation{selectedFormations.length > 1 ? 's' : ''} sélectionnée{selectedFormations.length > 1 ? 's' : ''}
+              </span>
+              <button
+                onClick={handleSelectAllFormations}
+                className="text-sm text-blue-600 hover:text-blue-800 underline"
+              >
+                {selectedFormations.length === getFormationsToDisplay().length ? 'Tout désélectionner' : 'Tout sélectionner'}
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowBulkAssignModal(true)}
+                disabled={bulkActionLoading}
+                className="flex items-center gap-2 px-3 py-1.5 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:opacity-50"
+              >
+                <UserPlus className="h-4 w-4" />
+                Assigner
+              </button>
+              
+              <button
+                onClick={() => setShowBulkMoveModal(true)}
+                disabled={bulkActionLoading}
+                className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-sm rounded-md hover:bg-purple-700 disabled:opacity-50"
+              >
+                <Move className="h-4 w-4" />
+                Déplacer
+              </button>
+              
+              <button
+                onClick={() => setShowBulkDeleteModal(true)}
+                disabled={bulkActionLoading}
+                className="flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white text-sm rounded-md hover:bg-red-700 disabled:opacity-50"
+              >
+                <Trash2 className="h-4 w-4" />
+                Supprimer
+              </button>
+              
+              <button
+                onClick={() => setSelectedFormations([])}
+                className="text-sm text-gray-600 hover:text-gray-800 px-2 py-1"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Contrôles de vue et recherche */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
       {/* Barre de recherche */}
@@ -693,31 +930,33 @@ const AdminFormationsPage: React.FC = () => {
             </button>
           )}
 
-          {/* Sélecteur de vue principale */}
-          <div className="flex bg-gray-100 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('formations')}
-              className={`px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${
-                viewMode === 'formations' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <BookOpen className="h-4 w-4" />
-              Formations
-            </button>
-            <button
-              onClick={() => setViewMode('universes')}
-              className={`px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${
-                viewMode === 'universes' 
-                  ? 'bg-white text-blue-600 shadow-sm' 
-                  : 'text-gray-600 hover:text-gray-900'
-              }`}
-            >
-              <Folder className="h-4 w-4" />
-              Univers
-            </button>
-          </div>
+          {/* Sélecteur de vue principale - Visible uniquement pour les admins */}
+          {isAdmin() && (
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setViewMode('formations')}
+                className={`px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${
+                  viewMode === 'formations' 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <BookOpen className="h-4 w-4" />
+                Formations
+              </button>
+              <button
+                onClick={() => setViewMode('universes')}
+                className={`px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${
+                  viewMode === 'universes' 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <Folder className="h-4 w-4" />
+                Univers
+              </button>
+            </div>
+          )}
 
           {/* Sélecteur de vue univers (si on est en mode univers) */}
           {viewMode === 'universes' && (
@@ -758,7 +997,7 @@ const AdminFormationsPage: React.FC = () => {
              'Formations disponibles'}
           </h2>
           
-          {viewMode === 'formations' && (
+          {viewMode === 'formations' && isAdmin() && (
           <button
           onClick={handleCreateFormation}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
@@ -774,7 +1013,7 @@ const AdminFormationsPage: React.FC = () => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
             <p className="text-gray-500 text-lg">Chargement...</p>
           </div>
-        ) : viewMode === 'universes' ? (
+        ) : (isAdmin() && viewMode === 'universes') ? (
           /* Vue Univers avec Drag and Drop */
           universes.length === 0 ? (
             <div className="text-center py-12">
@@ -864,7 +1103,7 @@ const AdminFormationsPage: React.FC = () => {
                           </svg>
                           {/* Petit badge pour le nombre de formations */}
                           <div className="absolute -bottom-1 -right-1 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-medium">
-                            {formations.filter(f => f.universeId === universe.id).length}
+                            {universeStats[universe.id]?.count || 0}
                           </div>
                         </div>
                       </div>
@@ -878,7 +1117,7 @@ const AdminFormationsPage: React.FC = () => {
                       <div className="text-xs text-gray-500 space-y-1">
                         <div className="flex items-center justify-center">
                           <Clock className="h-3 w-3 mr-1" />
-                          {formatDuration(formations.filter(f => f.universeId === universe.id).reduce((total, f) => total + (f.totalDuration || f.duration), 0))}
+                          {formatDuration(universeStats[universe.id]?.totalDuration || 0)}
                         </div>
                         {universe.description && (
                           <div className="text-gray-400 truncate px-1">
@@ -909,12 +1148,12 @@ const AdminFormationsPage: React.FC = () => {
                     
                     {/* Colonne Taille */}
                     <div className="w-20 text-gray-600 flex-shrink-0 text-right">
-                      {formations.filter(f => f.universeId === universe.id).length} élément{(formations.filter(f => f.universeId === universe.id).length > 1 ? 's' : '')}
+                      {universeStats[universe.id]?.count || 0} élément{(universeStats[universe.id]?.count || 0) > 1 ? 's' : ''}
                     </div>
                     
                     {/* Colonne Durée totale */}
                     <div className="w-24 text-gray-600 flex-shrink-0 text-right">
-                      {formatDuration(formations.filter(f => f.universeId === universe.id).reduce((total, f) => total + (f.totalDuration || f.duration), 0))}
+                      {formatDuration(universeStats[universe.id]?.totalDuration || 0)}
                     </div>
                     
                     {/* Colonne Date de modification */}
@@ -1304,8 +1543,22 @@ const AdminFormationsPage: React.FC = () => {
                     {formations.map((formation) => (
                       <div
                         key={formation.id}
-                        className="bg-gradient-to-b from-white to-blue-50 border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow relative"
+                        className={`bg-gradient-to-b from-white to-blue-50 border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow relative ${
+                          selectedFormations.includes(formation.id) ? 'ring-2 ring-blue-500 bg-blue-50' : ''
+                        }`}
                       >
+                        {/* Checkbox de sélection multiple */}
+                        {isAdmin() && (
+                          <div className="absolute top-2 left-2 z-10">
+                            <input
+                              type="checkbox"
+                              checked={selectedFormations.includes(formation.id)}
+                              onChange={() => handleSelectFormation(formation.id)}
+                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                            />
+                          </div>
+                        )}
+
                         {/* Menu Admin (3 points) - Visible uniquement pour les admins */}
                         {isAdmin() && (
                           <div className="absolute top-2 right-2 z-10">
@@ -1397,6 +1650,51 @@ const AdminFormationsPage: React.FC = () => {
                                 >
                                   <Trash2 className="h-4 w-4 mr-2" />
                                   Supprimer
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Menu Apprenant (3 points) - Visible uniquement pour les apprenants */}
+                        {!isAdmin() && (
+                          <div className="absolute top-2 right-2 z-10">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveDropdown(activeDropdown === formation.id ? null : formation.id);
+                              }}
+                              className="dropdown-trigger p-1 bg-white/80 hover:bg-white rounded-full shadow-sm transition-colors"
+                              title="Actions disponibles"
+                            >
+                              <MoreVertical className="h-4 w-4 text-gray-600" />
+                            </button>
+
+                            {/* Menu déroulant apprenant */}
+                            {activeDropdown === formation.id && (
+                              <div className="dropdown-menu absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-48 z-20">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleFormationClick(formation);
+                                    setActiveDropdown(null);
+                                  }}
+                                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  Voir les détails
+                                </button>
+
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleScheduleFormation(formation);
+                                    setActiveDropdown(null);
+                                  }}
+                                  className="w-full flex items-center px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
+                                >
+                                  <Calendar className="h-4 w-4 mr-2" />
+                                  Planifier dans l'agenda
                                 </button>
                               </div>
                             )}
@@ -1620,18 +1918,15 @@ const AdminFormationsPage: React.FC = () => {
                     isActive: true
                   });
                   
-                  // Remplacer l'univers temporaire par la vraie réponse de l'API
+                  // Recharger les données pour avoir l'univers réel
                   if (response.data.success) {
-                    const realUniverse = response.data.data;
-                    setUniverses(prev => 
-                      prev.map(u => u.id === tempId ? realUniverse : u)
-                    );
+                    await refreshData();
                   }
                 } catch (error) {
                   console.error('Erreur lors de la création de l\'univers:', error);
                   // En cas d'erreur, supprimer l'univers temporaire et recharger
                   removeUniverseOptimistically(`temp-${Date.now()}`);
-                  await loadUniverses();
+                  await refreshData();
                 }
               }}>
                 <div className="space-y-4">
@@ -1883,6 +2178,320 @@ const AdminFormationsPage: React.FC = () => {
                   Annuler
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de suppression en lot */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Supprimer les formations
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Cette action est irréversible
+                  </p>
+                </div>
+              </div>
+              
+              <p className="text-gray-700 mb-6">
+                Êtes-vous sûr de vouloir supprimer <strong>{selectedFormations.length}</strong> formation{selectedFormations.length > 1 ? 's' : ''} ?
+                Toutes les données associées seront définitivement perdues.
+              </p>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowBulkDeleteModal(false)}
+                  disabled={bulkActionLoading}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={bulkActionLoading}
+                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {bulkActionLoading && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  )}
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de déplacement en lot */}
+      {showBulkMoveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                  <Move className="h-5 w-5 text-purple-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Déplacer les formations
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Sélectionnez l'univers de destination
+                  </p>
+                </div>
+              </div>
+              
+              <p className="text-gray-700 mb-4">
+                Déplacer <strong>{selectedFormations.length}</strong> formation{selectedFormations.length > 1 ? 's' : ''} vers :
+              </p>
+              
+              <div className="space-y-2 mb-6">
+                {/* Option FSU */}
+                <button
+                  onClick={() => handleBulkMove(null)}
+                  disabled={bulkActionLoading}
+                  className="w-full text-left p-3 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-4 h-4 rounded-full bg-gray-400"></div>
+                    <span className="font-medium">FSU (Formations Sans Univers)</span>
+                  </div>
+                </button>
+                
+                {/* Autres univers */}
+                {universes.map((universe) => (
+                  <button
+                    key={universe.id}
+                    onClick={() => handleBulkMove(universe.id)}
+                    disabled={bulkActionLoading}
+                    className="w-full text-left p-3 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="w-4 h-4 rounded-full"
+                        style={{ backgroundColor: universe.color }}
+                      ></div>
+                      <span className="font-medium">{universe.name}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowBulkMoveModal(false)}
+                  disabled={bulkActionLoading}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal d'assignation en lot */}
+      {showBulkAssignModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                  <UserPlus className="h-5 w-5 text-green-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Assigner les formations
+                  </h3>
+                  <p className="text-sm text-gray-600">
+                    Sélectionnez les collaborateurs et paramètres
+                  </p>
+                </div>
+              </div>
+              
+              <p className="text-gray-700 mb-6">
+                Assigner <strong>{selectedFormations.length}</strong> formation{selectedFormations.length > 1 ? 's' : ''} aux collaborateurs :
+              </p>
+              
+              <div className="space-y-4 mb-6">
+                {/* Sélection des collaborateurs */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Collaborateurs à assigner
+                  </label>
+                  <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
+                    <p className="text-sm text-gray-600 mb-2">
+                      Sélectionnez les collaborateurs qui recevront ces formations :
+                    </p>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" id="all-users" className="rounded" />
+                        <label htmlFor="all-users" className="text-sm text-gray-700">
+                          Tous les collaborateurs de la banque
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input type="checkbox" id="specific-users" className="rounded" />
+                        <label htmlFor="specific-users" className="text-sm text-gray-700">
+                          Collaborateurs spécifiques
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Paramètres d'assignation */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Paramètres d'assignation
+                  </label>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <input type="checkbox" id="is-mandatory" className="rounded" />
+                      <label htmlFor="is-mandatory" className="text-sm text-gray-700">
+                        Formation obligatoire
+                      </label>
+                    </div>
+                    
+                    <div>
+                      <label htmlFor="due-date" className="block text-sm text-gray-600 mb-1">
+                        Date d'échéance (optionnelle)
+                      </label>
+                      <input
+                        type="date"
+                        id="due-date"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowBulkAssignModal(false)}
+                  disabled={bulkActionLoading}
+                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={() => {
+                    // TODO: Implémenter la logique de sélection des utilisateurs
+                    const mockAssignments = [
+                      { userId: 'user1', bankId: 'bank1', isMandatory: true, dueDate: null }
+                    ];
+                    handleBulkAssign(mockAssignments);
+                  }}
+                  disabled={bulkActionLoading}
+                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {bulkActionLoading && (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  )}
+                  Assigner les formations
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de planification dans l'agenda */}
+      {showScheduleModal && selectedFormation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Planifier dans l'agenda
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Formation : <strong>{selectedFormation.title}</strong>
+              </p>
+              
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target as HTMLFormElement);
+                const date = formData.get('date') as string;
+                const time = formData.get('time') as string;
+                
+                try {
+                  // Appel API pour planifier la formation
+                  const { formationsApi } = await import('../../../api/learnerApi');
+                  
+                  await formationsApi.scheduleFormation({
+                    formationId: selectedFormation.id,
+                    date,
+                    time,
+                    title: selectedFormation.title,
+                    description: `Formation planifiée : ${selectedFormation.title}`
+                  });
+                  
+                  toast({
+                    title: "Formation planifiée",
+                    description: `"${selectedFormation.title}" a été ajoutée à votre agenda le ${new Date(date).toLocaleDateString('fr-FR')} à ${time}`,
+                  });
+                  
+                  setShowScheduleModal(false);
+                } catch (error) {
+                  console.error('Erreur lors de la planification:', error);
+                  toast({
+                    title: "Erreur",
+                    description: "Impossible de planifier la formation",
+                    variant: "destructive"
+                  });
+                }
+              }}>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      name="date"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Heure
+                    </label>
+                    <input
+                      type="time"
+                      name="time"
+                      required
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 mt-6">
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleModal(false)}
+                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Planifier
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         </div>

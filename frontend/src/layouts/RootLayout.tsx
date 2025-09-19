@@ -14,8 +14,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
   const { theme } = useTheme();
   const location = useLocation();
   
-  // Ne pas afficher la navbar sur les pages admin
+  // Ne pas afficher la navbar sur les pages admin et apprenant
   const isAdminPage = location.pathname.startsWith('/admin');
+  const isLearnerPage = location.pathname.startsWith('/apprenant');
 
   // Gestion du scroll fluide
   useEffect(() => {
@@ -43,12 +44,12 @@ export default function RootLayout({ children }: RootLayoutProps) {
 
   return (
     <div className={`min-h-screen flex flex-col transition-colors duration-200 ${theme === 'dark' ? 'dark' : ''}`}>
-      {!isAdminPage && <Navbar />}
+      {!isAdminPage && !isLearnerPage && <Navbar />}
       <AuthProvider>
         <main className="flex-1">
           {children}
         </main>
-        {!isAdminPage && <Chatbot />}
+        {!isAdminPage && !isLearnerPage && <Chatbot />}
         <Toaster />
       </AuthProvider>
     </div>

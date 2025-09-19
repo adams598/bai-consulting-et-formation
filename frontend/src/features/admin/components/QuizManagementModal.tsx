@@ -307,3 +307,10 @@ const QuizManagementModal: React.FC<QuizManagementModalProps> = ({
 };
 
 export default QuizManagementModal;
+
+
+
+
+
+
+

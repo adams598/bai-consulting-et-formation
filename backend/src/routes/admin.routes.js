@@ -5,6 +5,7 @@ import {
   uploadSingleImage,
   uploadSingleVideo,
   uploadSingleFile,
+  uploadOpportunitiesFile,
   uploadProfileImage,
   uploadFormationImage,
   uploadLessonFile,
@@ -31,18 +32,122 @@ import { progressController } from "../controllers/progress.controller.js";
 import { quizController as newQuizController } from "../controllers/quiz.controller.js";
 import { notificationsController } from "../controllers/notifications.controller.js";
 import { advancedAssignmentsController } from "../controllers/advanced-assignments.controller.js";
+import { formationAssignmentsController } from "../controllers/formation-assignments.controller.js";
 import { certificatesController } from "../controllers/certificates.controller.js";
+import { opportunitiesController } from "../controllers/opportunities.controller.js";
+import {
+  getMetricsMiddleware,
+  getLogsMiddleware,
+  resetMetricsMiddleware,
+  cleanupLogsMiddleware,
+} from "../middleware/monitoring.middleware.js";
 
 const router = express.Router();
 
-// Endpoint de santé (sans authentification)
-router.get("/auth/health", (req, res) => {
-  res.json({
-    status: "OK",
-    message: "API Backend BAI Consulting opérationnelle",
-    timestamp: new Date().toISOString(),
-    version: "1.0.0",
-  });
+// Endpoint de santé amélioré (sans authentification)
+router.get("/auth/health", async (req, res) => {
+  try {
+    const healthChecks = {
+      database: { status: "unknown", responseTime: 0 },
+      cache: { status: "unknown", responseTime: 0 },
+      storage: { status: "unknown", responseTime: 0 },
+    };
+
+    // Vérification de la base de données
+    const dbStart = Date.now();
+    try {
+      const { PrismaClient } = await import("@prisma/client");
+      const prisma = new PrismaClient();
+      await prisma.$queryRaw`SELECT 1`;
+      healthChecks.database = {
+        status: "healthy",
+        responseTime: Date.now() - dbStart,
+      };
+    } catch (error) {
+      healthChecks.database = {
+        status: "unhealthy",
+        responseTime: Date.now() - dbStart,
+        error: error.message,
+      };
+    }
+
+    // Vérification du cache Redis
+    const cacheStart = Date.now();
+    try {
+      const cacheService = (await import("../services/cache.service.js"))
+        .default;
+      const cacheStatus = cacheService.getStatus();
+      healthChecks.cache = {
+        status: "healthy", // Toujours healthy car nous avons un fallback en mémoire
+        responseTime: Date.now() - cacheStart,
+        host: cacheStatus.host,
+        port: cacheStatus.port,
+        redisConnected: cacheStatus.connected,
+        fallbackMode: !cacheStatus.connected,
+      };
+    } catch (error) {
+      healthChecks.cache = {
+        status: "healthy", // Même en cas d'erreur, le cache mémoire fonctionne
+        responseTime: Date.now() - cacheStart,
+        error: error.message,
+        fallbackMode: true,
+      };
+    }
+
+    // Vérification du stockage
+    const storageStart = Date.now();
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+      const uploadPath = path.join(process.cwd(), "uploads");
+
+      if (fs.existsSync(uploadPath)) {
+        healthChecks.storage = {
+          status: "healthy",
+          responseTime: Date.now() - storageStart,
+          path: uploadPath,
+        };
+      } else {
+        healthChecks.storage = {
+          status: "unhealthy",
+          responseTime: Date.now() - storageStart,
+          error: "Upload directory does not exist",
+        };
+      }
+    } catch (error) {
+      healthChecks.storage = {
+        status: "unhealthy",
+        responseTime: Date.now() - storageStart,
+        error: error.message,
+      };
+    }
+
+    // Déterminer le statut global
+    const allHealthy = Object.values(healthChecks).every(
+      (check) => check.status === "healthy"
+    );
+    const status = allHealthy ? "healthy" : "degraded";
+
+    res.status(allHealthy ? 200 : 503).json({
+      status,
+      message: allHealthy
+        ? "API Backend BAI Consulting opérationnelle"
+        : "API Backend BAI Consulting avec problèmes détectés",
+      timestamp: new Date().toISOString(),
+      version: "1.0.0",
+      environment: process.env.NODE_ENV || "development",
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      healthChecks,
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "unhealthy",
+      message: "Erreur lors de la vérification de santé",
+      timestamp: new Date().toISOString(),
+      error: error.message,
+    });
+  }
 });
 
 // Routes d'authentification
@@ -109,6 +214,42 @@ router.patch(
 // Routes des formations
 router.get(
   "/formations",
+  authMiddleware,
+  adminMiddleware,
+  formationsController.getAllFormationsSimple
+);
+
+// Route spéciale pour les COLLABORATOR - accès à leurs formations assignées
+router.get(
+  "/formations/my-assignments",
+  authMiddleware, // Seul authMiddleware, pas adminMiddleware
+  async (req, res) => {
+    try {
+      const user = req.user;
+
+      // Si c'est un admin, rediriger vers la route normale
+      if (user.role === "SUPER_ADMIN" || user.role === "BANK_ADMIN") {
+        return res.status(400).json({
+          success: false,
+          message: "Les administrateurs doivent utiliser la route /formations",
+        });
+      }
+
+      // Pour les COLLABORATOR, utiliser le contrôleur learner
+      const { formationsController: learnerFormationsController } =
+        await import("../controllers/learner.controllers.js");
+      return learnerFormationsController.getMyFormations(req, res);
+    } catch (error) {
+      console.error("Erreur dans /formations/my-assignments:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  }
+);
+router.get(
+  "/formations/paginated",
   authMiddleware,
   adminMiddleware,
   formationsController.getAllFormations
@@ -273,6 +414,13 @@ router.get(
   bankFormationController.getFormationStats
 );
 
+router.get(
+  "/formations/stats/all",
+  authMiddleware,
+  adminMiddleware,
+  formationsController.getAllFormationsStats
+);
+
 router.patch(
   "/bank-formations/:id/mandatory",
   authMiddleware,
@@ -300,6 +448,13 @@ router.post(
   authMiddleware,
   adminMiddleware,
   userFormationAssignmentController.assignUsersByGroup
+);
+
+router.post(
+  "/assignments/bulk-formations",
+  authMiddleware,
+  adminMiddleware,
+  userFormationAssignmentController.bulkAssignFormationsToUsers
 );
 
 router.patch(
@@ -450,42 +605,43 @@ router.post(
 );
 
 // Routes des assignations (à implémenter)
-// router.get(
-//   "/assignments",
-//   authMiddleware,
-//   adminMiddleware,
-//   assignmentsController.getAllAssignments
-// );
-// router.get(
-//   "/assignments/:id",
-//   authMiddleware,
-//   adminMiddleware,
-//   assignmentsController.getAssignmentById
-// );
-// router.post(
-//   "/assignments",
-//   authMiddleware,
-//   adminMiddleware,
-//   assignmentsController.createAssignment
-// );
-// router.put(
-//   "/assignments/:id",
-//   authMiddleware,
-//   adminMiddleware,
-//   assignmentsController.updateAssignment
-// );
-// router.delete(
-//   "/assignments/:id",
-//   authMiddleware,
-//   adminMiddleware,
-//   assignmentsController.deleteAssignment
-// );
-// router.post(
-//   "/assignments/bulk",
-//   authMiddleware,
-//   adminMiddleware,
-//   assignmentsController.bulkAssign
-// );
+// Routes des assignations directes formation-utilisateur
+router.get(
+  "/assignments",
+  authMiddleware,
+  adminMiddleware,
+  formationAssignmentsController.getAllAssignments
+);
+router.get(
+  "/assignments/:id",
+  authMiddleware,
+  adminMiddleware,
+  formationAssignmentsController.getAssignmentById
+);
+router.post(
+  "/assignments",
+  authMiddleware,
+  adminMiddleware,
+  formationAssignmentsController.createAssignment
+);
+router.put(
+  "/assignments/:id",
+  authMiddleware,
+  adminMiddleware,
+  formationAssignmentsController.updateAssignment
+);
+router.delete(
+  "/assignments/:id",
+  authMiddleware,
+  adminMiddleware,
+  formationAssignmentsController.deleteAssignment
+);
+router.post(
+  "/assignments/bulk",
+  authMiddleware,
+  adminMiddleware,
+  formationAssignmentsController.bulkAssign
+);
 
 // Routes du tableau de bord
 router.get(
@@ -517,6 +673,45 @@ router.get(
   authMiddleware,
   adminMiddleware,
   dashboardController.getFormationPerformance
+);
+
+// Routes des opportunités commerciales
+router.get(
+  "/opportunities/files",
+  authMiddleware,
+  adminMiddleware,
+  opportunitiesController.getPresentationFiles
+);
+
+router.post(
+  "/opportunities/files",
+  authMiddleware,
+  adminMiddleware,
+  uploadOpportunitiesFile,
+  opportunitiesController.uploadPresentationFile
+);
+
+router.delete(
+  "/opportunities/files/:fileName",
+  authMiddleware,
+  adminMiddleware,
+  opportunitiesController.deletePresentationFile
+);
+
+router.options("/opportunities/files/:fileName", (req, res) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET, OPTIONS");
+  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Cross-Origin-Resource-Policy", "cross-origin");
+  res.header("Cross-Origin-Embedder-Policy", "unsafe-none");
+  res.header("Cross-Origin-Opener-Policy", "unsafe-none");
+  res.status(200).end();
+});
+
+router.get(
+  "/opportunities/files/:fileName",
+  authMiddleware,
+  opportunitiesController.servePresentationFile
 );
 
 // Routes des quiz (à implémenter)
@@ -586,13 +781,13 @@ router.post("/test-progress", authMiddleware, (req, res) => {
   });
 });
 
-// Routes de progression pour le TestViewer (sans adminMiddleware pour permettre l'accès aux utilisateurs)
+// Routes de progression
 router.post("/progress/save", authMiddleware, progressController.saveProgress);
 router.get("/progress/get", authMiddleware, progressController.getProgress);
 router.get(
   "/progress/user/:userId/all",
   authMiddleware,
-  progressController.getUserAllProgress
+  progressController.getUserProgress
 );
 
 // Routes des notifications
@@ -618,7 +813,7 @@ router.patch(
   "/notifications/:id/read",
   authMiddleware,
   adminMiddleware,
-  notificationsController.markAsRead
+  notificationsController.markNotificationAsRead
 );
 router.delete(
   "/notifications/:id",
@@ -837,6 +1032,35 @@ router.get(
   authMiddleware,
   adminMiddleware,
   universeController.getUniverseFormations
+);
+
+// Endpoints de monitoring (avec authentification admin)
+router.get(
+  "/monitoring/metrics",
+  authMiddleware,
+  adminMiddleware,
+  getMetricsMiddleware
+);
+
+router.get(
+  "/monitoring/logs",
+  authMiddleware,
+  adminMiddleware,
+  getLogsMiddleware
+);
+
+router.post(
+  "/monitoring/reset",
+  authMiddleware,
+  adminMiddleware,
+  resetMetricsMiddleware
+);
+
+router.post(
+  "/monitoring/cleanup",
+  authMiddleware,
+  adminMiddleware,
+  cleanupLogsMiddleware
 );
 
 export default router;

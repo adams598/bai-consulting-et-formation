@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, User, Mail, Building, Shield, Clock, Grid, List, Phone } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, User, Mail, Building, Shield, Clock, Grid, List, Phone, TrendingUp, BookOpen, Settings } from 'lucide-react';
 import { User as UserType } from '../types';
 import { usersApi } from '../../../api/adminApi';
 import { Button } from '../../../components/ui/button';
@@ -7,6 +7,8 @@ import { Input } from '../../../components/ui/input';
 import { useToast } from '../../../components/ui/use-toast';
 import ConfirmationModal from './ConfirmationModal';
 import { useConfirmation } from '../../../hooks/useConfirmation';
+import UserProgressModal from './UserProgressModal';
+import UserFormationAssignmentModal from './UserFormationAssignmentModal';
 
 // Type pour la création d'utilisateur avec mot de passe
 type CreateUserData = Omit<UserType, 'id' | 'createdAt' | 'updatedAt'> & {
@@ -197,6 +199,10 @@ export default function AdminUsersPage() {
   const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
+  const [showProgressModal, setShowProgressModal] = useState(false);
+  const [selectedUserForProgress, setSelectedUserForProgress] = useState<UserType | null>(null);
+  const [showAssignmentModal, setShowAssignmentModal] = useState(false);
+  const [selectedUserForAssignment, setSelectedUserForAssignment] = useState<UserType | null>(null);
 
   const { toast } = useToast();
   
@@ -405,6 +411,26 @@ export default function AdminUsersPage() {
   const handleCreateUser = () => {
     setEditingUser(null);
     setShowModal(true);
+  };
+
+  // Ouvrir le modal de suivi de progression
+  const handleViewProgress = (user: UserType) => {
+    setSelectedUserForProgress(user);
+    setShowProgressModal(true);
+  };
+
+  // Ouvrir le modal d'assignation de formations
+  const handleAssignFormations = (user: UserType) => {
+    setSelectedUserForAssignment(user);
+    setShowAssignmentModal(true);
+  };
+
+  // Callback après assignation réussie
+  const handleFormationsAssigned = () => {
+    // Optionnel: recharger les données si nécessaire
+    // Pour l'instant, juste fermer le modal
+    setShowAssignmentModal(false);
+    setSelectedUserForAssignment(null);
   };
 
   if (isLoading) {
@@ -663,6 +689,24 @@ export default function AdminUsersPage() {
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => handleAssignFormations(user)}
+                        className="border-green-200 text-green-600 hover:text-green-700 hover:border-green-300"
+                        title="Assigner des formations"
+                      >
+                        <BookOpen className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewProgress(user)}
+                        className="border-blue-200 text-blue-600 hover:text-blue-700 hover:border-blue-300"
+                        title="Suivre la progression"
+                      >
+                        <TrendingUp className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleEditUser(user)}
                           className="border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-800"
                       >
@@ -697,84 +741,99 @@ export default function AdminUsersPage() {
 
       {/* Vue Cartes */}
       {viewMode === 'cards' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {filteredUsers.map((user) => (
-            <div key={user.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center">
-                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center mr-4">
-                    <span className="text-lg font-medium text-blue-700">
-                      {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 className="text-base font-medium text-gray-800">
-                      {user.firstName} {user.lastName}
-                    </h3>
-                    <p className="text-sm text-gray-600">{user.email}</p>
+            <div key={user.id} className="bg-gradient-to-b from-white to-blue-50 border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow relative">
+              <div 
+                className="relative h-32 bg-gray-200 rounded-lg mb-3 overflow-hidden group cursor-pointer"
+                onClick={() => handleEditUser(user)}
+              >
+                {/* Photo de profil ou initiales */}
+                <div className="w-full h-full flex items-center justify-center">
+                  {/* Fallback avec initiales */}
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
+                      <span className="text-2xl font-medium text-blue-700">
+                        {user.firstName?.charAt(0)}{user.lastName?.charAt(0)}
+                      </span>
+                    </div>
                   </div>
                 </div>
-                <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                  user.isActive
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
-                    : 'bg-red-50 text-red-700 border border-red-200'
-                }`}>
-                  {user.isActive ? 'Actif' : 'Inactif'}
-                </span>
-              </div>
-              
-              <div className="space-y-3">
-                <div>
-                  <span className={`inline-flex px-3 py-1 text-xs font-medium rounded-full ${
-                    user.role === 'SUPER_ADMIN' ? 'bg-red-50 text-red-700 border border-red-200' :
-                    user.role === 'BANK_ADMIN' ? 'bg-violet-50 text-violet-700 border border-violet-200' :
-                    'bg-blue-50 text-blue-700 border border-blue-200'
-                  }`}>
-                    {user.role === 'SUPER_ADMIN' ? 'Super Admin' :
-                     user.role === 'BANK_ADMIN' ? 'Admin Banque' :
-                     'Collaborateur'}
-                  </span>
+
+                {/* Actions au survol */}
+                <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                  <div className="flex items-center space-x-4 text-white">
+                    <div
+                      className="flex flex-col items-center hover:text-blue-300 transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.location.href = `mailto:${user.email}`;
+                      }}
+                      title={`Envoyer un email à ${user.firstName} ${user.lastName}`}
+                    >
+                      <Mail className="h-4 w-4 mb-1" />
+                      <span className="text-xs">Email</span>
+                    </div>
+
+                    <div
+                      className="flex flex-col items-center hover:text-green-300 transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAssignFormations(user);
+                      }}
+                      title="Assigner une formation"
+                    >
+                      <BookOpen className="h-4 w-4 mb-1" />
+                      <span className="text-xs">Assigner</span>
+                    </div>
+
+                    <div
+                      className="flex flex-col items-center hover:text-blue-300 transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleViewProgress(user);
+                      }}
+                      title="Suivre la progression"
+                    >
+                      <TrendingUp className="h-4 w-4 mb-1" />
+                      <span className="text-xs">Progression</span>
+                    </div>
+
+                    <div
+                      className="flex flex-col items-center hover:text-gray-300 transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditUser(user);
+                      }}
+                      title="Gérer le compte"
+                    >
+                      <Settings className="h-4 w-4 mb-1" />
+                      <span className="text-xs">Gestion</span>
+                    </div>
+
+                    <div
+                      className="flex flex-col items-center hover:text-red-300 transition-colors cursor-pointer"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteUser(user);
+                      }}
+                      title="Supprimer l'utilisateur"
+                    >
+                      <Trash2 className="h-4 w-4 mb-1" />
+                      <span className="text-xs">Supprimer</span>
+                    </div>
+                  </div>
                 </div>
-                
-                {user.phone && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Phone className="w-4 h-4 mr-2 text-gray-400" />
-                    {user.phone}
-                  </div>
-                )}
-                
-                {user.bank && (
-                  <div className="flex items-center text-sm text-gray-600">
-                    <Building className="w-4 h-4 mr-2 text-gray-400" />
-                    <span>{user.bank.name}</span>
-                    <span className="text-xs text-gray-400 ml-2">({user.bank.code})</span>
-                  </div>
-                )}
-                
-                {user.department && (
-                  <div className="text-sm text-gray-600">
-                    <span className="font-medium">Département:</span> {user.department}
-                  </div>
-                )}
               </div>
-              
-              <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-100">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleEditUser(user)}
-                  className="border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-800"
-                >
-                  <Edit className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleDeleteUser(user)}
-                  className="border-red-200 text-red-600 hover:text-red-700 hover:border-red-300"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+
+              {/* Contenu de la carte */}
+              <div className="space-y-2">
+                {/* Nom et prénom */}
+                <div className="text-center">
+                  <h3 className="text-sm font-semibold text-gray-800">
+                    {user.firstName} {user.lastName}
+                  </h3>
+                </div>
               </div>
             </div>
           ))}
@@ -782,14 +841,20 @@ export default function AdminUsersPage() {
           {/* Carte pour ajouter un nouveau collaborateur */}
           <div 
             onClick={handleCreateUser}
-            className="bg-white rounded-xl shadow-sm border border-gray-200 border-dashed p-6 hover:shadow-md transition-shadow cursor-pointer flex flex-col items-center justify-center min-h-[280px] text-center group hover:border-blue-300"
+            className="bg-gradient-to-b from-white to-blue-50 border-2 border-dashed border-gray-300 rounded-lg p-3 hover:border-blue-400 hover:shadow-md transition-all cursor-pointer text-center group"
           >
-            <Plus className="w-12 h-12 text-gray-400 group-hover:text-blue-500 mb-3 transition-colors" />
-            <h3 className="text-base font-medium text-gray-600 group-hover:text-gray-800 mb-2">
-              Ajouter un collaborateur
+            <div className="flex justify-center mb-2">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                  <Plus className="w-8 h-8 text-gray-400 group-hover:text-blue-500 transition-colors" />
+                </div>
+              </div>
+            </div>
+            <h3 className="text-sm font-medium text-gray-500 group-hover:text-blue-600 transition-colors">
+              Nouveau collaborateur
             </h3>
-            <p className="text-sm text-gray-500">
-              Cliquez pour créer un nouveau collaborateur
+            <p className="text-xs text-gray-400 mt-1">
+              Créer un utilisateur
             </p>
           </div>
         </div>
@@ -845,6 +910,31 @@ export default function AdminUsersPage() {
         type={confirmation.options?.type}
         isLoading={confirmation.isLoading}
       />
+
+      {/* Modal de suivi de progression */}
+      {selectedUserForProgress && (
+        <UserProgressModal
+          user={selectedUserForProgress}
+          isOpen={showProgressModal}
+          onClose={() => {
+            setShowProgressModal(false);
+            setSelectedUserForProgress(null);
+          }}
+        />
+      )}
+
+      {/* Modal d'assignation de formations */}
+      {selectedUserForAssignment && (
+        <UserFormationAssignmentModal
+          user={selectedUserForAssignment}
+          isOpen={showAssignmentModal}
+          onClose={() => {
+            setShowAssignmentModal(false);
+            setSelectedUserForAssignment(null);
+          }}
+          onAssigned={handleFormationsAssigned}
+        />
+      )}
     </div>
   );
 } 

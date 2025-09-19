@@ -41,10 +41,41 @@ api.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Token expiré ou invalide
+      const errorCode = error.response?.data?.code;
+      
+      // Différents messages selon le type d'expiration
+      let message = 'Session expirée';
+      switch (errorCode) {
+        case 'SESSION_INACTIVE':
+          message = 'Session expirée due à l\'inactivité';
+          break;
+        case 'SESSION_EXPIRED':
+          message = 'Session expirée';
+          break;
+        case 'TOKEN_EXPIRED':
+          message = 'Token d\'authentification expiré';
+          break;
+        case 'INVALID_TOKEN':
+          message = 'Token d\'authentification invalide';
+          break;
+        default:
+          message = 'Session expirée, veuillez vous reconnecter';
+      }
+      
+      console.warn('🔐 Authentification échouée:', message);
+      
+      // Token expiré ou invalide - nettoyage unifié
+      localStorage.removeItem('bai_auth_token');
       localStorage.removeItem('accessToken');
+      localStorage.removeItem('auth_token');
+      sessionStorage.removeItem('auth_token');
+      localStorage.removeItem('user');
       localStorage.removeItem('currentUser');
-      window.location.href = '/admin/login';
+      
+      // Redirection vers la page de connexion unifiée seulement si on n'y est pas déjà
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

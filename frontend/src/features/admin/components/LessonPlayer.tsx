@@ -1,11 +1,12 @@
 // LessonPlayer.tsx
 import React, { useState, useEffect, useContext } from 'react';
-import { X, Play, FileText, Video, Presentation, Clock, CheckCircle, BookOpen } from 'lucide-react';
+import { X, Play, FileText, Video, Presentation, Clock, CheckCircle, BookOpen, Lock } from 'lucide-react';
 import { FormationContent } from '../types';
 import { getLessonImageUrl, getImageUrl, getLessonFileUrl } from '../../../utils/imageUtils';
 import TestViewer from './TestViewer';
 import '../../../components/LessonPlayer.css';
 import { useAuth } from '../../../providers/auth-provider';
+import { useProgress } from '../../../contexts/ProgressContext';
 
 interface LessonPlayerProps {
   formation: {
@@ -14,7 +15,13 @@ interface LessonPlayerProps {
     description?: string;
   };
   lessons: FormationContent[];
+  initialSelectedLesson?: FormationContent | null;
   onClose: () => void;
+  onProgressUpdate?: (lessonId: string, progress: {
+    timeSpent?: number;
+    progress?: number;
+    completed?: boolean;
+  }) => void;
 }
 
 interface LessonProgress {
@@ -24,48 +31,78 @@ interface LessonProgress {
   completed: boolean;
 }
 
-export default function LessonPlayer({ formation, lessons, onClose }: LessonPlayerProps) {
+export default function LessonPlayer({ formation, lessons, initialSelectedLesson, onClose, onProgressUpdate }: LessonPlayerProps) {
   const { user } = useAuth();
+  const { lessonProgress, updateProgress } = useProgress();
   const [selectedLesson, setSelectedLesson] = useState<FormationContent | null>(null);
-  const [lessonProgress, setLessonProgress] = useState<Map<string, LessonProgress>>(new Map());
 
-  // Initialiser la progression pour chaque leçon
-  useEffect(() => {
-    const initialProgress = new Map<string, LessonProgress>();
-    lessons.forEach(lesson => {
-      initialProgress.set(lesson.id, {
-        lessonId: lesson.id,
-        timeSpent: 0,
-        progress: 0,
-        completed: false
-      });
-    });
-    setLessonProgress(initialProgress);
-  }, [lessons]);
+  // Les progressions sont maintenant gérées par le contexte
 
-  // Sélectionner automatiquement la première leçon
+  // Sélectionner automatiquement la première leçon ou la leçon initiale
   useEffect(() => {
     if (lessons.length > 0 && !selectedLesson) {
-      setSelectedLesson(lessons[0]);
+      if (initialSelectedLesson) {
+        setSelectedLesson(initialSelectedLesson);
+      } else {
+        setSelectedLesson(lessons[0]);
+      }
     }
-  }, [lessons, selectedLesson]);
+  }, [lessons, selectedLesson, initialSelectedLesson]);
+
+  // Vérifier si une leçon est accessible (logique séquentielle stricte)
+  const isLessonAccessible = (lesson: FormationContent, index: number) => {
+    // La première leçon est toujours accessible
+    if (index === 0) return true;
+    
+    // Pour les autres leçons, vérifier que TOUTES les leçons précédentes sont terminées
+    for (let i = 0; i < index; i++) {
+      const previousLesson = lessons[i];
+      if (!previousLesson) continue;
+      
+      const previousProgress = lessonProgress[previousLesson.id];
+      if (!previousProgress?.completed) {
+        return false; // Une leçon précédente n'est pas terminée
+      }
+    }
+    
+    return true; // Toutes les leçons précédentes sont terminées
+  };
 
   const handleLessonSelect = (lesson: FormationContent) => {
-    setSelectedLesson(lesson);
+    const lessonIndex = lessons.findIndex(l => l.id === lesson.id);
+    const isAccessible = isLessonAccessible(lesson, lessonIndex);
+    
+    if (isAccessible) {
+      setSelectedLesson(lesson);
+    } else {
+      console.log('🚫 Sélection bloquée pour', lesson.title, '- Leçon non accessible');
+    }
   };
 
   const updateLessonProgress = (lessonId: string, progress: Partial<LessonProgress>) => {
-    setLessonProgress(prev => {
-      const newMap = new Map(prev);
-      const current = newMap.get(lessonId) || {
-        lessonId,
-        timeSpent: 0,
-        progress: 0,
-        completed: false
-      };
-      newMap.set(lessonId, { ...current, ...progress });
-      return newMap;
-    });
+    // Trouver l'index de la leçon
+    const lessonIndex = lessons.findIndex(lesson => lesson.id === lessonId);
+    if (lessonIndex === -1) return;
+
+    // Vérifier si la leçon est accessible
+    const isAccessible = isLessonAccessible(lessons[lessonIndex], lessonIndex);
+    
+    if (!isAccessible) {
+      console.log('🚫 Progression bloquée pour', lessons[lessonIndex].title, '- Leçon non accessible');
+      return;
+    }
+
+    // Mettre à jour via le contexte
+    updateProgress(lessonId, progress);
+    
+    // Appeler la fonction parent si elle existe
+    if (onProgressUpdate) {
+      onProgressUpdate(lessonId, {
+        timeSpent: progress.timeSpent || 0,
+        progress: progress.progress || 0,
+        completed: progress.completed || false
+      });
+    }
   };
 
   const getFileType = (lesson: FormationContent) => {
@@ -240,18 +277,21 @@ export default function LessonPlayer({ formation, lessons, onClose }: LessonPlay
             <div className="p-4">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Leçons</h2>
               <div className="space-y-3">
-                {lessons.map((lesson) => {
-                  const progress = lessonProgress.get(lesson.id);
+                {lessons.map((lesson, index) => {
+                  const progress = lessonProgress[lesson.id];
                   const isSelected = selectedLesson?.id === lesson.id;
+                  const isAccessible = isLessonAccessible(lesson, index);
                   
                   return (
                     <div
                       key={lesson.id}
                       onClick={() => handleLessonSelect(lesson)}
-                      className={`p-4 bg-white rounded-lg border-2 cursor-pointer transition-all hover:shadow-md ${
-                        isSelected 
-                          ? 'border-blue-500 bg-blue-50' 
-                          : 'border-gray-200 hover:border-gray-300'
+                      className={`p-4 bg-white rounded-lg border-2 transition-all ${
+                        !isAccessible
+                          ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
+                          : isSelected 
+                            ? 'border-blue-500 bg-blue-50 cursor-pointer hover:shadow-md' 
+                            : 'border-gray-200 hover:border-gray-300 cursor-pointer hover:shadow-md'
                       }`}
                     >
                       {/* Image de couverture */}
@@ -260,12 +300,25 @@ export default function LessonPlayer({ formation, lessons, onClose }: LessonPlay
                           <img
                             src={getLessonImageUrl(lesson.coverImage)}
                             alt={`Couverture de ${lesson.title}`}
-                            className="w-full h-20 object-cover"
+                            className={`w-full h-20 object-cover ${
+                              !isAccessible ? 'filter grayscale opacity-50' : ''
+                            }`}
                           />
+                          {!isAccessible && (
+                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                              <Lock className="h-6 w-6 text-white" />
+                            </div>
+                          )}
                         </div>
                       ) : (
-                        <div className="mb-3 w-full h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center">
-                          {getFileIcon(lesson)}
+                        <div className={`mb-3 w-full h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center ${
+                          !isAccessible ? 'opacity-50' : ''
+                        }`}>
+                          {!isAccessible ? (
+                            <Lock className="h-8 w-8 text-gray-400" />
+                          ) : (
+                            getFileIcon(lesson)
+                          )}
                         </div>
                       )}
 
@@ -304,17 +357,37 @@ export default function LessonPlayer({ formation, lessons, onClose }: LessonPlay
 
                       {/* Bouton d'action */}
                       <button
+                        disabled={!isAccessible}
                         className={`w-full py-2 px-3 text-xs font-medium rounded-md transition-colors ${
-                          isSelected
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                          !isAccessible
+                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                            : isSelected
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                         }`}
                       >
-                        {getActionButtonText(lesson)}
+                        {!isAccessible ? (
+                          <>
+                            <Lock className="h-3 w-3 mr-1 inline" />
+                            Verrouillée
+                          </>
+                        ) : (
+                          getActionButtonText(lesson)
+                        )}
                       </button>
 
                       {/* Barre de progression */}
-                      {progress && progress.progress > 0 && (
+                      {!isAccessible ? (
+                        <div className="mt-3">
+                          <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                            <span>Progression</span>
+                            <span>0%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div className="bg-gray-400 h-1.5 rounded-full w-0" />
+                          </div>
+                        </div>
+                      ) : progress && progress.progress > 0 ? (
                         <div className="mt-3">
                           <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
                             <span>Progression</span>
@@ -327,7 +400,7 @@ export default function LessonPlayer({ formation, lessons, onClose }: LessonPlay
                             />
                           </div>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   );
                 })}

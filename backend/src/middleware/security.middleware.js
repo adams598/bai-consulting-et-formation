@@ -96,17 +96,64 @@ export const blockSuspiciousRequests = (req, res, next) => {
   next();
 };
 
-// Middleware pour ajouter des headers de sécurité
+// Middleware pour ajouter des headers de sécurité renforcés
 export const addSecurityHeaders = (req, res, next) => {
-  // Headers de sécurité supplémentaires
+  // Headers de sécurité de base
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("X-XSS-Protection", "1; mode=block");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  // Headers de sécurité supplémentaires pour application bancaire
+  res.setHeader(
+    "Strict-Transport-Security",
+    "max-age=31536000; includeSubDomains; preload"
+  );
   res.setHeader(
     "Permissions-Policy",
-    "geolocation=(), microphone=(), camera=()"
+    "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
   );
+
+  // Headers CORS spéciaux pour les images - désactiver complètement les restrictions
+  if (
+    req.path.includes("/api/images/") ||
+    req.path.includes("/api/formations/")
+  ) {
+    // Ne pas définir ces en-têtes pour les images pour éviter les conflits
+    // Les en-têtes CORS seront définis directement dans les routes
+  } else {
+    res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+    res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+  }
+
+  // Content Security Policy strict pour application bancaire
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // Nécessaire pour React en dev
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' https://fonts.gstatic.com",
+    "img-src 'self' data: https: blob:",
+    "media-src 'self' https: blob:",
+    "connect-src 'self' https: wss:",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+    "upgrade-insecure-requests",
+  ].join("; ");
+
+  res.setHeader("Content-Security-Policy", csp);
+
+  // Headers pour éviter la mise en cache des données sensibles
+  if (req.path.includes("/api/admin") || req.path.includes("/api/auth")) {
+    res.setHeader(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+  }
 
   next();
 };

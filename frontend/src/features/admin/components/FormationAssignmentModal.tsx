@@ -30,12 +30,9 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
   // Hook de confirmation
   const confirmation = useConfirmation();
 
-  // Configuration par défaut pour les nouvelles attributions
-  const [defaultConfig, setDefaultConfig] = useState({
-    isMandatory: true,
-    dueDate: '',
-    startDate: ''
-  });
+  // Configuration simple pour les nouvelles attributions
+  const [globalDueDate, setGlobalDueDate] = useState('');
+  const [globalIsMandatory, setGlobalIsMandatory] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -45,6 +42,8 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
       setUsers([]);
       setAssignments([]);
       setSearchTerm('');
+      setGlobalDueDate('');
+      setGlobalIsMandatory(false);
     }
   }, [isOpen]);
 
@@ -175,8 +174,8 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
 
     const newAssignment: Partial<UserFormationAssignment> = {
       userId: user.id,
-      isMandatory: defaultConfig.isMandatory,
-      dueDate: defaultConfig.dueDate || undefined,
+      isMandatory: globalIsMandatory,
+      dueDate: globalDueDate || undefined,
       assignedAt: new Date().toISOString(),
       user: {
         id: user.id,
@@ -259,47 +258,59 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
                 Sélectionner les utilisateurs
               </h3>
 
-              {/* Configuration par défaut */}
-              <div className="bg-gray-50 border border-gray-200 rounded-md p-4 space-y-3">
-                <h4 className="text-sm font-medium text-gray-900">Configuration par défaut</h4>
+              {/* Configuration globale simplifiée */}
+              <div className="bg-blue-50 border border-blue-200 rounded-md p-4 space-y-3">
+                <h4 className="text-sm font-medium text-blue-900">Configuration pour tous les utilisateurs sélectionnés</h4>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Date de début
+                      Date limite (optionnel)
                     </label>
                     <input
                       type="date"
-                      value={defaultConfig.startDate}
-                      onChange={(e) => setDefaultConfig(prev => ({ ...prev, startDate: e.target.value }))}
+                      value={globalDueDate}
+                      onChange={(e) => setGlobalDueDate(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="Aucune date limite"
                     />
                   </div>
                   
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Date limite
-                    </label>
-                    <input
-                      type="date"
-                      value={defaultConfig.dueDate}
-                      onChange={(e) => setDefaultConfig(prev => ({ ...prev, dueDate: e.target.value }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    />
+                  <div className="flex items-end">
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        id="globalMandatory"
+                        checked={globalIsMandatory}
+                        onChange={(e) => setGlobalIsMandatory(e.target.checked)}
+                        className="rounded border-gray-300"
+                      />
+                      <label htmlFor="globalMandatory" className="text-sm text-gray-700">
+                        Formation obligatoire
+                      </label>
+                    </div>
                   </div>
                 </div>
-
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="checkbox"
-                    id="defaultMandatory"
-                    checked={defaultConfig.isMandatory}
-                    onChange={(e) => setDefaultConfig(prev => ({ ...prev, isMandatory: e.target.checked }))}
-                    className="rounded border-gray-300"
-                  />
-                  <label htmlFor="defaultMandatory" className="text-sm text-gray-700">
-                    Formation obligatoire par défaut
-                  </label>
+                
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-gray-600">
+                    Ces paramètres seront appliqués aux nouveaux utilisateurs sélectionnés.
+                  </p>
+                  {assignments.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAssignments(prev => prev.map(assignment => ({
+                          ...assignment,
+                          dueDate: globalDueDate || undefined,
+                          isMandatory: globalIsMandatory
+                        })));
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-700 underline"
+                    >
+                      Appliquer à tous ({assignments.length})
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -495,13 +506,14 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                           <label className="block text-xs font-medium text-gray-700 mb-1">
-                            Date limite
+                            Date limite (optionnel)
                           </label>
                           <input
                             type="date"
                             value={assignment.dueDate?.split('T')[0] || ''}
                             onChange={(e) => updateAssignment(assignment.userId!, 'dueDate', e.target.value)}
                             className="w-full px-2 py-1 border border-gray-300 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Aucune date limite"
                           />
                         </div>
                         
@@ -515,7 +527,7 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
                               className="rounded border-gray-300"
                             />
                             <label htmlFor={`mandatory-${assignment.userId}`} className="text-xs text-gray-700">
-                              Obligatoire
+                              Formation obligatoire
                             </label>
                           </div>
                         </div>

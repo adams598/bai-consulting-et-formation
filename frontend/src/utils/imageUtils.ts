@@ -183,3 +183,25 @@ export const getLessonFileUrl = (
   // console.log('🔍 getLessonFileUrl - URL API générée:', apiUrl);
   return apiUrl;
 };
+
+/**
+ * Construit l'URL d'un fichier d'opportunité commerciale
+ * @param fileName - Le nom du fichier (ex: file-dc_2025_01_astek_adams_dextert_fr-1758052332771.pdf)
+ * @returns L'URL complète vers le serveur backend pour accéder au fichier
+ */
+export const getOpportunityFileUrl = (fileName: string | null | undefined): string => {
+  if (!fileName) return '';
+  
+  // console.log('🔍 getOpportunityFileUrl appelé avec:', fileName);
+  
+  // Si c'est déjà une URL complète, la retourner telle quelle
+  if (fileName.startsWith('http')) {
+    return fileName;
+  }
+  
+  // Construire l'URL complète vers l'API publique des fichiers OC (sans authentification)
+  const apiUrl = `http://localhost:3000/api/opportunities/files/${fileName}`;
+  
+  // console.log('🔍 getOpportunityFileUrl retourne:', apiUrl);
+  return apiUrl;
+};

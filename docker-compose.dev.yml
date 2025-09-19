@@ -1,0 +1,107 @@
+version: "3.8"
+
+services:
+  # Redis pour le cache
+  redis:
+    image: redis:7-alpine
+    container_name: bai-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    networks:
+      - bai-dev-network
+    restart: unless-stopped
+
+  # PostgreSQL pour la production (optionnel en dev)
+  postgres:
+    image: postgres:15-alpine
+    container_name: bai-postgres-dev
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-bai_consulting_dev}
+      POSTGRES_USER: ${POSTGRES_USER:-bai_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bai_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/prisma/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - bai-dev-network
+    restart: unless-stopped
+
+  # Backend avec Redis
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bai-backend-dev
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: ${DATABASE_URL:-file:./dev.db}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET:-dev-jwt-secret-change-in-production}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev-refresh-secret-change-in-production}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@bai-consulting.com}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3001,http://localhost:3000}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-500}
+      AUTH_RATE_LIMIT_MAX_REQUESTS: ${AUTH_RATE_LIMIT_MAX_REQUESTS:-3}
+      MAX_FILE_SIZE: ${MAX_FILE_SIZE:-10485760}
+      UPLOAD_PATH: ${UPLOAD_PATH:-./uploads}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      BANNED_IPS: ${BANNED_IPS:-}
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+      - ./backend/uploads:/app/uploads
+    depends_on:
+      - redis
+    networks:
+      - bai-dev-network
+    restart: unless-stopped
+    command: ["npm", "run", "dev"]
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: bai-frontend-dev
+    ports:
+      - "3001:3001"
+    environment:
+      VITE_API_URL: http://localhost:3000
+      VITE_NODE_ENV: development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - bai-dev-network
+    restart: unless-stopped
+
+volumes:
+  redis_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+networks:
+  bai-dev-network:
+    driver: bridge
+

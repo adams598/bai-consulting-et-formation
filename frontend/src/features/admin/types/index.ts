@@ -108,6 +108,7 @@ export interface FormationAssignment {
   formationId: string;
   assignedBy: string;
   status: string;
+  isMandatory?: boolean;
   dueDate?: string;
   assignedAt: string;
   updatedAt: string;

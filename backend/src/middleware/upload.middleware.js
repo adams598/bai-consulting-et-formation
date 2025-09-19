@@ -254,9 +254,16 @@ const storage = multer.diskStorage({
 
       uploadPath = path.join("uploads", "formations", sanitizedFormationTitle);
       console.log("🔍 Middleware formation - uploadPath final:", uploadPath);
+    } else if (req.uploadType === "opportunities") {
+      // Fichiers d'opportunités : uploads/OC/
+      uploadPath = path.join("uploads", "OC");
+      console.log(
+        "🔍 Middleware opportunities - uploadPath final:",
+        uploadPath
+      );
     } else {
-      // Images génériques : uploads/images/{user}/
-      uploadPath = path.join("uploads", contentType, userFolderName);
+      // Fichiers génériques : uploads/files/{user}/
+      uploadPath = path.join("uploads", "files", userFolderName);
     }
 
     // Créer le dossier s'il n'existe pas (pour tous les types)
@@ -341,6 +348,23 @@ const storage = multer.diskStorage({
       console.log("  - sanitizedLessonTitle:", sanitizedLessonTitle);
       console.log("  - fileType:", fileType);
       console.log("  - filename final:", filename);
+    } else if (req.uploadType === "opportunities") {
+      // Fichiers d'opportunités : file-{titredufichier}-{id du fichier}.pdf
+      const originalName = file.originalname;
+      const baseName = path.basename(originalName, path.extname(originalName));
+      const sanitizedTitle = sanitizeTitle(baseName);
+      const fileId = Date.now(); // Utiliser timestamp comme ID unique
+      const extension = path.extname(file.originalname);
+
+      filename = `file-${sanitizedTitle}-${fileId}${extension}`;
+
+      console.log("🔍 Naming opportunities file:");
+      console.log("  - req.uploadType:", req.uploadType);
+      console.log("  - originalName:", originalName);
+      console.log("  - baseName:", baseName);
+      console.log("  - sanitizedTitle:", sanitizedTitle);
+      console.log("  - fileId:", fileId);
+      console.log("  - filename final:", filename);
     } else {
       // Pour les autres fichiers, utiliser le format file-{nom de l'user}
       const userFolderName = `${user.firstName}_${user.lastName}`.replace(
@@ -357,38 +381,127 @@ const storage = multer.diskStorage({
   },
 });
 
-// Filtre des types de fichiers
+// Filtre des types de fichiers sécurisé
 const fileFilter = (req, file, cb) => {
-  // Images autorisées
-  if (file.mimetype.startsWith("image/")) {
-    const allowedImageTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-    ];
-    if (allowedImageTypes.includes(file.mimetype)) {
-      return cb(null, true);
-    }
+  // Validation stricte des types MIME
+  const allowedImageTypes = ["image/jpeg", "image/png", "image/webp"];
+
+  const allowedVideoTypes = ["video/mp4", "video/webm"];
+
+  const allowedDocumentTypes = [
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ];
+
+  // Vérifier la taille du fichier (5MB max pour application bancaire)
+  const maxSize = 5 * 1024 * 1024; // 5MB
+  if (file.size && file.size > maxSize) {
+    console.warn(`🚨 FICHIER TROP VOLUMINEUX:
+      IP: ${req.ip || req.connection.remoteAddress}
+      Nom: ${file.originalname}
+      Taille: ${file.size} bytes (max: ${maxSize} bytes)
+      Timestamp: ${new Date().toISOString()}
+    `);
+    return cb(
+      new Error(
+        `Fichier trop volumineux. Taille maximale: ${maxSize / 1024 / 1024}MB`
+      ),
+      false
+    );
   }
 
-  // Vidéos autorisées
-  if (file.mimetype.startsWith("video/")) {
-    const allowedVideoTypes = [
-      "video/mp4",
-      "video/avi",
-      "video/mov",
-      "video/wmv",
-      "video/webm",
-    ];
-    if (allowedVideoTypes.includes(file.mimetype)) {
-      return cb(null, true);
-    }
+  // Vérifier le nom du fichier (éviter les caractères dangereux)
+  const dangerousChars = /[<>:"/\\|?*\x00-\x1f]/;
+  if (dangerousChars.test(file.originalname)) {
+    console.warn(`🚨 NOM DE FICHIER DANGEREUX:
+      IP: ${req.ip || req.connection.remoteAddress}
+      Nom: ${file.originalname}
+      Timestamp: ${new Date().toISOString()}
+    `);
+    return cb(
+      new Error("Nom de fichier contenant des caractères non autorisés"),
+      false
+    );
   }
+
+  // Vérifier les patterns suspects dans le nom
+  const suspiciousPatterns = [
+    /\.exe$/i,
+    /\.bat$/i,
+    /\.cmd$/i,
+    /\.scr$/i,
+    /\.pif$/i,
+    /\.com$/i,
+    /\.js$/i,
+    /\.vbs$/i,
+    /\.jar$/i,
+    /\.php$/i,
+    /\.asp$/i,
+    /\.jsp$/i,
+    /\.sh$/i,
+    /\.ps1$/i,
+    /\.py$/i,
+    /\.rb$/i,
+    /\.pl$/i,
+  ];
+
+  if (suspiciousPatterns.some((pattern) => pattern.test(file.originalname))) {
+    console.warn(`🚨 FICHIER SUSPECT DÉTECTÉ:
+      IP: ${req.ip || req.connection.remoteAddress}
+      Nom: ${file.originalname}
+      Type MIME: ${file.mimetype}
+      Timestamp: ${new Date().toISOString()}
+    `);
+    return cb(
+      new Error("Type de fichier potentiellement dangereux détecté"),
+      false
+    );
+  }
+
+  // Vérifier le type MIME
+  if (
+    file.mimetype.startsWith("image/") &&
+    allowedImageTypes.includes(file.mimetype)
+  ) {
+    console.log(
+      `✅ Upload image autorisé: ${file.originalname} (${file.mimetype})`
+    );
+    return cb(null, true);
+  }
+
+  if (
+    file.mimetype.startsWith("video/") &&
+    allowedVideoTypes.includes(file.mimetype)
+  ) {
+    console.log(
+      `✅ Upload vidéo autorisé: ${file.originalname} (${file.mimetype})`
+    );
+    return cb(null, true);
+  }
+
+  if (allowedDocumentTypes.includes(file.mimetype)) {
+    console.log(
+      `✅ Upload document autorisé: ${file.originalname} (${file.mimetype})`
+    );
+    return cb(null, true);
+  }
+
+  // Log de sécurité pour les tentatives d'upload de fichiers non autorisés
+  console.warn(`🚨 TENTATIVE D'UPLOAD DE FICHIER NON AUTORISÉ:
+    IP: ${req.ip || req.connection.remoteAddress}
+    Type MIME: ${file.mimetype}
+    Nom: ${file.originalname}
+    Taille: ${file.size} bytes
+    User-Agent: ${req.get("User-Agent")}
+    Timestamp: ${new Date().toISOString()}
+  `);
 
   cb(
     new Error(
-      "Type de fichier non autorisé. Utilisez JPG, PNG, GIF, WebP, MP4, AVI, MOV, WMV ou WebM"
+      "Type de fichier non autorisé. Types acceptés: JPG, PNG, WebP, MP4, WebM, PDF, DOC, DOCX, PPT, PPTX"
     ),
     false
   );
@@ -406,6 +519,31 @@ const lessonFileFilter = (req, file, cb) => {
   cb(null, true);
 
   console.log("🔍 lessonFileFilter - Après cb()");
+};
+
+// Filtre pour les fichiers d'opportunités
+const opportunitiesFileFilter = (req, file, cb) => {
+  console.log("🔍 opportunitiesFileFilter - DEBUT");
+  console.log("🔍 opportunitiesFileFilter - Type de fichier:", file.mimetype);
+  console.log(
+    "🔍 opportunitiesFileFilter - Nom du fichier:",
+    file.originalname
+  );
+  console.log("🔍 opportunitiesFileFilter - Taille du fichier:", file.size);
+
+  // Définir le type d'upload pour les opportunités
+  req.uploadType = "opportunities";
+
+  console.log(
+    "🔍 opportunitiesFileFilter - req.uploadType défini:",
+    req.uploadType
+  );
+  console.log("🔍 opportunitiesFileFilter - Appel de cb(null, true)");
+
+  // Pour les fichiers d'opportunités, on autorise tous les types de fichiers
+  cb(null, true);
+
+  console.log("🔍 opportunitiesFileFilter - Après cb()");
 };
 
 // Configuration de Multer avec middleware pour définir le type d'upload
@@ -469,6 +607,14 @@ export const uploadSingleFile = multer({
   fileFilter: lessonFileFilter, // Utiliser le filtre spécial pour lesson-file
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB pour les autres fichiers
+  },
+}).single("file");
+
+export const uploadOpportunitiesFile = multer({
+  storage: storage,
+  fileFilter: opportunitiesFileFilter, // Utiliser le filtre spécial pour opportunities
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB pour les fichiers d'opportunités
   },
 }).single("file");
 
