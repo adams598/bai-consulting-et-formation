@@ -66,3 +66,4 @@ echo "Restauration DB: ssh $HOSTINGER_USER@$HOSTINGER_HOST 'gunzip -c ~/backups/
 echo "Restauration fichiers: ssh $HOSTINGER_USER@$HOSTINGER_HOST 'tar -xzf ~/backups/files_YYYYMMDD_HHMMSS.tar.gz -C /'"
 
 
+

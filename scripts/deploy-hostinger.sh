@@ -121,3 +121,4 @@ echo "📊 Monitoring: ssh $HOSTINGER_USER@$HOSTINGER_HOST 'docker-compose -f de
 echo "🔧 Maintenance: ssh $HOSTINGER_USER@$HOSTINGER_HOST 'cd deploy-package && docker-compose -f docker-compose.postgresql.yml restart'"
 
 
+

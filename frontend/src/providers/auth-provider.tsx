@@ -65,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     async function loadUserFromSession() {
       const token = getSecureToken();
+      
       if (token) {
         try {
           // Utiliser l'API admin unifiée pour tous les utilisateurs
@@ -78,10 +79,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
           if (response.ok) {
             const data = await response.json();
+            
             if (data.success && data.data) {
-              setUser(data.data);
-              localStorage.setItem('user', JSON.stringify(data.data));
-              localStorage.setItem('currentUser', JSON.stringify(data.data));
+              // L'API retourne { user: {...} }, donc extraire l'utilisateur
+              const userData = data.data.user || data.data;
+              setUser(userData);
+              localStorage.setItem('user', JSON.stringify(userData));
+              localStorage.setItem('currentUser', JSON.stringify(userData));
+            } else {
+              console.warn('Données invalides dans la réponse API');
+              removeSecureToken();
+              window.location.href = '/login';
             }
           } else {
             // Token invalide ou expiré
@@ -210,10 +218,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         const data = await response.json();
         if (data.success && data.data) {
-          // Mettre à jour les données utilisateur
-          setUser(data.data);
-          localStorage.setItem('user', JSON.stringify(data.data));
-          localStorage.setItem('currentUser', JSON.stringify(data.data));
+          // L'API retourne { user: {...} }, donc extraire l'utilisateur
+          const userData = data.data.user || data.data;
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+          localStorage.setItem('currentUser', JSON.stringify(userData));
         }
       }
     } catch (error) {

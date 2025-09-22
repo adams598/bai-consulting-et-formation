@@ -106,3 +106,4 @@ Password: admin123
 **✅ Accès complet aux formations pour COLLABORATOR !**
 
 **🎯 L'interface fonctionne maintenant parfaitement sans aucune boucle ! 🚀**
+

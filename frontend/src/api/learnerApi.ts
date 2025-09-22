@@ -18,7 +18,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Configuration axios pour les apprenants
 const createLearnerApi = () => {
-  const getAuthHeaders = () => {
+  const getAuthHeaders = (): Record<string, string> => {
     // Utiliser le même système de tokens que l'admin
     let token = localStorage.getItem('bai_auth_token');
     
@@ -127,6 +127,18 @@ export const formationsApi = {
   scheduleFormation: (data: { formationId: string; date: string; time: string; title?: string; description?: string }) =>
     api.post<ApiResponse<any>>('/formations/schedule', data),
   
+  // Récupérer les événements planifiés (échéances à venir)
+  getScheduledEvents: () => api.get<ApiResponse<Array<{
+    id: string;
+    formationTitle: string;
+    eventType: 'formation' | 'lesson' | 'quiz';
+    scheduledDate: string;
+    dueDate?: string;
+    isMandatory: boolean;
+    progress: number;
+    formationId: string;
+  }>>>('/formations/scheduled'),
+  
   // Démarrer une formation
   startFormation: (id: string) => 
     api.post<ApiResponse<LearnerProgress>>(`/formations/${id}/start`),
@@ -159,7 +171,18 @@ export const progressApi = {
   }) => api.post<ApiResponse<LearnerProgress>>('/progress/save', data),
   
   // Récupérer les statistiques
-  getStats: () => api.get<ApiResponse<LearnerStats>>('/progress/stats')
+  getStats: () => api.get<ApiResponse<LearnerStats>>('/progress/stats'),
+  
+  // Récupérer les statistiques détaillées pour le dashboard
+  getDashboardStats: () => api.get<ApiResponse<{
+    totalFormations: number;
+    completedFormations: number;
+    inProgressFormations: number;
+    pendingFormations: number;
+    certificatesEarned: number;
+    totalTimeSpent: number;
+    averageScore: number;
+  }>>('/progress/dashboard-stats')
 };
 
 // ===== QUIZ =====
@@ -256,7 +279,57 @@ export const contentVisitApi = {
   
   // Récupérer le temps passé
   getTimeSpent: (formationId?: string) => 
-    api.get<ApiResponse<{ totalTime: number; byFormation?: Record<string, number> }>>(`/content/time-spent${formationId ? `?formationId=${formationId}` : ''}`)
+    api.get<ApiResponse<{ totalTime: number; byFormation?: Record<string, number> }>>(`/content/time-spent${formationId ? `?formationId=${formationId}` : ''}`),
+  
+  // Récupérer les activités récentes
+  getRecentActivities: (filter?: '24h' | '1week' | '1month' | '3months') => 
+    api.get<ApiResponse<Array<{
+      id: string;
+      type: 'formation_assigned' | 'formation_started' | 'formation_completed' | 'certificate_earned' | 'formation_scheduled';
+      title: string;
+      description: string;
+      timestamp: string;
+      formationId?: string;
+      assignedBy?: { firstName: string; lastName: string };
+    }>>>(`/content/recent-activities${filter ? `?filter=${filter}` : ''}`)
+};
+
+// ===== CALENDRIER =====
+export const calendarApi = {
+  // Récupérer tous les événements de l'utilisateur
+  getUserEvents: () => api.get<ApiResponse<any[]>>('/calendar/events'),
+  
+  // Créer un nouvel événement
+  createEvent: (data: {
+    title: string;
+    description?: string;
+    startDate: string;
+    endDate: string;
+    type?: string;
+    location?: string;
+    attendees?: string[];
+    isAllDay?: boolean;
+    color?: string;
+    reminders?: number[];
+    formationId?: string;
+    lessonId?: string;
+    eventType?: string;
+  }) => api.post<ApiResponse<any>>('/calendar/events', data),
+  
+  // Mettre à jour un événement
+  updateEvent: (id: string, data: any) => 
+    api.put<ApiResponse<any>>(`/calendar/events/${id}`, data),
+  
+  // Supprimer un événement
+  deleteEvent: (id: string) => 
+    api.delete<ApiResponse<void>>(`/calendar/events/${id}`),
+  
+  // Récupérer les événements dans une plage de dates
+  getEventsByDateRange: (startDate: string, endDate: string) => 
+    api.get<ApiResponse<any[]>>(`/calendar/events/range?startDate=${startDate}&endDate=${endDate}`),
+  
+  // Récupérer les prochaines échéances
+  getUpcomingDeadlines: () => api.get<ApiResponse<any[]>>('/calendar/upcoming')
 };
 
 // Export par défaut avec toutes les API
@@ -268,5 +341,6 @@ export default {
   quiz: quizApi,
   certificates: certificatesApi,
   notifications: notificationsApi,
-  contentVisit: contentVisitApi
+  contentVisit: contentVisitApi,
+  calendar: calendarApi
 };

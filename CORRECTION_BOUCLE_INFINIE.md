@@ -108,3 +108,4 @@ Password: admin123
 **✅ Interface fluide et fonctionnelle !**
 
 **🎯 L'interface des formations fonctionne maintenant parfaitement sans erreurs ! 🚀**
+

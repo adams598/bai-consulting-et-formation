@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Edit, Trash2, Eye, BookOpen, Users, Settings, FolderOpen, Clock, Database, MoreVertical, Play, HelpCircle, UserPlus, Folder, Grid, List, ArrowLeft, Move, AlertTriangle, Info, Calendar } from 'lucide-react';
 import './AdminFormationsPage.css';
 import './UniverseFolder.css';
@@ -116,6 +117,9 @@ const AdminFormationsPage: React.FC = () => {
   
   // Hook pour les notifications
   const { toast } = useToast();
+  
+  // Hook pour la navigation
+  const navigate = useNavigate();
 
   // Mémorisation des formations par univers pour éviter les recalculs
   const formationsByUniverse = useMemo(() => {
@@ -468,8 +472,13 @@ const AdminFormationsPage: React.FC = () => {
   };
 
   const handleScheduleFormation = (formation: Formation) => {
-    setSelectedFormation(formation);
-    setShowScheduleModal(true);
+    // Rediriger vers l'agenda avec la formation pré-sélectionnée
+    navigate('/admin/calendar', { 
+      state: { 
+        selectedFormation: formation,
+        action: 'schedule'
+      } 
+    });
   };
 
   const handleSaveAssignments = async (assignments: any[]) => {
@@ -994,7 +1003,7 @@ const AdminFormationsPage: React.FC = () => {
           <h2 className="admin-title-md admin-title-spacing">
             {viewMode === 'universes' ? 'Univers disponibles' : 
              selectedUniverse ? `Formations - ${selectedUniverse.name}` : 
-             'Formations disponibles'}
+             ''}
           </h2>
           
           {viewMode === 'formations' && isAdmin() && (

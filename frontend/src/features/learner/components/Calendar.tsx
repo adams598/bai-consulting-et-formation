@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -59,11 +60,13 @@ const Calendar: React.FC<CalendarProps> = ({
   onViewChange,
   allowEdit = true
 }) => {
+  const location = useLocation();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showEventModal, setShowEventModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [preSelectedFormation, setPreSelectedFormation] = useState<any>(null);
 
   const months = [
     'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
@@ -71,6 +74,17 @@ const Calendar: React.FC<CalendarProps> = ({
   ];
 
   const weekDays = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+  // Gérer la formation pré-sélectionnée depuis la navigation
+  useEffect(() => {
+    if (location.state?.selectedFormation && location.state?.action === 'schedule') {
+      setPreSelectedFormation(location.state.selectedFormation);
+      // Ouvrir automatiquement le modal de création d'événement
+      setShowEventModal(true);
+      setIsEditing(false);
+      setSelectedEvent(null);
+    }
+  }, [location.state]);
 
   // Générer les jours du mois
   const monthDays = useMemo(() => {
@@ -191,8 +205,24 @@ const Calendar: React.FC<CalendarProps> = ({
   };
 
   const handleDateClick = (date: Date) => {
+    // Empêcher la sélection de dates passées
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    date.setHours(0, 0, 0, 0);
+    
+    if (date < today) {
+      return; // Ignorer les clics sur les dates passées
+    }
+    
     setSelectedDate(date);
     onDateClick?.(date);
+    
+    // Si une formation est pré-sélectionnée, ouvrir le modal de création
+    if (preSelectedFormation) {
+      setShowEventModal(true);
+      setIsEditing(false);
+      setSelectedEvent(null);
+    }
   };
 
   const handleEventClick = (event: CalendarEvent, e: React.MouseEvent) => {
@@ -232,14 +262,19 @@ const Calendar: React.FC<CalendarProps> = ({
         const dayEvents = getEventsForDate(date);
         const isCurrentMonthDay = isCurrentMonth(date);
         const isTodayDate = isToday(date);
+        const isPastDate = date < new Date(new Date().setHours(0, 0, 0, 0));
         
         return (
           <div
             key={index}
             onClick={() => handleDateClick(date)}
-            className={`bg-white p-1 h-24 cursor-pointer hover:bg-gray-50 transition-colors ${
+            className={`bg-white p-1 h-24 transition-colors ${
               !isCurrentMonthDay ? 'opacity-30' : ''
-            } ${isTodayDate ? 'ring-2 ring-blue-500' : ''}`}
+            } ${isTodayDate ? 'ring-2 ring-blue-500' : ''} ${
+              isPastDate 
+                ? 'cursor-not-allowed opacity-50 bg-gray-100' 
+                : 'cursor-pointer hover:bg-gray-50'
+            } ${preSelectedFormation && !isPastDate ? 'ring-1 ring-green-300 bg-green-50' : ''}`}
           >
             <div className={`text-sm font-medium mb-1 ${
               isTodayDate ? 'text-blue-600' : isCurrentMonthDay ? 'text-gray-900' : 'text-gray-400'
@@ -342,6 +377,29 @@ const Calendar: React.FC<CalendarProps> = ({
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-6">
+      {/* Message de formation pré-sélectionnée */}
+      {preSelectedFormation && (
+        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <BookOpen className="h-5 w-5 text-green-600" />
+            <div>
+              <p className="text-sm font-medium text-green-900">
+                Formation à planifier : {preSelectedFormation.title}
+              </p>
+              <p className="text-xs text-green-700">
+                Cliquez sur une date disponible (à partir d'aujourd'hui) pour planifier cette formation
+              </p>
+            </div>
+            <button
+              onClick={() => setPreSelectedFormation(null)}
+              className="ml-auto text-green-600 hover:text-green-800"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* En-tête du calendrier */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center space-x-4">

@@ -106,3 +106,4 @@ Password: admin123
 - ✅ **Consultation** autorisée
 - ✅ **Planification agenda** disponible
 - ❌ **Pas de création/modification** (sécurisé)
+

@@ -118,3 +118,4 @@ Write-Host "📊 Monitoring: ssh $HostingerUser@$HostingerHost 'docker-compose -
 Write-Host "🔧 Maintenance: ssh $HostingerUser@$HostingerHost 'cd deploy-package && docker-compose -f docker-compose.postgresql.yml restart'" -ForegroundColor Yellow
 
 
+

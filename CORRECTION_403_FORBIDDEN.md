@@ -116,3 +116,4 @@ Password: admin123
 **✅ Interface fonctionnelle pour COLLABORATOR !**
 
 **🎯 L'interface des formations fonctionne maintenant parfaitement ! 🚀**
+

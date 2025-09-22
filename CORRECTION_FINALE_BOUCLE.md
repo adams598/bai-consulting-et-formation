@@ -122,3 +122,4 @@ Password: admin123
 **✅ Performance optimisée !**
 
 **🎯 L'interface des formations fonctionne maintenant parfaitement pour tous les rôles ! 🚀**
+

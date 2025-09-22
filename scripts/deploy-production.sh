@@ -308,3 +308,4 @@ echo "4. Tester toutes les fonctionnalités"
 echo "5. Configurer les alertes de monitoring"
 
 
+

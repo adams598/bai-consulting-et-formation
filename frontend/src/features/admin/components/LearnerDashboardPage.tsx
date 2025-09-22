@@ -8,10 +8,14 @@ import {
   CheckCircle,
   AlertCircle,
   PlayCircle,
-  BarChart3
+  BarChart3,
+  Filter,
+  UserCheck
 } from 'lucide-react';
 import '../styles/admin-typography.css';
 import { authService } from '../../../services/authService';
+import { progressApi, contentVisitApi, formationsApi, calendarApi } from '../../../api/learnerApi';
+import { formationsApi as adminFormationsApi } from '../../../api/adminApi';
 
 interface LearnerStats {
   totalFormations: number;
@@ -21,26 +25,38 @@ interface LearnerStats {
   certificatesEarned: number;
   totalTimeSpent: number; // en minutes
   averageScore: number;
+  globalProgress: number; // progression globale en %
 }
 
 interface RecentActivity {
   id: string;
-  type: 'formation_started' | 'formation_completed' | 'certificate_earned' | 'quiz_passed';
+  type: 'formation_assigned' | 'formation_started' | 'formation_completed' | 'certificate_earned' | 'formation_scheduled';
   title: string;
   description: string;
-  timestamp: Date;
+  timestamp: string;
   formationId?: string;
+  assignedBy?: { firstName: string; lastName: string };
 }
 
-interface UpcomingDeadline {
+interface ScheduledEvent {
   id: string;
   formationTitle: string;
-  dueDate: Date;
+  eventType: 'formation' | 'lesson' | 'quiz';
+  scheduledDate: string;
+  dueDate?: string;
   isMandatory: boolean;
   progress: number;
+  formationId: string;
 }
 
+type ActivityFilter = '24h' | '1week' | '1month' | '3months';
+
 const LearnerDashboardPage: React.FC = () => {
+  // Variables globales pour les données de base
+  const [myFormations, setMyFormations] = useState<any[]>([]);
+  const [certificates, setCertificates] = useState<any[]>([]);
+  const [quizAttempts, setQuizAttempts] = useState<any[]>([]);
+  
   const [stats, setStats] = useState<LearnerStats>({
     totalFormations: 0,
     completedFormations: 0,
@@ -48,78 +64,122 @@ const LearnerDashboardPage: React.FC = () => {
     pendingFormations: 0,
     certificatesEarned: 0,
     totalTimeSpent: 0,
-    averageScore: 0
+    averageScore: 0,
+    globalProgress: 0
   });
   const [recentActivities, setRecentActivities] = useState<RecentActivity[]>([]);
-  const [upcomingDeadlines, setUpcomingDeadlines] = useState<UpcomingDeadline[]>([]);
+  const [scheduledEvents, setScheduledEvents] = useState<ScheduledEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activityFilter, setActivityFilter] = useState<ActivityFilter>('1week');
 
   useEffect(() => {
     loadDashboardData();
   }, []);
 
+  useEffect(() => {
+    loadRecentActivities();
+  }, [activityFilter]);
+
   const loadDashboardData = async () => {
     try {
       setIsLoading(true);
-      // TODO: Appels API pour charger les données du dashboard apprenant
-      // Simulation des données pour l'instant
-      setStats({
-        totalFormations: 12,
-        completedFormations: 8,
-        inProgressFormations: 3,
-        pendingFormations: 1,
-        certificatesEarned: 6,
-        totalTimeSpent: 1440, // 24 heures
-        averageScore: 85
-      });
+      
+      // Utiliser la même API que AdminFormationsPage pour les COLLABORATOR
+      const formationsResponse = await adminFormationsApi.getMyAssignedFormations();
+      
+      if (formationsResponse.data?.success && formationsResponse.data.data) {
+        setMyFormations(formationsResponse.data.data);
+        
+        // Calculer les statistiques directement côté frontend
+        calculateStats(formationsResponse.data.data);
+      } else {
+        setMyFormations([]);
+        calculateStats([]);
+      }
 
-      setRecentActivities([
-        {
-          id: '1',
-          type: 'formation_completed',
-          title: 'Formation Sécurité Bancaire',
-          description: 'Vous avez terminé cette formation avec succès',
-          timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 jours
-          formationId: 'formation-1'
-        },
-        {
-          id: '2',
-          type: 'certificate_earned',
-          title: 'Certificat Conformité RGPD',
-          description: 'Félicitations ! Vous avez obtenu un nouveau certificat',
-          timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 jours
-          formationId: 'formation-2'
-        },
-        {
-          id: '3',
-          type: 'formation_started',
-          title: 'Formation Anti-Blanchiment',
-          description: 'Vous avez commencé cette nouvelle formation',
-          timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 jours
-          formationId: 'formation-3'
-        }
-      ]);
+      // Charger les activités récentes
+      await loadRecentActivities();
 
-      setUpcomingDeadlines([
-        {
-          id: '1',
-          formationTitle: 'Formation Obligatoire Sécurité',
-          dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 jours
-          isMandatory: true,
-          progress: 60
-        },
-        {
-          id: '2',
-          formationTitle: 'Formation Conformité',
-          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 jours
-          isMandatory: false,
-          progress: 0
+      // Charger les prochaines échéances depuis l'agenda
+      try {
+        const upcomingResponse = await calendarApi.getUpcomingDeadlines();
+        if (upcomingResponse.success && upcomingResponse.data) {
+          const upcomingEvents = upcomingResponse.data.map((event: any) => ({
+            id: event.id,
+            formationTitle: event.title,
+            eventType: event.eventType || 'formation',
+            scheduledDate: event.startDate,
+            dueDate: event.endDate,
+            isMandatory: event.type === 'FORMATION',
+            progress: 0,
+            formationId: event.formationId
+          }));
+          setScheduledEvents(upcomingEvents);
+        } else {
+          setScheduledEvents([]);
         }
-      ]);
+      } catch (error) {
+        console.warn('Aucune échéance trouvée');
+        setScheduledEvents([]);
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const calculateStats = (formations: any[]) => {
+    const totalFormations = formations.length;
+    let completedFormations = 0;
+    let inProgressFormations = 0;
+    let pendingFormations = 0;
+    let totalTimeSpent = 0;
+
+    formations.forEach((assignment) => {
+      const status = assignment.status;
+      const progress = assignment.progress || 0;
+      
+      if (status === 'COMPLETED' || progress === 100) {
+        completedFormations++;
+        // Ajouter la durée de la formation terminée
+        totalTimeSpent += assignment.formation?.duration || 0;
+      } else if (status === 'IN_PROGRESS' || progress > 0) {
+        inProgressFormations++;
+      } else {
+        pendingFormations++;
+      }
+    });
+
+    // Pour l'instant, certificats et score moyen à 0 (à implémenter plus tard)
+    const certificatesEarned = 0;
+    const averageScore = 0;
+
+    // Calculer la progression globale
+    const globalProgress = totalFormations > 0 
+      ? Math.round((completedFormations / totalFormations) * 100)
+      : 0;
+
+    const calculatedStats = {
+      totalFormations,
+      completedFormations,
+      inProgressFormations,
+      pendingFormations,
+      certificatesEarned,
+      totalTimeSpent,
+      averageScore,
+      globalProgress
+    };
+
+    setStats(calculatedStats);
+  };
+
+  const loadRecentActivities = async () => {
+    try {
+      // Pour l'instant, pas d'activités récentes (endpoint à implémenter)
+      setRecentActivities([]);
+    } catch (error) {
+      console.error('Erreur lors du chargement des activités:', error);
     }
   };
 
@@ -129,7 +189,8 @@ const LearnerDashboardPage: React.FC = () => {
     return `${hours}h ${mins}m`;
   };
 
-  const formatDate = (date: Date): string => {
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
     return date.toLocaleDateString('fr-FR', {
       year: 'numeric',
       month: 'long',
@@ -137,16 +198,39 @@ const LearnerDashboardPage: React.FC = () => {
     });
   };
 
+  const formatDateTime = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const getFilterLabel = (filter: ActivityFilter): string => {
+    switch (filter) {
+      case '24h': return 'Dernières 24h';
+      case '1week': return 'Cette semaine';
+      case '1month': return 'Ce mois';
+      case '3months': return 'Trois derniers mois';
+      default: return 'Cette semaine';
+    }
+  };
+
   const getActivityIcon = (type: string) => {
     switch (type) {
+      case 'formation_assigned':
+        return <UserCheck className="w-5 h-5 text-orange-600" />;
       case 'formation_started':
         return <PlayCircle className="w-5 h-5 text-blue-600" />;
       case 'formation_completed':
         return <CheckCircle className="w-5 h-5 text-green-600" />;
       case 'certificate_earned':
         return <Award className="w-5 h-5 text-yellow-600" />;
-      case 'quiz_passed':
-        return <TrendingUp className="w-5 h-5 text-purple-600" />;
+      case 'formation_scheduled':
+        return <Calendar className="w-5 h-5 text-purple-600" />;
       default:
         return <BookOpen className="w-5 h-5 text-gray-600" />;
     }
@@ -154,13 +238,15 @@ const LearnerDashboardPage: React.FC = () => {
 
   const getActivityColor = (type: string) => {
     switch (type) {
+      case 'formation_assigned':
+        return 'bg-orange-50 border-orange-200';
       case 'formation_started':
         return 'bg-blue-50 border-blue-200';
       case 'formation_completed':
         return 'bg-green-50 border-green-200';
       case 'certificate_earned':
         return 'bg-yellow-50 border-yellow-200';
-      case 'quiz_passed':
+      case 'formation_scheduled':
         return 'bg-purple-50 border-purple-200';
       default:
         return 'bg-gray-50 border-gray-200';
@@ -254,7 +340,7 @@ const LearnerDashboardPage: React.FC = () => {
             <div>
               <p className="text-gray-600 text-sm font-medium">Progression</p>
               <p className="text-xl font-bold text-gray-900">
-                {Math.round((stats.completedFormations / stats.totalFormations) * 100)}%
+                {stats.globalProgress}%
               </p>
             </div>
             <TrendingUp className="w-6 h-6 text-gray-600" />
@@ -265,65 +351,114 @@ const LearnerDashboardPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Activités récentes */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="admin-title-md admin-title-spacing mb-4">Activités récentes</h3>
-          <div className="space-y-4">
-            {recentActivities.map((activity) => (
-              <div
-                key={activity.id}
-                className={`flex items-start space-x-3 p-3 rounded-lg border ${getActivityColor(activity.type)}`}
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="admin-title-md admin-title-spacing">Activités récentes</h3>
+            <div className="relative">
+              <select
+                value={activityFilter}
+                onChange={(e) => setActivityFilter(e.target.value as ActivityFilter)}
+                className="text-sm border border-gray-300 rounded-md px-3 py-1 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none pr-8"
               >
-                {getActivityIcon(activity.type)}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900">{activity.title}</p>
-                  <p className="text-sm text-gray-600">{activity.description}</p>
-                  <p className="text-xs text-gray-500 mt-1">{formatDate(activity.timestamp)}</p>
-                </div>
+                <option value="24h">Dernières 24h</option>
+                <option value="1week">Cette semaine</option>
+                <option value="1month">Ce mois</option>
+                <option value="3months">3 derniers mois</option>
+              </select>
+              <Filter className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+            </div>
+          </div>
+          <div className="space-y-4">
+            {recentActivities.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p>Aucune activité récente pour la période sélectionnée</p>
               </div>
-            ))}
+            ) : (
+              recentActivities.map((activity) => (
+                <div
+                  key={activity.id}
+                  className={`flex items-start space-x-3 p-3 rounded-lg border ${getActivityColor(activity.type)}`}
+                >
+                  {getActivityIcon(activity.type)}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900">{activity.title}</p>
+                    <p className="text-sm text-gray-600">
+                      {activity.type === 'formation_assigned' && activity.assignedBy
+                        ? `${activity.assignedBy.firstName} ${activity.assignedBy.lastName} vous a assigné une nouvelle formation à suivre : ${activity.title}`
+                        : activity.description
+                      }
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">{formatDate(activity.timestamp)}</p>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
         {/* Échéances à venir */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <h3 className="admin-title-md admin-title-spacing mb-4">Échéances à venir</h3>
+          <h3 className="admin-title-md admin-title-spacing mb-4">Événements planifiés</h3>
           <div className="space-y-4">
-            {upcomingDeadlines.map((deadline) => (
-              <div
-                key={deadline.id}
-                className={`flex items-center justify-between p-3 rounded-lg border ${
-                  deadline.isMandatory 
-                    ? 'bg-red-50 border-red-200' 
-                    : 'bg-blue-50 border-blue-200'
-                }`}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm font-medium text-gray-900">{deadline.formationTitle}</p>
-                    {deadline.isMandatory && (
-                      <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
-                        Obligatoire
-                      </span>
+            {scheduledEvents.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p>Aucun événement planifié</p>
+                <p className="text-xs mt-1">Planifiez vos formations depuis la page Formations</p>
+              </div>
+            ) : (
+              scheduledEvents.map((event) => (
+                <div
+                  key={event.id}
+                  className={`flex items-center justify-between p-3 rounded-lg border ${
+                    event.isMandatory 
+                      ? 'bg-red-50 border-red-200' 
+                      : 'bg-blue-50 border-blue-200'
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center space-x-2">
+                      <p className="text-sm font-medium text-gray-900">
+                        {event.formationTitle}
+                        {event.eventType !== 'formation' && (
+                          <span className="text-xs text-gray-500 ml-2">
+                            ({event.eventType === 'lesson' ? 'Leçon' : 'Quiz'})
+                          </span>
+                        )}
+                      </p>
+                      {event.isMandatory && (
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          Obligatoire
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-600">
+                      Planifié le: {formatDateTime(event.scheduledDate)}
+                    </p>
+                    {event.dueDate && (
+                      <p className="text-xs text-gray-500">
+                        À terminer avant le: {formatDate(event.dueDate)}
+                      </p>
+                    )}
+                    {event.progress > 0 && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                          <span>Progression</span>
+                          <span>{event.progress}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-blue-600 h-2 rounded-full"
+                            style={{ width: `${event.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
                     )}
                   </div>
-                  <p className="text-sm text-gray-600">Échéance: {formatDate(deadline.dueDate)}</p>
-                  {deadline.progress > 0 && (
-                    <div className="mt-2">
-                      <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                        <span>Progression</span>
-                        <span>{deadline.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-blue-600 h-2 rounded-full"
-                          style={{ width: `${deadline.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  )}
+                  <Calendar className="w-5 h-5 text-gray-400" />
                 </div>
-                <Calendar className="w-5 h-5 text-gray-400" />
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

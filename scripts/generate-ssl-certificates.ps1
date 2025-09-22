@@ -110,3 +110,4 @@ Write-Host "3. Tester l'accès HTTPS:" -ForegroundColor White
 Write-Host "   Invoke-WebRequest -Uri https://localhost -SkipCertificateCheck" -ForegroundColor Gray
 
 
+

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { 
   Calendar as CalendarIcon, 
   Plus, 
@@ -22,7 +23,8 @@ import {
 import { StatsCard } from '../components';
 import Calendar, { CalendarEvent } from '../components/Calendar';
 import { LearnerFormationAssignment } from '../types';
-import { formationsApi } from '../../../api/learnerApi';
+import { formationsApi, calendarApi } from '../../../api/learnerApi';
+import { formationsApi as adminFormationsApi } from '../../../api/adminApi';
 import { useToast } from '../../../components/ui/use-toast';
 
 interface CalendarIntegration {
@@ -36,6 +38,7 @@ interface CalendarIntegration {
 }
 
 const CalendarPage: React.FC = () => {
+  const location = useLocation();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [formations, setFormations] = useState<LearnerFormationAssignment[]>([]);
   const [integrations, setIntegrations] = useState<CalendarIntegration[]>([]);
@@ -66,10 +69,91 @@ const CalendarPage: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    loadCalendarData();
+    loadRealCalendarData();
   }, []);
 
+  const loadRealCalendarData = async () => {
+    try {
+      setLoading(true);
+      
+      // Charger les formations assignées (utilise la même API que AdminFormationsPage)
+      const formationsResponse = await adminFormationsApi.getMyAssignedFormations();
+      
+      if (formationsResponse.data?.success && formationsResponse.data.data) {
+        // Transformer les assignations pour compatibilité avec CalendarPage
+        const transformedFormations = formationsResponse.data.data.map((assignment: any) => ({
+          id: assignment.id,
+          formationId: assignment.formation.id,
+          formation: {
+            id: assignment.formation.id,
+            title: assignment.formation.title,
+            description: assignment.formation.description,
+            category: 'FORMATION',
+            level: 'STANDARD',
+            duration: assignment.formation.duration,
+            isActive: assignment.formation.isActive,
+            createdAt: assignment.formation.createdAt,
+            updatedAt: assignment.formation.updatedAt
+          },
+          assignedAt: assignment.assignedAt,
+          dueDate: assignment.dueDate,
+          status: assignment.status,
+          progress: assignment.progress || 0
+        }));
+        
+        setFormations(transformedFormations);
+      } else {
+        setFormations([]);
+      }
+      
+      // Charger les événements du calendrier depuis la base de données
+      try {
+        const eventsResponse = await calendarApi.getUserEvents();
+        if (eventsResponse.success && eventsResponse.data) {
+          // Transformer les événements de BDD en événements de calendrier
+          const calendarEvents: CalendarEvent[] = eventsResponse.data.map((event: any) => ({
+            id: event.id,
+            title: event.title,
+            description: event.description,
+            startDate: new Date(event.startDate),
+            endDate: new Date(event.endDate),
+            type: event.type,
+            location: event.location,
+            attendees: event.attendees ? JSON.parse(event.attendees) : undefined,
+            isAllDay: event.isAllDay,
+            color: event.color,
+            formationId: event.formationId,
+            status: event.status,
+            reminders: event.reminders ? JSON.parse(event.reminders) : [15, 60],
+            createdAt: new Date(event.createdAt),
+            updatedAt: new Date(event.updatedAt)
+          }));
+          
+          setEvents(calendarEvents);
+        } else {
+          setEvents([]);
+        }
+      } catch (error) {
+        console.warn('Aucun événement trouvé, calendrier vide');
+        setEvents([]);
+      }
+      
+      // Charger les intégrations (pour l'instant vide)
+      setIntegrations([]);
+      
+    } catch (error) {
+      console.error('Erreur lors du chargement des données du calendrier:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const loadCalendarData = async () => {
+    // Utiliser la nouvelle fonction qui charge les vraies données
+    await loadRealCalendarData();
+  };
+
+  const loadOldCalendarData = async () => {
     try {
       setLoading(true);
       
@@ -185,34 +269,36 @@ const CalendarPage: React.FC = () => {
 
   const handleEventCreate = async (eventData: Partial<CalendarEvent>) => {
     try {
-      const newEvent: CalendarEvent = {
-        id: Date.now().toString(),
+      // Préparer les données pour l'API
+      const eventApiData = {
         title: eventForm.title,
         description: eventForm.description,
-        startDate: new Date(`${eventForm.startDate}T${eventForm.startTime}`),
-        endDate: new Date(`${eventForm.endDate}T${eventForm.endTime}`),
+        startDate: new Date(`${eventForm.startDate}T${eventForm.startTime}`).toISOString(),
+        endDate: new Date(`${eventForm.endDate}T${eventForm.endTime}`).toISOString(),
         type: eventForm.type,
         location: eventForm.location,
         attendees: eventForm.attendees ? eventForm.attendees.split(',').map(a => a.trim()) : undefined,
         isAllDay: eventForm.isAllDay,
-        formationId: eventForm.formationId || undefined,
         reminders: eventForm.reminders,
-        isRecurring: eventForm.isRecurring,
-        recurrenceRule: eventForm.recurrenceRule || undefined,
-        status: 'CONFIRMED',
-        createdAt: new Date(),
-        updatedAt: new Date()
+        formationId: eventForm.formationId || undefined,
+        eventType: eventForm.formationId ? 'formation' : 'personal'
       };
+
+      // Créer l'événement via l'API de calendrier
+      const response = await calendarApi.createEvent(eventApiData);
       
-      setEvents(prev => [...prev, newEvent]);
-      setShowEventForm(false);
-      resetEventForm();
-      
-      toast({
-        title: "Événement créé",
-        description: "L'événement a été ajouté à votre calendrier"
-      });
-      
+      if (response.success && response.data) {
+        // Recharger les événements depuis la BDD
+        await loadRealCalendarData();
+        
+        setShowEventForm(false);
+        // resetEventForm(); // Appelé après la définition de la fonction
+        
+        toast({
+          title: "Événement créé",
+          description: `L'événement "${eventForm.title}" a été ajouté à votre agenda`
+        });
+      }
     } catch (error) {
       console.error('Erreur lors de la création de l\'événement:', error);
       toast({
@@ -225,12 +311,34 @@ const CalendarPage: React.FC = () => {
 
   const handleEventUpdate = async (event: CalendarEvent) => {
     try {
-      setEvents(prev => prev.map(e => e.id === event.id ? event : e));
+      // Préparer les données pour l'API
+      const updateData = {
+        title: event.title,
+        description: event.description,
+        startDate: event.startDate.toISOString(),
+        endDate: event.endDate.toISOString(),
+        type: event.type,
+        location: event.location,
+        attendees: event.attendees,
+        isAllDay: event.isAllDay,
+        color: event.color,
+        reminders: event.reminders
+      };
+
+      // Mettre à jour l'événement en base de données via l'API
+      const response = await calendarApi.updateEvent(event.id, updateData);
       
-      toast({
-        title: "Événement modifié",
-        description: "L'événement a été mis à jour"
-      });
+      if (response.success && response.data) {
+        // Mettre à jour l'état local seulement après succès de l'API
+        setEvents(prev => prev.map(e => e.id === event.id ? event : e));
+        
+        toast({
+          title: "Événement modifié",
+          description: "L'événement a été mis à jour"
+        });
+      } else {
+        throw new Error('Échec de la modification côté serveur');
+      }
       
     } catch (error) {
       console.error('Erreur lors de la modification de l\'événement:', error);
@@ -244,12 +352,20 @@ const CalendarPage: React.FC = () => {
 
   const handleEventDelete = async (eventId: string) => {
     try {
-      setEvents(prev => prev.filter(e => e.id !== eventId));
+      // Supprimer l'événement en base de données via l'API
+      const response = await calendarApi.deleteEvent(eventId);
       
-      toast({
-        title: "Événement supprimé",
-        description: "L'événement a été retiré de votre calendrier"
-      });
+      if (response.success) {
+        // Supprimer de l'état local seulement après succès de l'API
+        setEvents(prev => prev.filter(e => e.id !== eventId));
+        
+        toast({
+          title: "Événement supprimé",
+          description: "L'événement a été retiré de votre calendrier"
+        });
+      } else {
+        throw new Error('Échec de la suppression côté serveur');
+      }
       
     } catch (error) {
       console.error('Erreur lors de la suppression de l\'événement:', error);
@@ -263,13 +379,27 @@ const CalendarPage: React.FC = () => {
 
   const handleDateClick = (date: Date) => {
     setSelectedDate(date);
+    
+    // Si une formation est pré-sélectionnée depuis la navigation, pré-remplir le formulaire
+    const preSelectedFormation = location.state?.selectedFormation;
+    
     setEventForm(prev => ({
       ...prev,
+      title: preSelectedFormation ? `Formation: ${preSelectedFormation.title}` : '',
+      description: preSelectedFormation ? preSelectedFormation.description : '',
       startDate: date.toISOString().split('T')[0],
       endDate: date.toISOString().split('T')[0],
       startTime: '09:00',
-      endTime: '10:00'
+      endTime: preSelectedFormation ? 
+        // Calculer l'heure de fin basée sur la durée de la formation
+        new Date(new Date(`1970-01-01T09:00:00`).getTime() + (preSelectedFormation.duration || 60) * 60000)
+          .toTimeString().substring(0, 5) : '10:00',
+      type: preSelectedFormation ? 'FORMATION' : 'PERSONAL',
+      formationId: preSelectedFormation?.id
     }));
+    
+    // Ouvrir automatiquement le formulaire d'événement
+    setShowEventForm(true);
   };
 
   const resetEventForm = () => {

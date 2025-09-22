@@ -224,3 +224,4 @@ Votre application BAI Consulting dispose maintenant de :
 Votre application est maintenant **prête pour la production** avec une gestion professionnelle des cours de formations ! 🎯
 
 
+

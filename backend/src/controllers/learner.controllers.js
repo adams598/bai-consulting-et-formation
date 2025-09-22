@@ -285,7 +285,10 @@ export const formationsController = {
   getMyFormations: async (req, res) => {
     try {
       const userId = req.user.id; // Correction: req.user.id au lieu de req.user.userId
-      console.log('🔄 [LEARNER API] getMyFormations appelé pour userId:', userId);
+      console.log(
+        "🔄 [LEARNER API] getMyFormations appelé pour userId:",
+        userId
+      );
 
       // Récupérer les formations assignées à l'utilisateur
       const assignments = await prisma.formationAssignment.findMany({
@@ -294,14 +297,17 @@ export const formationsController = {
           formation: {
             include: {
               content: true, // Inclure le contenu pour compter les leçons
-            }
+            },
           },
           user: true,
           assignedByUser: true,
         },
       });
 
-      console.log('📊 [LEARNER API] Nombre d\'assignations trouvées:', assignments.length);
+      console.log(
+        "📊 [LEARNER API] Nombre d'assignations trouvées:",
+        assignments.length
+      );
 
       // Récupérer la progression pour chaque formation
       const formationsWithProgress = await Promise.all(
@@ -314,9 +320,17 @@ export const formationsController = {
             },
           });
 
-          const totalLessons = assignment.formation.content?.filter(c => c.contentType === 'LESSON').length || 0;
-          const completedLessons = userProgress.filter(p => p.isCompleted).length;
-          const progressPercentage = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+          const totalLessons =
+            assignment.formation.content?.filter(
+              (c) => c.contentType === "LESSON"
+            ).length || 0;
+          const completedLessons = userProgress.filter(
+            (p) => p.isCompleted
+          ).length;
+          const progressPercentage =
+            totalLessons > 0
+              ? Math.round((completedLessons / totalLessons) * 100)
+              : 0;
 
           return {
             ...assignment,
@@ -336,7 +350,8 @@ export const formationsController = {
           title: assignment.formation.title,
           description: assignment.formation.description,
           duration: assignment.formation.duration,
-          totalDuration: assignment.formation.totalDuration || assignment.formation.duration,
+          totalDuration:
+            assignment.formation.totalDuration || assignment.formation.duration,
           coverImage: assignment.formation.coverImage,
           code: assignment.formation.code,
           isActive: assignment.formation.isActive,
@@ -355,14 +370,166 @@ export const formationsController = {
         completedLessons: assignment.completedLessons,
       }));
 
-      console.log('✅ [LEARNER API] Retour de', formations.length, 'formations transformées');
-      
+      console.log(
+        "✅ [LEARNER API] Retour de",
+        formations.length,
+        "formations transformées"
+      );
+
       res.json({
         success: true,
         data: formations,
       });
     } catch (error) {
       console.error("Erreur getMyFormations:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Obtenir les statistiques détaillées pour le dashboard
+  getDashboardStats: async (req, res) => {
+    try {
+      const userId = req.user.id;
+
+      // Récupérer toutes les formations assignées
+      const assignments = await prisma.formationAssignment.findMany({
+        where: { userId },
+        include: {
+          formation: {
+            include: {
+              content: true,
+            },
+          },
+        },
+      });
+
+      // Calculer les statistiques
+      let totalFormations = assignments.length;
+      let completedFormations = 0;
+      let inProgressFormations = 0;
+      let pendingFormations = 0;
+      let totalTimeSpent = 0; // en minutes
+
+      // Récupérer les certificats
+      const certificates = await prisma.certificate.count({
+        where: { userId },
+      });
+
+      // Récupérer toutes les tentatives de quiz pour calculer le score moyen
+      const quizAttempts = await prisma.quizAttempt.findMany({
+        where: { userId, isCompleted: true },
+        select: { score: true },
+      });
+
+      const averageScore =
+        quizAttempts.length > 0
+          ? Math.round(
+              quizAttempts.reduce((sum, attempt) => sum + attempt.score, 0) /
+                quizAttempts.length
+            )
+          : 0;
+
+      // Analyser chaque formation
+      for (const assignment of assignments) {
+        const totalLessons =
+          assignment.formation.content?.filter(
+            (c) => c.contentType === "LESSON"
+          ).length || 0;
+
+        // Vérifier la progression
+        const userProgress = await prisma.userProgress.findMany({
+          where: {
+            userId,
+            formationId: assignment.formationId,
+          },
+        });
+
+        const completedLessons = userProgress.filter(
+          (p) => p.isCompleted
+        ).length;
+        const hasStarted = userProgress.length > 0;
+        const isCompleted =
+          completedLessons === totalLessons && totalLessons > 0;
+
+        if (isCompleted) {
+          completedFormations++;
+          // Ajouter le temps total de la formation aux formations terminées
+          totalTimeSpent += assignment.formation.duration || 0;
+        } else if (hasStarted) {
+          inProgressFormations++;
+        } else {
+          pendingFormations++;
+        }
+      }
+
+      res.json({
+        success: true,
+        data: {
+          totalFormations,
+          completedFormations,
+          inProgressFormations,
+          pendingFormations,
+          certificatesEarned: certificates,
+          totalTimeSpent,
+          averageScore,
+        },
+      });
+    } catch (error) {
+      console.error("Erreur getDashboardStats:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Obtenir les événements planifiés
+  getScheduledEvents: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const now = new Date();
+
+      // Récupérer les événements futurs de l'utilisateur
+      const events = await prisma.calendarEvent.findMany({
+        where: {
+          userId,
+          startDate: { gte: now },
+          status: { not: "CANCELLED" },
+        },
+        include: {
+          formation: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              duration: true,
+            },
+          },
+        },
+        orderBy: { startDate: "asc" },
+      });
+
+      // Transformer pour le format attendu par le frontend
+      const transformedEvents = events.map((event) => ({
+        id: event.id,
+        formationTitle: event.formation?.title || event.title,
+        eventType: event.eventType || "formation",
+        scheduledDate: event.startDate.toISOString(),
+        dueDate: event.formation ? null : event.endDate.toISOString(), // Pour les formations, pas de dueDate spécifique
+        isMandatory: event.type === "FORMATION", // Les formations planifiées sont considérées comme importantes
+        progress: 0, // À calculer selon la progression réelle
+        formationId: event.formationId || event.id,
+      }));
+
+      res.json({
+        success: true,
+        data: transformedEvents,
+      });
+    } catch (error) {
+      console.error("Erreur getScheduledEvents:", error);
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
@@ -394,18 +561,47 @@ export const formationsController = {
         });
       }
 
-      // Créer l'événement dans l'agenda (simulation - à adapter selon votre modèle)
-      const eventDateTime = new Date(`${date}T${time}`);
-      
-      // TODO: Créer un modèle CalendarEvent si nécessaire
-      // Pour l'instant, on simule la création
-      
+      // Créer l'événement dans l'agenda
+      const startDateTime = new Date(`${date}T${time}`);
+      const endDateTime = new Date(
+        startDateTime.getTime() + (assignment.formation.duration || 60) * 60000
+      );
+
+      const calendarEvent = await prisma.calendarEvent.create({
+        data: {
+          userId,
+          title: title || `Formation: ${assignment.formation.title}`,
+          description: description || assignment.formation.description,
+          startDate: startDateTime,
+          endDate: endDateTime,
+          type: "FORMATION",
+          formationId,
+          eventType: "formation",
+          status: "CONFIRMED",
+          reminders: JSON.stringify([15, 60]), // Rappels 15min et 1h avant
+        },
+        include: {
+          formation: {
+            select: {
+              id: true,
+              title: true,
+              description: true,
+              duration: true,
+            },
+          },
+        },
+      });
+
       // Créer une notification pour l'utilisateur
       await prisma.notification.create({
         data: {
           userId,
           title: "Formation planifiée",
-          message: `La formation "${assignment.formation.title}" a été planifiée pour le ${new Date(date).toLocaleDateString('fr-FR')} à ${time}`,
+          message: `La formation "${
+            assignment.formation.title
+          }" a été planifiée pour le ${new Date(date).toLocaleDateString(
+            "fr-FR"
+          )} à ${time}`,
           type: "INFO",
           isRead: false,
           relatedFormationId: formationId,
@@ -415,11 +611,7 @@ export const formationsController = {
       res.json({
         success: true,
         message: "Formation planifiée avec succès",
-        data: {
-          formationId,
-          scheduledDate: eventDateTime,
-          title: assignment.formation.title,
-        },
+        data: calendarEvent,
       });
     } catch (error) {
       console.error("Erreur scheduleFormation:", error);
