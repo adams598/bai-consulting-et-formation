@@ -175,13 +175,13 @@ export const progressApi = {
   
   // Récupérer les statistiques détaillées pour le dashboard
   getDashboardStats: () => api.get<ApiResponse<{
-    totalFormations: number;
-    completedFormations: number;
-    inProgressFormations: number;
-    pendingFormations: number;
-    certificatesEarned: number;
-    totalTimeSpent: number;
-    averageScore: number;
+  totalFormations: number;
+  completedFormations: number;
+  inProgressFormations: number;
+  pendingFormations: number;
+  certificatesEarned: number;
+  totalTimeSpent: number;
+  averageScore: number;
   }>>('/progress/dashboard-stats')
 };
 
@@ -223,12 +223,12 @@ export const certificatesApi = {
     
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
+    headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+    },
+  });
 
-    if (!response.ok) {
+  if (!response.ok) {
       throw new Error('Erreur lors du téléchargement du certificat');
     }
 

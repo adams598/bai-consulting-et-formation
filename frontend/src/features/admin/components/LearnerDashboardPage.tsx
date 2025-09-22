@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   BookOpen, 
   Clock, 
@@ -30,12 +31,16 @@ interface LearnerStats {
 
 interface RecentActivity {
   id: string;
-  type: 'formation_assigned' | 'formation_started' | 'formation_completed' | 'certificate_earned' | 'formation_scheduled';
+  type: 'formation_assigned' | 'formation_started' | 'formation_completed' | 'certificate_earned' | 'formation_scheduled' | 'notification';
   title: string;
   description: string;
   timestamp: string;
   formationId?: string;
   assignedBy?: { firstName: string; lastName: string };
+  dueDate?: string;
+  progressPercentage?: number;
+  scheduledDate?: string;
+  isRead?: boolean;
 }
 
 interface ScheduledEvent {
@@ -50,8 +55,12 @@ interface ScheduledEvent {
 }
 
 type ActivityFilter = '24h' | '1week' | '1month' | '3months';
+type ActivityType = 'all' | 'formation_assigned' | 'formation_started' | 'formation_completed' | 'formation_scheduled' | 'notification';
 
 const LearnerDashboardPage: React.FC = () => {
+  // Hook pour la navigation
+  const navigate = useNavigate();
+  
   // Variables globales pour les données de base
   const [myFormations, setMyFormations] = useState<any[]>([]);
   const [certificates, setCertificates] = useState<any[]>([]);
@@ -71,6 +80,7 @@ const LearnerDashboardPage: React.FC = () => {
   const [scheduledEvents, setScheduledEvents] = useState<ScheduledEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activityFilter, setActivityFilter] = useState<ActivityFilter>('1week');
+  const [activityTypeFilter, setActivityTypeFilter] = useState<ActivityType>('all');
 
   useEffect(() => {
     loadDashboardData();
@@ -78,7 +88,7 @@ const LearnerDashboardPage: React.FC = () => {
 
   useEffect(() => {
     loadRecentActivities();
-  }, [activityFilter]);
+  }, [activityFilter, activityTypeFilter]);
 
   const loadDashboardData = async () => {
     try {
@@ -176,10 +186,23 @@ const LearnerDashboardPage: React.FC = () => {
 
   const loadRecentActivities = async () => {
     try {
-      // Pour l'instant, pas d'activités récentes (endpoint à implémenter)
-      setRecentActivities([]);
+      const response = await contentVisitApi.getRecentActivities(activityFilter);
+      
+      if (response.success && response.data) {
+        let filteredActivities = response.data;
+        
+        // Filtrer par type d'activité si nécessaire
+        if (activityTypeFilter !== 'all') {
+          filteredActivities = response.data.filter(activity => activity.type === activityTypeFilter);
+        }
+        
+        setRecentActivities(filteredActivities);
+      } else {
+        setRecentActivities([]);
+      }
     } catch (error) {
       console.error('Erreur lors du chargement des activités:', error);
+      setRecentActivities([]);
     }
   };
 
@@ -248,8 +271,22 @@ const LearnerDashboardPage: React.FC = () => {
         return 'bg-yellow-50 border-yellow-200';
       case 'formation_scheduled':
         return 'bg-purple-50 border-purple-200';
+      case 'notification':
+        return 'bg-indigo-50 border-indigo-200';
       default:
         return 'bg-gray-50 border-gray-200';
+    }
+  };
+
+  const handleActivityClick = (activity: RecentActivity) => {
+    if (activity.formationId) {
+      // Naviguer vers la formation
+      navigate(`/admin/formations`, { 
+        state: { 
+          selectedFormationId: activity.formationId,
+          highlightActivity: activity.id
+        } 
+      });
     }
   };
 
@@ -353,21 +390,41 @@ const LearnerDashboardPage: React.FC = () => {
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="admin-title-md admin-title-spacing">Activités récentes</h3>
-            <div className="relative">
-              <select
-                value={activityFilter}
-                onChange={(e) => setActivityFilter(e.target.value as ActivityFilter)}
-                className="text-sm border border-gray-300 rounded-md px-3 py-1 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none pr-8"
-              >
-                <option value="24h">Dernières 24h</option>
-                <option value="1week">Cette semaine</option>
-                <option value="1month">Ce mois</option>
-                <option value="3months">3 derniers mois</option>
-              </select>
-              <Filter className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+            <div className="flex space-x-2">
+              {/* Filtre par période */}
+              <div className="relative">
+                <select
+                  value={activityFilter}
+                  onChange={(e) => setActivityFilter(e.target.value as ActivityFilter)}
+                  className="text-sm border border-gray-300 rounded-md px-3 py-1 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none pr-8"
+                >
+                  <option value="24h">Dernières 24h</option>
+                  <option value="1week">Cette semaine</option>
+                  <option value="1month">Ce mois</option>
+                  <option value="3months">3 derniers mois</option>
+                </select>
+                <Filter className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+              </div>
+              
+              {/* Filtre par type */}
+              <div className="relative">
+                <select
+                  value={activityTypeFilter}
+                  onChange={(e) => setActivityTypeFilter(e.target.value as ActivityType)}
+                  className="text-sm border border-gray-300 rounded-md px-3 py-1 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none pr-8"
+                >
+                  <option value="all">Tous les types</option>
+                  <option value="formation_assigned">Formations assignées</option>
+                  <option value="formation_started">Formations démarrées</option>
+                  <option value="formation_completed">Formations terminées</option>
+                  <option value="formation_scheduled">Formations planifiées</option>
+                  <option value="notification">Notifications</option>
+                </select>
+                <Filter className="w-4 h-4 text-gray-400 absolute right-2 top-1/2 transform -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
           </div>
-          <div className="space-y-4">
+          <div className={`space-y-4 ${recentActivities.length > 5 ? 'max-h-96 overflow-y-auto pr-2' : ''}`}>
             {recentActivities.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -377,18 +434,34 @@ const LearnerDashboardPage: React.FC = () => {
               recentActivities.map((activity) => (
                 <div
                   key={activity.id}
-                  className={`flex items-start space-x-3 p-3 rounded-lg border ${getActivityColor(activity.type)}`}
+                  className={`flex items-start space-x-3 p-3 rounded-lg border ${getActivityColor(activity.type)} ${
+                    activity.formationId ? 'cursor-pointer hover:shadow-md transition-shadow' : ''
+                  }`}
+                  onClick={() => handleActivityClick(activity)}
                 >
                   {getActivityIcon(activity.type)}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">{activity.title}</p>
                     <p className="text-sm text-gray-600">
                       {activity.type === 'formation_assigned' && activity.assignedBy
-                        ? `${activity.assignedBy.firstName} ${activity.assignedBy.lastName} vous a assigné une nouvelle formation à suivre : ${activity.title}`
+                        ? `${activity.assignedBy.firstName} ${activity.assignedBy.lastName} vous a assigné une nouvelle formation`
+                        : activity.type === 'formation_started' && activity.progressPercentage
+                        ? `Progression: ${activity.progressPercentage}%`
+                        : activity.type === 'formation_completed'
+                        ? 'Formation terminée avec succès'
+                        : activity.type === 'formation_scheduled' && activity.scheduledDate
+                        ? `Planifié pour le ${new Date(activity.scheduledDate).toLocaleDateString('fr-FR')}`
                         : activity.description
                       }
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">{formatDate(activity.timestamp)}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className="text-xs text-gray-500">{formatDateTime(activity.timestamp)}</p>
+                      {activity.dueDate && activity.type === 'formation_assigned' && (
+                        <span className="text-xs text-orange-600 font-medium">
+                          Échéance: {formatDate(activity.dueDate)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))
@@ -399,7 +472,7 @@ const LearnerDashboardPage: React.FC = () => {
         {/* Échéances à venir */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <h3 className="admin-title-md admin-title-spacing mb-4">Événements planifiés</h3>
-          <div className="space-y-4">
+          <div className={`space-y-4 ${scheduledEvents.length > 5 ? 'max-h-96 overflow-y-auto pr-2' : ''}`}>
             {scheduledEvents.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />

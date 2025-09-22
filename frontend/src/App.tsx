@@ -20,7 +20,7 @@ import AdminOpportunitiesPage from './features/admin/components/AdminOpportuniti
 import AdminStatsPage from './app/admin/stats/page';
 import AdminSettingsPage from './app/admin/settings/page';
 import BankDetailPage from './features/admin/components/BankDetailPage';
-import { UnifiedLayoutWrapper } from './app/admin/layout/UnifiedLayoutWrapper';
+import { UnifiedLayout } from './features/admin/components/UnifiedLayout';
 import { IntranetGuard } from './components/guards/IntranetGuard';
 
 const slides = [
@@ -226,25 +226,11 @@ function App() {
         <Routes>
             {/* Routes Admin */}
             <Route path="/admin/login" element={<AdminLoginPage />} />
-            <Route path="/admin" element={
+            <Route path="/admin/*" element={
               <IntranetGuard allowedRoles={['SUPER_ADMIN', 'BANK_ADMIN', 'COLLABORATOR']}>
-                <UnifiedLayoutWrapper />
+                <UnifiedLayout />
               </IntranetGuard>
-            }>
-              <Route index element={<AdminDashboardPage />} />
-              <Route path="dashboard" element={<AdminDashboardPage />} />
-              <Route path="opportunities" element={<AdminOpportunitiesPage />} />
-              <Route path="formations" element={<AdminFormationsPage />} />
-              <Route path="users" element={<AdminUsersPage />} />
-              <Route path="banks" element={<AdminBanksPage />} />
-              <Route path="banks/:bankId" element={<BankDetailPage />} />
-              <Route path="stats" element={<AdminStatsPage />} />
-              <Route path="settings" element={<AdminSettingsPage />} />
-              {/* Routes spécifiques aux apprenants */}
-              <Route path="progress" element={<div>Page de progression des apprenants</div>} />
-              <Route path="certificates" element={<div>Page des certificats des apprenants</div>} />
-              <Route path="calendar" element={<CalendarPage />} />
-            </Route>
+            } />
           
           {/* Route de connexion unifiée */}
           <Route path="/login" element={<LoginPage />} />

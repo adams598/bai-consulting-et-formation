@@ -132,13 +132,11 @@ router.get("/content/visits", authMiddleware, (req, res) => {
   });
 });
 
-router.get("/content/recent-activities", authMiddleware, (req, res) => {
-  // Endpoint temporaire qui retourne des données vides
-  res.json({
-    success: true,
-    data: [],
-  });
-});
+router.get(
+  "/content/recent-activities",
+  authMiddleware,
+  formationsController.getRecentActivities
+);
 
 // Routes du calendrier
 router.get(
