@@ -6,11 +6,12 @@ import { useConfirmation } from '../../../hooks/useConfirmation';
 
 interface BankModalProps {
   bank?: Bank | null;
+  isOpen?: boolean;
   onClose: () => void;
   onSave: (data: Partial<Bank>) => void;
 }
 
-const BankModal: React.FC<BankModalProps> = ({ bank, onClose, onSave }) => {
+const BankModal: React.FC<BankModalProps> = ({ bank, isOpen = true, onClose, onSave }) => {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -59,6 +60,18 @@ const BankModal: React.FC<BankModalProps> = ({ bank, onClose, onSave }) => {
     }
   }, [bank]);
 
+  // Gérer la fermeture avec la touche Échap
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -77,12 +90,21 @@ const BankModal: React.FC<BankModalProps> = ({ bank, onClose, onSave }) => {
     onSave(formData);
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">
-            {bank ? 'Modifier la banque' : 'Créer une banque'}
+            {bank ? 'Modifier la banque' : 'Nouvelle banque'}
           </h2>
           <button
             onClick={onClose}
@@ -136,7 +158,7 @@ const BankModal: React.FC<BankModalProps> = ({ bank, onClose, onSave }) => {
             </label>
           </div>
 
-          <div className="flex justify-end space-x-3 pt-4">
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
             <button
               type="button"
               onClick={onClose}
@@ -153,19 +175,6 @@ const BankModal: React.FC<BankModalProps> = ({ bank, onClose, onSave }) => {
           </div>
         </form>
       </div>
-      
-      {/* Modal de confirmation */}
-      <ConfirmationModal
-        isOpen={confirmation.isOpen}
-        onClose={confirmation.hideConfirmation}
-        onConfirm={confirmation.handleConfirm}
-        title={confirmation.options?.title || ''}
-        message={confirmation.options?.message || ''}
-        confirmText={confirmation.options?.confirmText}
-        cancelText={confirmation.options?.cancelText}
-        type={confirmation.options?.type}
-        isLoading={confirmation.isLoading}
-      />
     </div>
   );
 };

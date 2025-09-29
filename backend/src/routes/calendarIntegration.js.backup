@@ -1,0 +1,706 @@
+import express from "express";
+import { PrismaClient } from "@prisma/client";
+import { authMiddleware } from "../middleware/auth.middleware.js";
+import axios from "axios";
+import { google } from "googleapis";
+
+const router = express.Router();
+const prisma = new PrismaClient();
+
+// Configuration OAuth
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+const GOOGLE_REDIRECT_URI =
+  process.env.GOOGLE_REDIRECT_URI ||
+  `${process.env.FRONTEND_URL}/calendar/callback/google`;
+
+const OUTLOOK_CLIENT_ID = process.env.OUTLOOK_CLIENT_ID;
+const OUTLOOK_CLIENT_SECRET = process.env.OUTLOOK_CLIENT_SECRET;
+const OUTLOOK_REDIRECT_URI =
+  process.env.OUTLOOK_REDIRECT_URI ||
+  `${process.env.FRONTEND_URL}/calendar/callback/outlook`;
+
+// Types d'intégration
+const INTEGRATION_TYPES = {
+  GOOGLE: "GOOGLE",
+  OUTLOOK: "OUTLOOK",
+};
+
+// Obtenir l'URL d'autorisation Google
+router.get("/google/auth-url", authMiddleware, async (req, res) => {
+  try {
+    const oauth2Client = new google.auth.OAuth2(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      GOOGLE_REDIRECT_URI
+    );
+
+    const scopes = [
+      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/calendar.events",
+    ];
+
+    const authUrl = oauth2Client.generateAuthUrl({
+      access_type: "offline",
+      scope: scopes,
+      state: req.user.id,
+      prompt: "consent",
+    });
+
+    res.json({
+      success: true,
+      data: { authUrl },
+    });
+  } catch (error) {
+    console.error("Erreur génération URL Google:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la génération de l'URL d'autorisation",
+    });
+  }
+});
+
+// Obtenir l'URL d'autorisation Outlook
+router.get("/outlook/auth-url", authMiddleware, async (req, res) => {
+  try {
+    const scopes = [
+      "https://graph.microsoft.com/calendars.readwrite",
+      "https://graph.microsoft.com/user.read",
+    ];
+
+    const authUrl =
+      `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
+      `client_id=${OUTLOOK_CLIENT_ID}&` +
+      `response_type=code&` +
+      `redirect_uri=${encodeURIComponent(OUTLOOK_REDIRECT_URI)}&` +
+      `scope=${encodeURIComponent(scopes.join(" "))}&` +
+      `response_mode=query&` +
+      `state=${req.user.id}`;
+
+    res.json({
+      success: true,
+      data: { authUrl },
+    });
+  } catch (error) {
+    console.error("Erreur génération URL Outlook:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la génération de l'URL d'autorisation",
+    });
+  }
+});
+
+// Callback Google OAuth
+router.post("/google/callback", authMiddleware, async (req, res) => {
+  try {
+    const { code } = req.body;
+    const userId = req.user.id;
+
+    const oauth2Client = new google.auth.OAuth2(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      GOOGLE_REDIRECT_URI
+    );
+
+    // Échanger le code contre un token d'accès
+    const { tokens } = await oauth2Client.getToken(code);
+    oauth2Client.setCredentials(tokens);
+
+    // Obtenir les informations du profil utilisateur
+    const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+    const { data: profile } = await oauth2.userinfo.get();
+
+    // Sauvegarder l'intégration
+    const integration = await prisma.calendarIntegration.upsert({
+      where: {
+        userId_type: {
+          userId: userId,
+          type: INTEGRATION_TYPES.GOOGLE,
+        },
+      },
+      update: {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        tokenExpiresAt: tokens.expiry_date
+          ? new Date(tokens.expiry_date)
+          : null,
+        email: profile.email,
+        name: profile.name,
+        isConnected: true,
+        lastSync: new Date(),
+      },
+      create: {
+        userId: userId,
+        type: INTEGRATION_TYPES.GOOGLE,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        tokenExpiresAt: tokens.expiry_date
+          ? new Date(tokens.expiry_date)
+          : null,
+        email: profile.email,
+        name: profile.name,
+        isConnected: true,
+        syncEnabled: true,
+        importEnabled: false,
+        exportEnabled: false,
+        lastSync: new Date(),
+      },
+    });
+
+    res.json({
+      success: true,
+      data: integration,
+    });
+  } catch (error) {
+    console.error("Erreur callback Google:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la connexion avec Google Calendar",
+    });
+  }
+});
+
+// Callback Outlook OAuth
+router.post("/outlook/callback", authMiddleware, async (req, res) => {
+  try {
+    const { code } = req.body;
+    const userId = req.user.id;
+
+    // Échanger le code contre un token d'accès
+    const tokenResponse = await axios.post(
+      "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      {
+        client_id: OUTLOOK_CLIENT_ID,
+        client_secret: OUTLOOK_CLIENT_SECRET,
+        code,
+        grant_type: "authorization_code",
+        redirect_uri: OUTLOOK_REDIRECT_URI,
+        scope:
+          "https://graph.microsoft.com/calendars.readwrite https://graph.microsoft.com/user.read",
+      }
+    );
+
+    const { access_token, refresh_token, expires_in } = tokenResponse.data;
+
+    // Obtenir les informations du profil utilisateur
+    const profileResponse = await axios.get(
+      "https://graph.microsoft.com/v1.0/me",
+      {
+        headers: { Authorization: `Bearer ${access_token}` },
+      }
+    );
+
+    const { mail, displayName } = profileResponse.data;
+
+    // Sauvegarder l'intégration
+    const integration = await prisma.calendarIntegration.upsert({
+      where: {
+        userId_type: {
+          userId: userId,
+          type: INTEGRATION_TYPES.OUTLOOK,
+        },
+      },
+      update: {
+        accessToken: access_token,
+        refreshToken: refresh_token,
+        tokenExpiresAt: new Date(Date.now() + expires_in * 1000),
+        email: mail,
+        name: displayName,
+        isConnected: true,
+        lastSync: new Date(),
+      },
+      create: {
+        userId: userId,
+        type: INTEGRATION_TYPES.OUTLOOK,
+        accessToken: access_token,
+        refreshToken: refresh_token,
+        tokenExpiresAt: new Date(Date.now() + expires_in * 1000),
+        email: mail,
+        name: displayName,
+        isConnected: true,
+        syncEnabled: true,
+        importEnabled: false,
+        exportEnabled: false,
+        lastSync: new Date(),
+      },
+    });
+
+    res.json({
+      success: true,
+      data: integration,
+    });
+  } catch (error) {
+    console.error("Erreur callback Outlook:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la connexion avec Outlook Calendar",
+    });
+  }
+});
+
+// Obtenir les intégrations de l'utilisateur
+router.get("/integrations", authMiddleware, async (req, res) => {
+  try {
+    const integrations = await prisma.calendarIntegration.findMany({
+      where: { userId: req.user.id },
+    });
+
+    res.json({
+      success: true,
+      data: integrations,
+    });
+  } catch (error) {
+    console.error("Erreur récupération intégrations:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la récupération des intégrations",
+    });
+  }
+});
+
+// Mettre à jour les paramètres d'intégration
+router.put(
+  "/integrations/:type/settings",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const { type } = req.params;
+      const { syncEnabled, importEnabled, exportEnabled } = req.body;
+      const userId = req.user.id;
+
+      const integration = await prisma.calendarIntegration.update({
+        where: {
+          userId_type: {
+            userId: userId,
+            type: type.toUpperCase(),
+          },
+        },
+        data: {
+          syncEnabled,
+          importEnabled,
+          exportEnabled,
+        },
+      });
+
+      res.json({
+        success: true,
+        data: integration,
+      });
+    } catch (error) {
+      console.error("Erreur mise à jour paramètres:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur lors de la mise à jour des paramètres",
+      });
+    }
+  }
+);
+
+// Déconnecter une intégration
+router.delete("/integrations/:type", authMiddleware, async (req, res) => {
+  try {
+    const { type } = req.params;
+    const userId = req.user.id;
+
+    await prisma.calendarIntegration.update({
+      where: {
+        userId_type: {
+          userId: userId,
+          type: type.toUpperCase(),
+        },
+      },
+      data: {
+        isConnected: false,
+        accessToken: null,
+        refreshToken: null,
+        tokenExpiresAt: null,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: "Intégration déconnectée avec succès",
+    });
+  } catch (error) {
+    console.error("Erreur déconnexion intégration:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de la déconnexion",
+    });
+  }
+});
+
+// Importer les événements depuis Google Calendar
+router.post("/google/import", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const integration = await prisma.calendarIntegration.findUnique({
+      where: {
+        userId_type: {
+          userId: userId,
+          type: INTEGRATION_TYPES.GOOGLE,
+        },
+      },
+    });
+
+    if (!integration || !integration.isConnected) {
+      return res.status(400).json({
+        success: false,
+        message: "Google Calendar non connecté",
+      });
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      GOOGLE_REDIRECT_URI
+    );
+
+    oauth2Client.setCredentials({
+      access_token: integration.accessToken,
+      refresh_token: integration.refreshToken,
+    });
+
+    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+    // Récupérer les événements des 30 prochains jours
+    const now = new Date();
+    const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    const response = await calendar.events.list({
+      calendarId: "primary",
+      timeMin: now.toISOString(),
+      timeMax: oneMonthLater.toISOString(),
+      singleEvents: true,
+      orderBy: "startTime",
+    });
+
+    const events = response.data.items || [];
+    let importedCount = 0;
+
+    for (const event of events) {
+      if (event.start && event.start.dateTime) {
+        try {
+          await prisma.calendarEvent.create({
+            data: {
+              userId: userId,
+              title: event.summary || "Événement sans titre",
+              description: event.description || "",
+              startDate: new Date(event.start.dateTime),
+              endDate: new Date(event.end.dateTime),
+              type: "IMPORTED",
+              externalId: event.id,
+              externalSource: "GOOGLE",
+            },
+          });
+          importedCount++;
+        } catch (error) {
+          // Ignorer les doublons
+          if (!error.code || error.code !== "P2002") {
+            console.error("Erreur création événement:", error);
+          }
+        }
+      }
+    }
+
+    await prisma.calendarIntegration.update({
+      where: {
+        userId_type: {
+          userId: userId,
+          type: INTEGRATION_TYPES.GOOGLE,
+        },
+      },
+      data: {
+        lastSync: new Date(),
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        imported: importedCount,
+        total: events.length,
+      },
+    });
+  } catch (error) {
+    console.error("Erreur import Google:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de l'import des événements",
+    });
+  }
+});
+
+// Importer les événements depuis Outlook
+router.post("/outlook/import", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+
+    const integration = await prisma.calendarIntegration.findUnique({
+      where: {
+        userId_type: {
+          userId: userId,
+          type: INTEGRATION_TYPES.OUTLOOK,
+        },
+      },
+    });
+
+    if (!integration || !integration.isConnected) {
+      return res.status(400).json({
+        success: false,
+        message: "Outlook Calendar non connecté",
+      });
+    }
+
+    // Récupérer les événements des 30 prochains jours
+    const now = new Date();
+    const oneMonthLater = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+    const response = await axios.get(
+      "https://graph.microsoft.com/v1.0/me/events",
+      {
+        headers: {
+          Authorization: `Bearer ${integration.accessToken}`,
+        },
+        params: {
+          startDateTime: now.toISOString(),
+          endDateTime: oneMonthLater.toISOString(),
+          $orderby: "start/dateTime",
+        },
+      }
+    );
+
+    const events = response.data.value || [];
+    let importedCount = 0;
+
+    for (const event of events) {
+      try {
+        await prisma.calendarEvent.create({
+          data: {
+            userId: userId,
+            title: event.subject || "Événement sans titre",
+            description: event.bodyPreview || "",
+            startDate: new Date(event.start.dateTime),
+            endDate: new Date(event.end.dateTime),
+            type: "IMPORTED",
+            externalId: event.id,
+            externalSource: "OUTLOOK",
+          },
+        });
+        importedCount++;
+      } catch (error) {
+        // Ignorer les doublons
+        if (!error.code || error.code !== "P2002") {
+          console.error("Erreur création événement:", error);
+        }
+      }
+    }
+
+    await prisma.calendarIntegration.update({
+      where: {
+        userId_type: {
+          userId: userId,
+          type: INTEGRATION_TYPES.OUTLOOK,
+        },
+      },
+      data: {
+        lastSync: new Date(),
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        imported: importedCount,
+        total: events.length,
+      },
+    });
+  } catch (error) {
+    console.error("Erreur import Outlook:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de l'import des événements",
+    });
+  }
+});
+
+// Exporter une formation vers Google Calendar
+router.post("/google/export-formation", authMiddleware, async (req, res) => {
+  try {
+    const { formationId } = req.body;
+    const userId = req.user.id;
+
+    const integration = await prisma.calendarIntegration.findUnique({
+      where: {
+        userId_type: {
+          userId: userId,
+          type: INTEGRATION_TYPES.GOOGLE,
+        },
+      },
+    });
+
+    if (!integration || !integration.isConnected) {
+      return res.status(400).json({
+        success: false,
+        message: "Google Calendar non connecté",
+      });
+    }
+
+    const formation = await prisma.calendarEvent.findFirst({
+      where: {
+        id: formationId,
+        userId: userId,
+        type: "FORMATION",
+      },
+    });
+
+    if (!formation) {
+      return res.status(404).json({
+        success: false,
+        message: "Formation non trouvée",
+      });
+    }
+
+    const oauth2Client = new google.auth.OAuth2(
+      GOOGLE_CLIENT_ID,
+      GOOGLE_CLIENT_SECRET,
+      GOOGLE_REDIRECT_URI
+    );
+
+    oauth2Client.setCredentials({
+      access_token: integration.accessToken,
+      refresh_token: integration.refreshToken,
+    });
+
+    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+    const event = {
+      summary: formation.title,
+      description: formation.description,
+      start: {
+        dateTime: formation.startDate.toISOString(),
+      },
+      end: {
+        dateTime: formation.endDate.toISOString(),
+      },
+    };
+
+    const response = await calendar.events.insert({
+      calendarId: "primary",
+      resource: event,
+    });
+
+    // Mettre à jour la formation avec l'ID externe
+    await prisma.calendarEvent.update({
+      where: { id: formationId },
+      data: {
+        externalId: response.data.id,
+        externalSource: "GOOGLE",
+      },
+    });
+
+    res.json({
+      success: true,
+      data: response.data,
+    });
+  } catch (error) {
+    console.error("Erreur export Google:", error);
+    res.status(500).json({
+      success: false,
+      message: "Erreur lors de l'export vers Google Calendar",
+    });
+  }
+});
+
+// Exporter une formation vers Outlook
+router.post(
+  "/outlook/export-formation",
+  authMiddleware,
+  async (req, res) => {
+    try {
+      const { formationId } = req.body;
+      const userId = req.user.id;
+
+      const integration = await prisma.calendarIntegration.findUnique({
+        where: {
+          userId_type: {
+            userId: userId,
+            type: INTEGRATION_TYPES.OUTLOOK,
+          },
+        },
+      });
+
+      if (!integration || !integration.isConnected) {
+        return res.status(400).json({
+          success: false,
+          message: "Outlook Calendar non connecté",
+        });
+      }
+
+      const formation = await prisma.calendarEvent.findFirst({
+        where: {
+          id: formationId,
+          userId: userId,
+          type: "FORMATION",
+        },
+      });
+
+      if (!formation) {
+        return res.status(404).json({
+          success: false,
+          message: "Formation non trouvée",
+        });
+      }
+
+      const event = {
+        subject: formation.title,
+        body: {
+          contentType: "Text",
+          content: formation.description,
+        },
+        start: {
+          dateTime: formation.startDate.toISOString(),
+          timeZone: "UTC",
+        },
+        end: {
+          dateTime: formation.endDate.toISOString(),
+          timeZone: "UTC",
+        },
+      };
+
+      const response = await axios.post(
+        "https://graph.microsoft.com/v1.0/me/events",
+        event,
+        {
+          headers: {
+            Authorization: `Bearer ${integration.accessToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      // Mettre à jour la formation avec l'ID externe
+      await prisma.calendarEvent.update({
+        where: { id: formationId },
+        data: {
+          externalId: response.data.id,
+          externalSource: "OUTLOOK",
+        },
+      });
+
+      res.json({
+        success: true,
+        data: response.data,
+      });
+    } catch (error) {
+      console.error("Erreur export Outlook:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur lors de l'export vers Outlook",
+      });
+    }
+  }
+);
+
+export default router;

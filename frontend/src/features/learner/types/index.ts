@@ -1,4 +1,17 @@
 // Types pour l'espace apprenant
+
+export interface Universe {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string; // couleur du dossier
+  icon?: string; // icône personnalisée
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  formationCount?: number; // nombre de formations dans l'univers
+}
+
 export interface LearnerFormation {
   id: string;
   title: string;
@@ -15,6 +28,7 @@ export interface LearnerFormation {
   isActive: boolean;
   hasQuiz: boolean;
   quizRequired: boolean;
+  universeId?: string; // ID de l'univers auquel appartient la formation
   createdAt: string;
   updatedAt: string;
 }

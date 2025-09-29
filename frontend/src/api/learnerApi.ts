@@ -10,6 +10,7 @@ import {
   LearnerNotification, 
   LearnerStats,
   ContentVisit,
+  Universe,
   ApiResponse,
   PaginatedResponse 
 } from '../features/learner/types';
@@ -108,6 +109,15 @@ export const profileApi = {
   // Changer le mot de passe
   changePassword: (currentPassword: string, newPassword: string) =>
     api.put<ApiResponse<void>>('/profile/password', { currentPassword, newPassword })
+};
+
+// ===== UNIVERS =====
+export const universesApi = {
+  // Récupérer tous les univers
+  getAll: () => api.get<ApiResponse<Universe[]>>('/universes'),
+  
+  // Récupérer un univers par ID
+  getById: (id: string) => api.get<ApiResponse<Universe>>(`/universes/${id}`)
 };
 
 // ===== FORMATIONS =====
@@ -336,6 +346,7 @@ export const calendarApi = {
 export default {
   auth: authApi,
   profile: profileApi,
+  universes: universesApi,
   formations: formationsApi,
   progress: progressApi,
   quiz: quizApi,

@@ -19,7 +19,11 @@ import {
   Universe,
   RecentActivity,
   Alert,
-  FormationPerformance
+  FormationPerformance,
+  SystemSettings,
+  SystemInfo,
+  SystemHealth,
+  LogEntry
 } from '../features/admin/types';
 
 // ===== BANKS API =====
@@ -32,7 +36,7 @@ export const banksApi = {
   
   // Créer une nouvelle banque
   create: (data: Omit<Bank, 'id' | 'createdAt' | 'updatedAt'>) => 
-    api.post<Bank>('/api/admin/banks', data),
+    api.post<ApiResponse<Bank>>('/api/admin/banks', data),
   
   // Mettre à jour une banque
   update: (id: string, data: Partial<Bank>) => 
@@ -126,8 +130,11 @@ export const quizApi = {
 
 // ===== USERS API =====
 export const usersApi = {
-  // Récupérer tous les utilisateurs d'une banque
-  getAll: (bankId: string) => api.get<ApiResponse<User[]>>(`/api/admin/users?bankId=${bankId}`),
+  // Récupérer tous les utilisateurs (optionnellement filtrés par banque)
+  getAll: (bankId?: string) => api.get<ApiResponse<User[]>>(`/api/admin/users${bankId ? `?bankId=${bankId}` : ''}`),
+  
+  // Récupérer tous les utilisateurs sans filtre
+  getAllUsers: () => api.get<ApiResponse<User[]>>('/api/admin/users'),
   
   // Récupérer un utilisateur par ID
   getById: (id: string) => api.get<ApiResponse<User>>(`/api/admin/users/${id}`),
@@ -421,4 +428,39 @@ export const opportunitiesApi = {
   // Obtenir l'URL d'un fichier PDF
   getPresentationFileUrl: (fileName: string) => 
     `${API_BASE_URL}/api/admin/opportunities/files/${fileName}`,
+};
+
+// ===== SETTINGS API =====
+export const settingsApi = {
+  // Récupérer tous les paramètres
+  getAllSettings: () => api.get<ApiResponse<SystemSettings[]>>('/api/admin/settings'),
+  
+  // Récupérer les paramètres par catégorie
+  getSettingsByCategory: (category: string) => 
+    api.get<ApiResponse<SystemSettings[]>>(`/api/admin/settings/category/${category}`),
+  
+  // Mettre à jour un paramètre
+  updateSetting: (key: string, value: string) => 
+    api.put<ApiResponse<SystemSettings>>(`/api/admin/settings/${key}`, { value }),
+  
+  // Récupérer les informations système
+  getSystemInfo: () => api.get<ApiResponse<SystemInfo>>('/api/admin/settings/system-info'),
+  
+  // Vérifier la santé du système
+  getSystemHealth: () => api.get<ApiResponse<SystemHealth>>('/api/admin/settings/system-health'),
+  
+  // Récupérer les logs système
+  getSystemLogs: (params?: { level?: string; limit?: number; offset?: number }) => 
+    api.get<ApiResponse<{ logs: LogEntry[]; total: number; limit: number; offset: number }>>('/api/admin/settings/logs', { params }),
+  
+  // Tester la configuration email
+  testEmailConfig: (testEmail: string) => 
+    api.post<ApiResponse<void>>('/api/admin/settings/test-email', { testEmail }),
+  
+  // Sauvegarder les paramètres
+  backupSettings: () => api.post<ApiResponse<{ backupPath: string }>>('/api/admin/settings/backup'),
+  
+  // Restaurer les paramètres
+  restoreSettings: (backupFile: string) => 
+    api.post<ApiResponse<void>>('/api/admin/settings/restore', { backupFile })
 }; 

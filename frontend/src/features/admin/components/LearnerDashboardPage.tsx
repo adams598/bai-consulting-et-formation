@@ -196,6 +196,9 @@ const LearnerDashboardPage: React.FC = () => {
           filteredActivities = response.data.filter(activity => activity.type === activityTypeFilter);
         }
         
+        // Trier par date décroissante (plus récent en premier)
+        filteredActivities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        
         setRecentActivities(filteredActivities);
       } else {
         setRecentActivities([]);
@@ -300,57 +303,54 @@ const LearnerDashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Statistiques principales */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
         {/* Formations totales */}
-        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-6">
+        <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-600 text-sm font-medium">Formations</p>
-              <p className="text-2xl font-bold text-blue-900">{stats.totalFormations}</p>
+              <p className="text-xl font-bold text-blue-900">{stats.totalFormations}</p>
             </div>
-            <BookOpen className="w-8 h-8 text-blue-600" />
+            <BookOpen className="w-6 h-6 text-blue-600" />
           </div>
         </div>
 
         {/* Formations terminées */}
-        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-6">
+        <div className="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-green-600 text-sm font-medium">Terminées</p>
-              <p className="text-2xl font-bold text-green-900">{stats.completedFormations}</p>
+              <p className="text-xl font-bold text-green-900">{stats.completedFormations}</p>
             </div>
-            <CheckCircle className="w-8 h-8 text-green-600" />
+            <CheckCircle className="w-6 h-6 text-green-600" />
           </div>
         </div>
 
         {/* En cours */}
-        <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-6">
+        <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-orange-600 text-sm font-medium">En cours</p>
-              <p className="text-2xl font-bold text-orange-900">{stats.inProgressFormations}</p>
+              <p className="text-xl font-bold text-orange-900">{stats.inProgressFormations}</p>
             </div>
-            <Clock className="w-8 h-8 text-orange-600" />
+            <Clock className="w-6 h-6 text-orange-600" />
           </div>
         </div>
 
         {/* Certificats */}
-        <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-6">
+        <div className="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-600 text-sm font-medium">Certificats</p>
-              <p className="text-2xl font-bold text-purple-900">{stats.certificatesEarned}</p>
+              <p className="text-xl font-bold text-purple-900">{stats.certificatesEarned}</p>
             </div>
-            <Award className="w-8 h-8 text-purple-600" />
+            <Award className="w-6 h-6 text-purple-600" />
           </div>
         </div>
-      </div>
 
-      {/* Statistiques secondaires */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Temps total */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">Temps total</p>
@@ -361,7 +361,7 @@ const LearnerDashboardPage: React.FC = () => {
         </div>
 
         {/* Score moyen */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">Score moyen</p>
@@ -372,7 +372,7 @@ const LearnerDashboardPage: React.FC = () => {
         </div>
 
         {/* Progression globale */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-gray-600 text-sm font-medium">Progression</p>
@@ -384,6 +384,7 @@ const LearnerDashboardPage: React.FC = () => {
           </div>
         </div>
       </div>
+
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Activités récentes */}
@@ -424,7 +425,7 @@ const LearnerDashboardPage: React.FC = () => {
               </div>
             </div>
           </div>
-          <div className={`space-y-4 ${recentActivities.length > 5 ? 'max-h-96 overflow-y-auto pr-2' : ''}`}>
+          <div className={`space-y-4 ${recentActivities.length > 4 ? 'max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100' : ''}`}>
             {recentActivities.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <BookOpen className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -472,7 +473,7 @@ const LearnerDashboardPage: React.FC = () => {
         {/* Échéances à venir */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <h3 className="admin-title-md admin-title-spacing mb-4">Événements planifiés</h3>
-          <div className={`space-y-4 ${scheduledEvents.length > 5 ? 'max-h-96 overflow-y-auto pr-2' : ''}`}>
+          <div className={`space-y-4 ${scheduledEvents.length > 4 ? 'max-h-80 overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100' : ''}`}>
             {scheduledEvents.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />

@@ -50,6 +50,10 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // État pour vérifier le rôle de l'utilisateur
+  const [userRole, setUserRole] = useState<string>('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  
   // Nouveaux états pour gérer les actions de formation
   const [showEditFormationModal, setShowEditFormationModal] = useState(false);
   const [showDeleteFormationModal, setShowDeleteFormationModal] = useState(false);
@@ -109,8 +113,29 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
   };
 
   useEffect(() => {
-    loadLessons();
+    checkUserRole();
   }, [formation.id]);
+
+  useEffect(() => {
+    if (userRole) {
+      loadLessons();
+    }
+  }, [formation.id, userRole]);
+
+  // Vérifier le rôle de l'utilisateur
+  const checkUserRole = async () => {
+    try {
+      const user = await authService.getCurrentUser();
+      if (user) {
+        setUserRole(user.role);
+        setIsAdmin(user.role === 'SUPER_ADMIN' || user.role === 'BANK_ADMIN');
+      }
+    } catch (error) {
+      console.error('Erreur lors de la vérification du rôle:', error);
+      setUserRole('COLLABORATOR');
+      setIsAdmin(false);
+    }
+  };
 
   // Initialiser les progressions quand les leçons sont chargées
   useEffect(() => {
@@ -136,7 +161,9 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
       setIsLoading(true);
       setError(null);
       
+      // Utiliser l'API admin pour tous les rôles (les permissions sont gérées côté backend)
       const response = await formationContentApi.getByFormation(formation.id);
+      
       // Filtrer seulement les leçons (pas les sections) et trier par ordre
       const lessonsOnly = response.data
         .filter((content: FormationContent) => content.contentType === 'LESSON')
@@ -657,28 +684,30 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
               Retour aux détails
             </button>
             
-            <div className="flex space-x-3">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEditFormation();
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Modifier
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteFormation();
-                }}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Supprimer
-              </button>
-            </div>
+            {isAdmin && (
+              <div className="flex space-x-3">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditFormation();
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Modifier
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteFormation();
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Section des leçons */}
@@ -692,46 +721,43 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
                   </div>
                   <div>
                     <h2 className="text-lg font-normal text-slate-900">Leçons de la formation</h2>
-                    <p className="text-slate-600 mt-1 text-sm">Gérez le contenu pédagogique de votre formation</p>
+                    <p className="text-slate-600 mt-1 text-sm">
+                      {isAdmin ? 'Gérez le contenu pédagogique de votre formation' : 'Consultez le contenu pédagogique de la formation'}
+                    </p>
                   </div>
                 </div>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleCreateLesson();
-                    }}
-                    disabled={isLoading}
-                    className="bg-slate-900 hover:bg-slate-800 disabled:bg-gray-400 text-white px-5 py-2.5 rounded-md font-normal transition-colors duration-200 flex items-center"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {isLoading ? 'Chargement...' : 'Ajouter une leçon'}
-                  </button>
-                  <button
-                    onClick={loadLessons}
-                    disabled={isLoading}
-                    className="border border-gray-300 hover:border-gray-400 text-slate-700 hover:text-slate-900 hover:bg-white px-5 py-2.5 rounded-md font-normal transition-colors duration-200 flex items-center"
-                  >
-                    <RefreshCw className="h-4 w-4 mr-2" />
-                    Rafraîchir
-                  </button>
-                  <button
-                    onClick={simulateProgress}
-                    disabled={isLoading || lessons.length === 0}
-                    className="border border-orange-300 hover:border-orange-400 text-orange-700 hover:text-orange-900 hover:bg-orange-50 px-5 py-2.5 rounded-md font-normal transition-colors duration-200 flex items-center"
-                  >
-                    <Play className="h-4 w-4 mr-2" />
-                    Simuler Progressions
-                  </button>
-                  <button
-                    onClick={handleOpenReorderModal}
-                    disabled={isLoading || lessons.length === 0}
-                    className="border border-purple-300 hover:border-purple-400 text-purple-700 hover:text-purple-900 hover:bg-purple-50 px-5 py-2.5 rounded-md font-normal transition-colors duration-200 flex items-center"
-                  >
-                    <ArrowUpDown className="h-4 w-4 mr-2" />
-                    Réorganiser
-                  </button>
-                </div>
+                {isAdmin && (
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCreateLesson();
+                      }}
+                      disabled={isLoading}
+                      className="bg-slate-900 hover:bg-slate-800 disabled:bg-gray-400 text-white px-5 py-2.5 rounded-md font-normal transition-colors duration-200 flex items-center"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      {isLoading ? 'Chargement...' : 'Ajouter une leçon'}
+                    </button>
+                    <button
+                      onClick={loadLessons}
+                      disabled={isLoading}
+                      className="border border-gray-300 hover:border-gray-400 text-slate-700 hover:text-slate-900 hover:bg-white px-5 py-2.5 rounded-md font-normal transition-colors duration-200 flex items-center"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Rafraîchir
+                    </button>
+
+                    {/* <button
+                      onClick={handleOpenReorderModal}
+                      disabled={isLoading || lessons.length === 0}
+                      className="border border-purple-300 hover:border-purple-400 text-purple-700 hover:text-purple-900 hover:bg-purple-50 px-5 py-2.5 rounded-md font-normal transition-colors duration-200 flex items-center"
+                    >
+                      <ArrowUpDown className="h-4 w-4 mr-2" />
+                      Réorganiser
+                    </button> */}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -778,49 +804,53 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
                         !isStarted 
                           ? 'border-gray-200 bg-gray-50' 
                           : 'border-gray-200 hover:border-gray-300'
-                      } ${isDragging ? 'cursor-move' : ''}`}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, lesson)}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, lesson)}
+                      } ${isDragging && isAdmin ? 'cursor-move' : ''}`}
+                      draggable={isAdmin}
+                      onDragStart={isAdmin ? (e) => handleDragStart(e, lesson) : undefined}
+                      onDragOver={isAdmin ? handleDragOver : undefined}
+                      onDrop={isAdmin ? (e) => handleDrop(e, lesson) : undefined}
                     >
                       {/* Header avec drag handle et ordre */}
                       <div className="absolute top-3 left-3 z-10">
                         <div className="flex items-center space-x-2">
-                          <div className="bg-white rounded-md p-1 shadow-sm border border-gray-200">
-                            <GripVertical className="h-3 w-3 text-gray-400 cursor-move" />
-                          </div>
+                          {isAdmin && (
+                            <div className="bg-white rounded-md p-1 shadow-sm border border-gray-200">
+                              <GripVertical className="h-3 w-3 text-gray-400 cursor-move" />
+                            </div>
+                          )}
                           <span className="bg-slate-600 text-white text-xs font-semibold px-2 py-1 rounded-md">
                             #{lesson.order || index + 1}
                           </span>
                         </div>
                       </div>
 
-                      {/* Actions en haut à droite */}
-                      <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                        <div className="flex space-x-1 bg-white rounded-md p-1 shadow-sm border border-gray-200">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditLesson(lesson);
-                            }}
-                            className="p-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded transition-colors"
-                            title="Modifier la leçon"
-                          >
-                            <Edit className="h-3 w-3" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteLesson(lesson);
-                            }}
-                            className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
-                            title="Supprimer la leçon"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+                      {/* Actions en haut à droite - uniquement pour les admins */}
+                      {isAdmin && (
+                        <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <div className="flex space-x-1 bg-white rounded-md p-1 shadow-sm border border-gray-200">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEditLesson(lesson);
+                              }}
+                              className="p-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded transition-colors"
+                              title="Modifier la leçon"
+                            >
+                              <Edit className="h-3 w-3" />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteLesson(lesson);
+                              }}
+                              className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
+                              title="Supprimer la leçon"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Image de couverture */}
                       <div className="relative h-32 overflow-hidden rounded-t-lg">
@@ -980,28 +1010,30 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
               Retour aux formations
             </button>
             
-            <div className="flex space-x-3">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleEditFormation();
-                }}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
-              >
-                <Edit className="h-4 w-4 mr-2" />
-                Modifier
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteFormation();
-                }}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Supprimer
-              </button>
-            </div>
+            {isAdmin && (
+              <div className="flex space-x-3">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleEditFormation();
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Modifier
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteFormation();
+                  }}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Supprimer
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Interface principale avec charte graphique du site */}
@@ -1263,14 +1295,14 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
                   </div>
 
                   {/* Boutons d'action */}
-                  <div className="space-y-4">
+                  {/* <div className="space-y-4">
                     <button className="w-full border-2 border-stone-300 hover:border-stone-400 text-gray-700 hover:text-gray-900 hover:bg-white py-4 px-6 rounded-xl font-normal text-sm transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow-md">
                       <svg className="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                       </svg>
                       Exporter PDF
                     </button>
-                  </div>
+                  </div> */}
                 </div>
               </div>
             </div>

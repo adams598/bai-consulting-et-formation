@@ -6,149 +6,472 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  ADMIN
-  USER
-}
+// Types SQLite (enums convertis en String pour compatibilité)
+// enum UserRole {
+//   SUPER_ADMIN
+//   BANK_ADMIN
+//   COLLABORATOR
+// }
 
-enum AccessType {
-  FREE
-  PAID
-}
+// enum ContentType {
+//   PRESENTATION
+//   VIDEO
+//   DOCUMENT
+//   INTERACTIVE
+//   QUIZ
+// }
 
+// enum QuestionType {
+//   multiple_choice
+//   true_false
+//   text
+// }
+
+// enum NotificationType {
+//   INFO
+//   WARNING
+//   ERROR
+//   SUCCESS
+// }
+
+// Modèles
 model User {
-  id                String            @id @default(uuid())
-  email             String            @unique
-  name              String
-  hashedPassword    String
-  role              UserRole          @default(USER)
-  accessType        AccessType        @default(FREE)
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  enrollments       Enrollment[]
-  courseProgression CourseProgress[]
-  resetToken        String?
-  resetTokenExpiry  DateTime?
+  id         String    @id @default(cuid())
+  email      String    @unique
+  password   String
+  firstName  String
+  lastName   String
+  role       String    @default("COLLABORATOR")
+  bankId     String?
+  department String?
+  phone      String?
+  avatar     String?
+  isActive   Boolean   @default(true)
+  lastLogin  DateTime?
+  lastLoginAt DateTime? // Dernière connexion (plus précis que lastLogin)
+  passwordExpiresAt DateTime? // Expiration du mot de passe temporaire
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relations
+  bank                     Bank?                     @relation(fields: [bankId], references: [id])
+  assignments              FormationAssignment[]
+  progress                 UserProgress[]
+  notifications            Notification[]
+  createdFormations        Formation[]               @relation("FormationCreator")
+  assignedFormations       FormationAssignment[]     @relation("AssignmentCreator")
+  sessions                 UserSession[]
+  bankFormations           BankFormation[]
+  userAssignments          UserFormationAssignment[]
+  bankFormationAssignments BankFormation[]           @relation("BankFormationAssigner")
+  userFormationAssignments UserFormationAssignment[] @relation("UserFormationAssigner")
+  quizAttempts             QuizAttempt[]
+  certificates             Certificate[]
+  contentVisits            ContentVisit[]
+  calendarEvents           CalendarEvent[]
+
+  @@map("users")
 }
 
-model Course {
-  id               String            @id @default(uuid())
-  title            String
-  description      String
-  coverImage       String?
-  category         Category          @relation(fields: [categoryId], references: [id])
-  categoryId       String
-  chapters         Chapter[]
-  enrollments      Enrollment[]
-  courseProgression CourseProgress[]
-  position         Int
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+model Bank {
+  id         String    @id @default(cuid())
+  name       String
+  code       String    @unique
+  isActive   Boolean   @default(true)
+  isArchived Boolean   @default(false)
+  archivedAt DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  // Relations
+  users          User[]
+  formations     Formation[]
+  bankFormations BankFormation[]
+
+  @@map("banks")
 }
 
-model Category {
-  id          String   @id @default(uuid())
-  name        String   @unique
+model Formation {
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  duration     Int // durée totale en minutes (calculée automatiquement)
+  isActive     Boolean  @default(true)
+  hasQuiz      Boolean  @default(false) // indique si la formation a un quiz
+  quizRequired Boolean  @default(true) // si le quiz est obligatoire pour valider
+  coverImage   String?  // URL de l'image de couverture
+  
+  // Nouveaux champs pour rendre l'interface dynamique
+  code                String?  // Code de formation (ex: NL001008)
+  pedagogicalModality String?  // Modalité pédagogique (ex: E-learning, Présentiel, Hybride)
+  organization        String?  // Organisme de formation (ex: SHERPA Developpement)
+  prerequisites       String?  // Prérequis (ex: "Aucune connaissance préalable n'est nécessaire.")
+  objectives          String?  // Objectifs pédagogiques (JSON array)
+  detailedProgram     String?  // Programme détaillé (JSON array)
+  targetAudience      String?  // Public concerné (JSON array)
+  
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  creator        User                  @relation("FormationCreator", fields: [createdBy], references: [id])
+  content        FormationContent[]
+  assignments    FormationAssignment[]
+  progress       UserProgress[]
+  quiz           Quiz?
+  bankFormations BankFormation[]
+  Bank           Bank?                 @relation(fields: [bankId], references: [id])
+  bankId         String?
+  universeId     String?
+  universe       Universe?             @relation(fields: [universeId], references: [id])
+  universeFormations UniverseFormation[]
+  certificates   Certificate[]
+  calendarEvents CalendarEvent[]
+
+  @@map("formations")
+}
+
+model FormationContent {
+  id          String   @id @default(cuid())
+  formationId String
+  title       String
   description String?
-  courses     Course[]
+  type        String
+  contentType String // SECTION ou LESSON
+  sectionId   String? // si contentType = LESSON, référence vers la section parente
+  order       Int // ordre dans la formation ou dans la section
+  duration    Int? // en minutes
+  fileUrl     String?
+  fileSize    Int? // en bytes
+  coverImage  String? // URL de l'image de couverture
+  metadata    String? // données supplémentaires en JSON (résolution vidéo, pages PPT, etc.)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  // Relations
+  formation Formation          @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  section   FormationContent?  @relation("SectionLessons", fields: [sectionId], references: [id])
+  lessons   FormationContent[] @relation("SectionLessons")
+  userProgress UserProgress[]
+
+  @@map("formation_content")
 }
 
-model Chapter {
-  id               String            @id @default(uuid())
-  title            String
-  description      String
-  content          String            @db.Text
-  videoUrl         String?
-  pdfUrl           String?
-  position         Int
-  isFreeSample     Boolean           @default(false)
-  course           Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  courseId         String
-  quizzes          Quiz[]
-  chapterProgress  ChapterProgress[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+model FormationAssignment {
+  id          String    @id @default(cuid())
+  userId      String
+  formationId String
+  assignedBy  String
+  status      String    @default("PENDING")
+  dueDate     DateTime?
+  assignedAt  DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // Relations
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  formation      Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  assignedByUser User      @relation("AssignmentCreator", fields: [assignedBy], references: [id])
+
+  @@unique([userId, formationId])
+  @@map("formation_assignments")
 }
 
 model Quiz {
-  id         String       @id @default(uuid())
-  title      String
-  chapter    Chapter      @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  chapterId  String
-  questions  Question[]
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
+  id           String   @id @default(cuid())
+  formationId  String   @unique
+  title        String
+  description  String?
+  passingScore Int      @default(80) // pourcentage minimum pour réussir
+  timeLimit    Int? // en minutes, null = pas de limite
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  formation Formation      @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@map("quizzes")
 }
 
-model Question {
-  id         String       @id @default(uuid())
-  content    String
-  quiz       Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
-  quizId     String
-  options    Option[]
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-}
-
-model Option {
-  id         String       @id @default(uuid())
-  content    String
-  isCorrect  Boolean      @default(false)
-  question   Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  questionId String
-  createdAt  DateTime     @default(now())
-  updatedAt  DateTime     @updatedAt
-}
-
-model Enrollment {
-  id        String   @id @default(uuid())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId    String
-  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  courseId  String
+model QuizQuestion {
+  id        String   @id @default(cuid())
+  quizId    String
+  question  String
+  type      String @default("multiple_choice")
+  order     Int
+  points    Int      @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([userId, courseId])
+  // Relations
+  quiz    Quiz         @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  answers QuizAnswer[]
+
+  @@map("quiz_questions")
 }
 
-model CourseProgress {
-  id        String            @id @default(uuid())
-  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+model QuizAnswer {
+  id         String   @id @default(cuid())
+  questionId String
+  answer     String
+  isCorrect  Boolean  @default(false)
+  order      Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_answers")
+}
+
+model UserProgress {
+  id        String   @id @default(cuid())
   userId    String
-  course    Course            @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  courseId  String
-  completed Boolean           @default(false)
-  chapters  ChapterProgress[]
-  createdAt DateTime          @default(now())
-  updatedAt DateTime          @updatedAt
-
-  @@unique([userId, courseId])
+  lessonId  String
+  formationId String
+  
+  // Progression générale (0-100)
+  progress  Float    @default(0) // Pourcentage de progression
+  
+  // Détails spécifiques par type de contenu
+  currentPage    Int?    // Page actuelle (pour PDFs)
+  totalPages     Int?    // Nombre total de pages
+  currentTime    Int?    // Temps actuel en secondes (pour vidéos/audio)
+  totalTime      Int?    // Durée totale en secondes
+  lastPosition   String? // Position de sauvegarde (JSON)
+  
+  // Métadonnées
+  startedAt      DateTime @default(now())
+  lastAccessedAt DateTime @default(now())
+  completedAt    DateTime?
+  isCompleted    Boolean  @default(false)
+  
+  // Relations
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson   FormationContent @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  formation Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  
+  // Index pour les requêtes fréquentes
+  @@unique([userId, lessonId])
+  @@index([userId, formationId])
+  @@index([lessonId])
 }
 
-model ChapterProgress {
-  id               String         @id @default(uuid())
-  courseProgress   CourseProgress @relation(fields: [courseProgressId], references: [id], onDelete: Cascade)
-  courseProgressId String
-  chapter          Chapter        @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  chapterId        String
-  completed        Boolean        @default(false)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+model QuizAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  quizId     String
+  score      Int      @default(0) // Score obtenu en pourcentage
+  totalScore Int      @default(0) // Score total possible
+  isPassed   Boolean  @default(false) // Si le score >= passingScore
+  timeSpent  Int?     // Temps passé en secondes
+  answers    String?  // Réponses données en JSON
+  startedAt  DateTime @default(now())
+  completedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  @@unique([courseProgressId, chapterId])
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, quizId])
+  @@index([userId])
+  @@index([quizId])
+  @@map("quiz_attempts")
 }
 
-model Contact {
-  id        String   @id @default(uuid())
-  name      String
-  email     String
-  message   String   @db.Text
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  data      String? // données supplémentaires (formationId, etc.) en JSON string
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Certificate {
+  id               String   @id @default(cuid())
+  userId           String
+  formationId      String
+  certificateNumber String   @unique
+  issuedAt         DateTime @default(now())
+  completedAt      DateTime
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Relations
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  formation Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  @@map("certificates")
+}
+
+// Modèle pour les sessions utilisateur (optionnel, pour la gestion des tokens)
+model UserSession {
+  id           String    @id @default(cuid())
+  userId       String
+  token        String    @unique
+  refreshToken String?
+  expiresAt    DateTime
+  userAgent    String?
+  ipAddress    String?
+  lastActivity DateTime?
+  createdAt    DateTime  @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+model BankFormation {
+  id          String   @id @default(cuid())
+  bankId      String
+  formationId String
+  isMandatory Boolean  @default(false) // si la formation est obligatoire pour cette banque
+  assignedAt  DateTime @default(now())
+  assignedBy  String
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  bank            Bank                      @relation(fields: [bankId], references: [id], onDelete: Cascade)
+  formation       Formation                 @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  assignedByUser  User                      @relation("BankFormationAssigner", fields: [assignedBy], references: [id])
+  userAssignments UserFormationAssignment[]
+  User            User?                     @relation(fields: [userId], references: [id])
+  userId          String?
+
+  @@unique([bankId, formationId])
+  @@map("bank_formations")
+}
+
+// Assignation Formation-Utilisateur avec règles d'obligation
+model UserFormationAssignment {
+  id              String    @id @default(cuid())
+  bankFormationId String
+  userId          String
+  isMandatory     Boolean   @default(false) // Obligatoire pour cet utilisateur spécifique
+  dueDate         DateTime? // Date limite de completion
+  assignedAt      DateTime  @default(now())
+  assignedBy      String // ID de l'admin qui a assigné
+
+  // Relations
+  bankFormation  BankFormation @relation(fields: [bankFormationId], references: [id], onDelete: Cascade)
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assignedByUser User          @relation("UserFormationAssigner", fields: [assignedBy], references: [id])
+
+  @@unique([bankFormationId, userId])
+  @@map("user_formation_assignments")
+}
+
+model Universe {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  color       String?  // couleur du dossier
+  icon        String?  // icône personnalisée
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  formations UniverseFormation[]
+  directFormations Formation[] // Formations directement assignées à cet univers
+
+  @@map("universes")
+}
+
+model UniverseFormation {
+  id          String   @id @default(cuid())
+  universeId  String
+  formationId String
+  order       Int      @default(0) // ordre dans l'univers
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  universe   Universe  @relation(fields: [universeId], references: [id], onDelete: Cascade)
+  formation  Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  @@unique([universeId, formationId])
+  @@map("universe_formations")
+}
+
+model ContentVisit {
+  id          String   @id @default(cuid())
+  userId      String
+  contentType String   // 'formation', 'lesson', 'quiz', 'page', etc.
+  contentId   String?  // ID du contenu spécifique (formation, leçon, etc.)
+  contentTitle String? // Titre du contenu pour faciliter les requêtes
+  url         String?  // URL de la page visitée
+  duration    Int?     // Durée de la visite en secondes
+  visitedAt   DateTime @default(now())
+  
+  // Métadonnées supplémentaires
+  userAgent   String?  // User agent du navigateur
+  ipAddress   String?  // Adresse IP
+  referrer    String?  // Page de référence
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, visitedAt])
+  @@index([contentType, contentId])
+  @@index([visitedAt])
+  @@map("content_visits")
+}
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  type        String   @default("PERSONAL") // FORMATION, MEETING, CALL, PERSONAL, EXTERNAL
+  location    String?
+  attendees   String?  // JSON array of email addresses
+  isAllDay    Boolean  @default(false)
+  color       String?
+  status      String   @default("CONFIRMED") // CONFIRMED, CANCELLED, PENDING
+  reminders   String?  // JSON array of minutes before event [15, 60]
+  
+  // Spécifique aux formations
+  formationId String?
+  lessonId    String?
+  eventType   String?  // formation, lesson, quiz
+  
+  // Récurrence
+  isRecurring Boolean  @default(false)
+  recurrenceRule String?
+  
+  // Métadonnées
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  formation   Formation? @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, startDate])
+  @@index([formationId])
+  @@index([startDate, endDate])
+  @@map("calendar_events")
 }

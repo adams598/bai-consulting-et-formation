@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   BookOpen, 
   Clock, 
@@ -23,6 +24,7 @@ import { authService } from '../../../services/authService';
 import { formationsApi } from '../../../api/learnerApi';
 import { getFormationCoverImageUrl } from '../../../utils/imageUtils';
 import { useToast } from '../../../components/ui/use-toast';
+import FormationDetailView from './FormationDetailView';
 
 interface LearnerFormation {
   id: string;
@@ -62,6 +64,7 @@ interface LearnerFormation {
 }
 
 const LearnerFormationsPage: React.FC = () => {
+  const navigate = useNavigate();
   const [formations, setFormations] = useState<LearnerFormation[]>([]);
   const [filteredFormations, setFilteredFormations] = useState<LearnerFormation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -295,6 +298,7 @@ const LearnerFormationsPage: React.FC = () => {
 
   // Gestionnaires d'événements
   const handleFormationClick = (formation: LearnerFormation) => {
+    // Pour les COLLABORATOR, rester dans l'interface admin mais ouvrir FormationDetailView
     setSelectedFormation(formation);
     setShowFormationDetail(true);
   };
@@ -333,6 +337,34 @@ const LearnerFormationsPage: React.FC = () => {
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
+    );
+  }
+
+  // Si on affiche le détail d'une formation, remplacer complètement la vue
+  if (showFormationDetail && selectedFormation) {
+    return (
+      <FormationDetailView
+        formation={{
+          id: selectedFormation.id,
+          title: selectedFormation.title,
+          description: selectedFormation.description || '',
+          duration: selectedFormation.duration || 0,
+          isActive: true,
+          hasQuiz: false,
+          quizRequired: false,
+          createdBy: '',
+          createdAt: selectedFormation.createdAt || new Date().toISOString(),
+          updatedAt: selectedFormation.updatedAt || new Date().toISOString(),
+          coverImage: selectedFormation.coverImage
+        }}
+        formationStats={{
+          bankCount: 0,
+          userCount: 0
+        }}
+        onBack={() => setShowFormationDetail(false)}
+        onEdit={() => {}} // Pas d'édition pour les COLLABORATOR
+        onDelete={() => {}} // Pas de suppression pour les COLLABORATOR
+      />
     );
   }
 
@@ -565,6 +597,7 @@ const LearnerFormationsPage: React.FC = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

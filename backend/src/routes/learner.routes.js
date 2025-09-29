@@ -31,87 +31,149 @@ router.post("/auth/logout", authMiddleware, authController.logout);
 router.get("/auth/me", authMiddleware, authController.getCurrentUser);
 
 // Routes de gestion du profil
-router.get("/profile", authMiddleware, authController.getProfile);
-router.put("/profile", authMiddleware, authController.updateProfile);
-router.put("/profile/password", authMiddleware, authController.changePassword);
+router.get(
+  "/profile",
+  authMiddleware,
+  learnerMiddleware,
+  authController.getProfile
+);
+router.put(
+  "/profile",
+  authMiddleware,
+  learnerMiddleware,
+  authController.updateProfile
+);
+router.put(
+  "/profile/password",
+  authMiddleware,
+  learnerMiddleware,
+  authController.changePassword
+);
 
 // Routes des formations
-router.get("/formations", authMiddleware, formationsController.getMyFormations);
+router.get(
+  "/formations",
+  authMiddleware,
+  learnerMiddleware,
+  formationsController.getMyFormations
+);
 router.get(
   "/formations/scheduled",
   authMiddleware,
+  learnerMiddleware,
   formationsController.getScheduledEvents
 );
 router.get(
   "/formations/:id",
   authMiddleware,
+  learnerMiddleware,
   formationsController.getFormationById
 );
 router.get(
   "/formations/:id/content",
   authMiddleware,
+  learnerMiddleware,
   formationContentController.getByFormation
 );
 router.post(
   "/formations/schedule",
   authMiddleware,
+  learnerMiddleware,
   formationsController.scheduleFormation
 );
 
 // Routes des quiz pour apprenants
-router.get("/quiz/:id", authMiddleware, learnerQuizController.getQuizById);
+router.get(
+  "/quiz/:id",
+  authMiddleware,
+  learnerMiddleware,
+  learnerQuizController.getQuizById
+);
 router.post(
   "/quiz/:quizId/start",
   authMiddleware,
+  learnerMiddleware,
   learnerQuizController.startQuizAttempt
 );
 router.post(
   "/quiz/attempt/:attemptId/submit",
   authMiddleware,
+  learnerMiddleware,
   learnerQuizController.submitQuizAttempt
 );
 router.get(
   "/quiz/attempts",
   authMiddleware,
+  learnerMiddleware,
   learnerQuizController.getUserQuizAttempts
 );
 
 // Routes des progressions
-router.get("/progress", authMiddleware, progressController.getMyProgress);
+router.get(
+  "/progress",
+  authMiddleware,
+  learnerMiddleware,
+  progressController.getMyProgress
+);
 router.get(
   "/progress/dashboard-stats",
   authMiddleware,
+  learnerMiddleware,
   formationsController.getDashboardStats
 );
-router.get("/progress/stats", authMiddleware, progressController.getStats);
-router.put("/progress/:id", authMiddleware, progressController.updateProgress);
-router.post("/progress/save", authMiddleware, progressController.saveProgress);
-router.get("/progress/get", authMiddleware, progressController.getProgress);
+router.get(
+  "/progress/stats",
+  authMiddleware,
+  learnerMiddleware,
+  progressController.getStats
+);
+router.put(
+  "/progress/:id",
+  authMiddleware,
+  learnerMiddleware,
+  progressController.updateProgress
+);
+router.post(
+  "/progress/save",
+  authMiddleware,
+  learnerMiddleware,
+  progressController.saveProgress
+);
+router.get(
+  "/progress/get",
+  authMiddleware,
+  learnerMiddleware,
+  progressController.getProgress
+);
 
 // Routes des notifications
 router.get(
   "/notifications",
   authMiddleware,
+  learnerMiddleware,
   notificationsController.getMyNotifications
 );
 router.get(
   "/notifications/unread-count",
   authMiddleware,
+  learnerMiddleware,
   notificationsController.getUnreadCount
 );
 router.patch(
   "/notifications/:id/read",
   authMiddleware,
+  learnerMiddleware,
   notificationsController.markAsRead
 );
 router.delete(
   "/notifications/:id",
   authMiddleware,
+  learnerMiddleware,
   notificationsController.deleteNotification
 );
 
 // Routes de suivi de contenu
-router.post("/content/visit", authMiddleware, (req, res) => {
+router.post("/content/visit", authMiddleware, learnerMiddleware, (req, res) => {
   // Endpoint temporaire qui retourne un succès
   res.json({
     success: true,
@@ -124,7 +186,7 @@ router.post("/content/visit", authMiddleware, (req, res) => {
   });
 });
 
-router.get("/content/visits", authMiddleware, (req, res) => {
+router.get("/content/visits", authMiddleware, learnerMiddleware, (req, res) => {
   // Endpoint temporaire qui retourne des données vides
   res.json({
     success: true,
@@ -135,6 +197,7 @@ router.get("/content/visits", authMiddleware, (req, res) => {
 router.get(
   "/content/recent-activities",
   authMiddleware,
+  learnerMiddleware,
   formationsController.getRecentActivities
 );
 
@@ -142,32 +205,42 @@ router.get(
 router.get(
   "/calendar/events",
   authMiddleware,
+  learnerMiddleware,
   calendarController.getUserEvents
 );
-router.post("/calendar/events", authMiddleware, calendarController.createEvent);
+router.post(
+  "/calendar/events",
+  authMiddleware,
+  learnerMiddleware,
+  calendarController.createEvent
+);
 router.put(
   "/calendar/events/:id",
   authMiddleware,
+  learnerMiddleware,
   calendarController.updateEvent
 );
 router.delete(
   "/calendar/events/:id",
   authMiddleware,
+  learnerMiddleware,
   calendarController.deleteEvent
 );
 router.get(
   "/calendar/events/range",
   authMiddleware,
+  learnerMiddleware,
   calendarController.getEventsByDateRange
 );
 router.get(
   "/calendar/upcoming",
   authMiddleware,
+  learnerMiddleware,
   calendarController.getUpcomingDeadlines
 );
 
 // Route temporaire pour les certificats
-router.get("/certificates", authMiddleware, (req, res) => {
+router.get("/certificates", authMiddleware, learnerMiddleware, (req, res) => {
   res.json({
     success: true,
     data: [],

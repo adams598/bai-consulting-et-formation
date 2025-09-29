@@ -29,6 +29,38 @@ export const adminMiddleware = (req, res, next) => {
   }
 };
 
+// Middleware mixte qui permet aux admins et aux collaborateurs d'accéder aux routes
+export const adminOrCollaboratorMiddleware = (req, res, next) => {
+  try {
+    const user = req.user;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: "Utilisateur non authentifié",
+      });
+    }
+
+    // Vérifier si l'utilisateur a un rôle autorisé
+    const allowedRoles = ["SUPER_ADMIN", "BANK_ADMIN", "COLLABORATOR"];
+
+    if (!allowedRoles.includes(user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Accès non autorisé",
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error("Erreur de vérification admin ou collaborator:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Erreur de vérification des permissions",
+    });
+  }
+};
+
 export const superAdminMiddleware = (req, res, next) => {
   try {
     const user = req.user;

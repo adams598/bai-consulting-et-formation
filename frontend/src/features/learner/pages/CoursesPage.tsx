@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Filter, Grid, List, BookOpen, Clock, Award, TrendingUp } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Search, Filter, Grid, List, BookOpen, Clock, Award, TrendingUp, Folder } from 'lucide-react';
 import { LearnerLayout, FormationCard, StatsCard } from '../components';
-import { LearnerFormationAssignment, FormationStatus, LearnerStats } from '../types';
-import { formationsApi, progressApi } from '../../../api/learnerApi';
+import { LearnerFormationAssignment, FormationStatus, LearnerStats, Universe } from '../types';
+import { formationsApi, progressApi, universesApi } from '../../../api/learnerApi';
 import { useToast } from '../../../components/ui/use-toast';
 
 const CoursesPage: React.FC = () => {
   const [formations, setFormations] = useState<LearnerFormationAssignment[]>([]);
   const [filteredFormations, setFilteredFormations] = useState<LearnerFormationAssignment[]>([]);
   const [stats, setStats] = useState<LearnerStats | null>(null);
+  const [universes, setUniverses] = useState<Universe[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<FormationStatus | 'ALL'>('ALL');
@@ -28,13 +29,15 @@ const CoursesPage: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [formationsResponse, statsResponse] = await Promise.all([
+      const [formationsResponse, statsResponse, universesResponse] = await Promise.all([
         formationsApi.getMyFormations(),
-        progressApi.getStats()
+        progressApi.getStats(),
+        universesApi.getAll()
       ]);
       
       setFormations(formationsResponse.data);
       setStats(statsResponse.data);
+      setUniverses(universesResponse.data);
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
       toast({
@@ -90,6 +93,44 @@ const CoursesPage: React.FC = () => {
   const getStatusCount = (status: FormationStatus) => {
     return formations.filter(assignment => assignment.status === status).length;
   };
+
+  // Grouper les formations par univers
+  const getFormationsGroupedByUniverse = useMemo(() => {
+    const grouped: { universe: Universe; formations: LearnerFormationAssignment[] }[] = [];
+    
+    // Créer un univers par défaut pour les formations sans univers
+    const defaultUniverse: Universe = {
+      id: 'default',
+      name: 'Formations générales',
+      description: 'Formations sans univers spécifique',
+      color: '#6B7280',
+      isActive: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // Grouper par univers
+    universes.forEach(universe => {
+      const universeFormations = filteredFormations.filter(assignment => 
+        assignment.formation.universeId === universe.id
+      );
+      
+      if (universeFormations.length > 0) {
+        grouped.push({ universe, formations: universeFormations });
+      }
+    });
+
+    // Ajouter les formations sans univers
+    const formationsWithoutUniverse = filteredFormations.filter(assignment => 
+      !assignment.formation.universeId
+    );
+    
+    if (formationsWithoutUniverse.length > 0) {
+      grouped.push({ universe: defaultUniverse, formations: formationsWithoutUniverse });
+    }
+    
+    return grouped;
+  }, [filteredFormations, universes]);
 
   const statusOptions = [
     { value: 'ALL', label: 'Toutes', count: formations.length },
@@ -258,19 +299,48 @@ const CoursesPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Liste des formations */}
-        {filteredFormations.length > 0 ? (
-          <div className={
-            viewMode === 'grid' 
-              ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
-              : 'space-y-4'
-          }>
-            {filteredFormations.map((assignment) => (
-              <FormationCard
-                key={assignment.id}
-                assignment={assignment}
-                variant={viewMode === 'list' ? 'compact' : 'detailed'}
-              />
+        {/* Liste des formations groupées par univers */}
+        {getFormationsGroupedByUniverse.length > 0 ? (
+          <div className="space-y-8">
+            {getFormationsGroupedByUniverse.map(({ universe, formations }) => (
+              <div key={universe.id}>
+                {/* Séparateur avec titre */}
+                <div className="flex items-center mb-4">
+                  <div className="flex-1 border-t border-gray-200"></div>
+                  <div className="px-4">
+                    <div className="flex items-center">
+                      <div 
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-white mr-2"
+                        style={{ backgroundColor: universe.color }}
+                      >
+                        <Folder className="h-3 w-3" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {universe.name}
+                      </span>
+                      <span className="ml-2 text-xs text-gray-500">
+                        ({formations.length} formation{formations.length > 1 ? 's' : ''})
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-1 border-t border-gray-200"></div>
+                </div>
+                
+                {/* Formations de cet univers */}
+                <div className={
+                  viewMode === 'grid' 
+                    ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                    : 'space-y-4'
+                }>
+                  {formations.map((assignment) => (
+                    <FormationCard
+                      key={assignment.id}
+                      assignment={assignment}
+                      variant={viewMode === 'list' ? 'compact' : 'detailed'}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         ) : (

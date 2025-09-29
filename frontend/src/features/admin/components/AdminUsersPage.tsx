@@ -467,7 +467,7 @@ export default function AdminUsersPage() {
               }`}
             >
               <List className="w-4 h-4 mr-2" />
-              Liste
+              
             </button>
             <button
               onClick={() => setViewMode('cards')}
@@ -478,7 +478,7 @@ export default function AdminUsersPage() {
               }`}
             >
               <Grid className="w-4 h-4 mr-2" />
-              Cartes
+              
             </button>
           </div>
         </div>

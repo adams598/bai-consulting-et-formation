@@ -491,7 +491,7 @@ export const banksController = {
 
   async createBank(req, res) {
     try {
-      const { name, code } = req.body;
+      const { name, code, isActive } = req.body;
 
       // Validation
       if (!name || !code) {
@@ -517,7 +517,7 @@ export const banksController = {
         data: {
           name,
           code,
-          isActive: true,
+          isActive: isActive !== undefined ? isActive : true,
         },
       });
 
@@ -1585,8 +1585,28 @@ export const usersController = {
   async updateUser(req, res) {
     try {
       const { id } = req.params;
-      const { firstName, lastName, email, role, department, phone, isActive } =
-        req.body;
+      const {
+        firstName,
+        lastName,
+        email,
+        role,
+        department,
+        phone,
+        bankId,
+        isActive,
+      } = req.body;
+
+      console.log("🔄 updateUser appelé pour ID:", id);
+      console.log("📋 Données reçues:", {
+        firstName,
+        lastName,
+        email,
+        role,
+        department,
+        phone,
+        bankId,
+        isActive,
+      });
 
       // Validation
       if (!firstName || !lastName || !email || !role) {
@@ -1625,6 +1645,8 @@ export const usersController = {
         }
       }
 
+      console.log("🔄 Mise à jour de l'utilisateur avec bankId:", bankId);
+
       const user = await prisma.user.update({
         where: { id },
         data: {
@@ -1634,6 +1656,7 @@ export const usersController = {
           role,
           department: department || null,
           phone: phone || null,
+          bankId: bankId || null,
           isActive: isActive !== undefined ? isActive : existingUser.isActive,
         },
         include: {
@@ -1647,6 +1670,7 @@ export const usersController = {
         },
       });
 
+      console.log("✅ Utilisateur mis à jour avec succès:", user);
       res.json({ success: true, data: user });
     } catch (error) {
       console.error("Erreur updateUser:", error);
@@ -2309,6 +2333,7 @@ export const formationContentController = {
   async getByFormation(req, res) {
     try {
       const { formationId } = req.params;
+      const userId = req.user?.userId || req.user?.id; // Support des deux formats
 
       // Vérifier si la formation existe
       const formation = await prisma.formation.findUnique({
@@ -2320,6 +2345,23 @@ export const formationContentController = {
           success: false,
           message: "Formation non trouvée",
         });
+      }
+
+      // Si c'est un COLLABORATOR, vérifier qu'il a accès à cette formation
+      if (req.user?.role === "COLLABORATOR" && userId) {
+        const assignment = await prisma.formationAssignment.findFirst({
+          where: {
+            userId: userId,
+            formationId: formationId,
+          },
+        });
+
+        if (!assignment) {
+          return res.status(403).json({
+            success: false,
+            message: "Vous n'avez pas accès à cette formation",
+          });
+        }
       }
 
       // Récupérer tout le contenu de la formation

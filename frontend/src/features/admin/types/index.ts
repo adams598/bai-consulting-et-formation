@@ -281,4 +281,120 @@ export interface UniverseFormation {
 // Types pour les modales
 export type FormationType = Formation;
 
-export type ContentType = 'SECTION' | 'LESSON'; 
+export type ContentType = 'SECTION' | 'LESSON';
+
+// ===== TYPES POUR LES PARAMÈTRES ADMIN =====
+
+export interface SystemSettings {
+  id: string;
+  key: string;
+  value: string;
+  description?: string;
+  category: 'GENERAL' | 'SECURITY' | 'EMAIL' | 'UPLOAD' | 'NOTIFICATIONS' | 'BACKUP';
+  isEditable: boolean;
+  dataType: 'STRING' | 'NUMBER' | 'BOOLEAN' | 'JSON';
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EmailSettings {
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser: string;
+  smtpFrom: string;
+  smtpSecure: boolean;
+  testEmail?: string;
+}
+
+export interface SecuritySettings {
+  jwtSecret: string;
+  jwtRefreshSecret: string;
+  sessionTimeout: number;
+  maxLoginAttempts: number;
+  passwordMinLength: number;
+  requireSpecialChars: boolean;
+  requireNumbers: boolean;
+  requireUppercase: boolean;
+  passwordExpirationDays: number;
+  twoFactorEnabled: boolean;
+  ipWhitelist: string[];
+  rateLimitWindow: number;
+  rateLimitMaxRequests: number;
+}
+
+export interface UploadSettings {
+  maxFileSize: number;
+  allowedFileTypes: string[];
+  uploadPath: string;
+  imageMaxWidth: number;
+  imageMaxHeight: number;
+  videoMaxDuration: number;
+  compressionQuality: number;
+}
+
+export interface NotificationSettings {
+  emailNotifications: boolean;
+  pushNotifications: boolean;
+  smsNotifications: boolean;
+  notificationFrequency: 'IMMEDIATE' | 'DAILY' | 'WEEKLY';
+  adminEmail: string;
+  systemAlerts: boolean;
+  maintenanceMode: boolean;
+  maintenanceMessage: string;
+}
+
+export interface BackupSettings {
+  autoBackup: boolean;
+  backupFrequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  backupRetention: number;
+  backupLocation: string;
+  includeFiles: boolean;
+  includeDatabase: boolean;
+  lastBackupDate?: Date;
+  nextBackupDate?: Date;
+}
+
+export interface SystemInfo {
+  version: string;
+  nodeVersion: string;
+  uptime: number;
+  memoryUsage: {
+    used: number;
+    total: number;
+    percentage: number;
+  };
+  diskUsage: {
+    used: number;
+    total: number;
+    percentage: number;
+  };
+  databaseStatus: 'CONNECTED' | 'DISCONNECTED' | 'ERROR';
+  lastMaintenance: Date;
+  totalUsers: number;
+  totalFormations: number;
+  totalBanks: number;
+}
+
+export interface LogEntry {
+  id: string;
+  level: 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
+  message: string;
+  timestamp: Date;
+  userId?: string;
+  action?: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+export interface SystemHealth {
+  status: 'HEALTHY' | 'WARNING' | 'CRITICAL';
+  checks: {
+    database: boolean;
+    email: boolean;
+    storage: boolean;
+    memory: boolean;
+    disk: boolean;
+  };
+  lastCheck: Date;
+  issues: string[];
+} 

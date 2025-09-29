@@ -1,0 +1,68 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id                   String                 @id @default(cuid())
+  email                String                 @unique
+  firstName            String
+  lastName             String
+  password             String
+  role                 String                 @default("USER")
+  isActive             Boolean                @default(true)
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+  calendarIntegrations CalendarIntegration[]
+  calendarEvents       CalendarEvent[]
+}
+
+model CalendarIntegration {
+  id             String                   @id @default(cuid())
+  userId         String
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           String                   // GOOGLE ou OUTLOOK
+  isConnected    Boolean                  @default(false)
+  syncEnabled    Boolean                  @default(true)
+  importEnabled  Boolean                  @default(false)
+  exportEnabled  Boolean                  @default(false)
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  email          String?
+  name           String?
+  lastSync       DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+
+  @@unique([userId, type])
+}
+
+model CalendarEvent {
+  id             String            @id @default(cuid())
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title          String
+  description    String?
+  startDate      DateTime
+  endDate        DateTime
+  type           String            @default("FORMATION") // FORMATION, MEETING, CALL, PERSONAL, IMPORTED
+  location       String?
+  attendees      String?
+  isAllDay       Boolean           @default(false)
+  color          String?
+  formationId    String?
+  status         String            @default("CONFIRMED")
+  reminders      String?
+  externalId     String?
+  externalSource String?
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}

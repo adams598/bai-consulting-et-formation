@@ -21,6 +21,8 @@ import {
 import { banksApi } from '../../../api/adminApi';
 import { useToast } from '../../../components/ui/use-toast';
 import { Bank } from '../types';
+import CreateBankModal from './CreateBankModal';
+import BankModal from './BankModal';
 
 interface BankWithStats extends Bank {
   userCount?: number;
@@ -28,6 +30,8 @@ interface BankWithStats extends Bank {
 }
 
 const AdminBanksPage: React.FC = () => {
+  console.log('🔍 AdminBanksPage - Composant rendu');
+  
   const [banks, setBanks] = useState<BankWithStats[]>([]);
   const [filteredBanks, setFilteredBanks] = useState<BankWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,6 +39,18 @@ const AdminBanksPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [viewMode, setViewMode] = useState<'list' | 'cards'>('list');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingBank, setEditingBank] = useState<Bank | null>(null);
+
+  // Debug: Log de l'état de la modale
+  useEffect(() => {
+    console.log('🔍 AdminBanksPage - showCreateModal changed:', showCreateModal);
+    console.log('🔍 AdminBanksPage - showEditModal changed:', showEditModal);
+    if (showCreateModal) {
+      console.log('🎉 AdminBanksPage - MODALE DOIT S\'OUVRIR !');
+    }
+  }, [showCreateModal, showEditModal]);
   
   const { toast } = useToast();
 
@@ -115,6 +131,103 @@ const AdminBanksPage: React.FC = () => {
     );
   };
 
+  // Gérer l'édition d'une banque
+  const handleEditBank = (bank: Bank) => {
+    setEditingBank(bank);
+    setShowEditModal(true);
+  };
+
+  // Sauvegarder une banque (création ou modification)
+  const handleSaveBank = async (data: Partial<Bank>) => {
+    try {
+      if (editingBank) {
+        // Modification
+        const response = await banksApi.update(editingBank.id, data);
+        if (response.data) {
+          toast({
+            title: "Succès",
+            description: "Banque modifiée avec succès",
+          });
+          loadBanks();
+          setShowEditModal(false);
+          setEditingBank(null);
+        } else {
+          throw new Error('Erreur lors de la modification');
+        }
+      } else {
+        // Création (ne devrait pas arriver avec la nouvelle modale)
+        const response = await banksApi.create(data as any);
+        if (response.data) {
+          toast({
+            title: "Succès",
+            description: "Banque créée avec succès",
+          });
+          loadBanks();
+          setShowEditModal(false);
+        } else {
+          throw new Error('Erreur lors de la création');
+        }
+      }
+    } catch (error: any) {
+      console.error('Erreur lors de la sauvegarde:', error);
+      toast({
+        title: "Erreur",
+        description: error.response?.data?.message || "Impossible de sauvegarder la banque",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Supprimer une banque
+  const handleDeleteBank = async (bank: Bank) => {
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer la banque "${bank.name}" ?`)) {
+      return;
+    }
+
+    try {
+      const response = await banksApi.delete(bank.id);
+      if (response.status === 200) {
+        toast({
+          title: "Succès",
+          description: "Banque supprimée avec succès",
+        });
+        loadBanks();
+      } else {
+        throw new Error('Erreur lors de la suppression');
+      }
+    } catch (error: any) {
+      console.error('Erreur lors de la suppression:', error);
+      toast({
+        title: "Erreur",
+        description: error.response?.data?.message || "Impossible de supprimer la banque",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Activer/Désactiver une banque
+  const handleToggleBank = async (bank: Bank) => {
+    try {
+      const response = await banksApi.toggleActive(bank.id);
+      if (response.data) {
+        toast({
+          title: "Succès",
+          description: `Banque ${bank.isActive ? 'désactivée' : 'activée'} avec succès`,
+        });
+        loadBanks();
+      } else {
+        throw new Error('Erreur lors du changement de statut');
+      }
+    } catch (error: any) {
+      console.error('Erreur lors du changement de statut:', error);
+      toast({
+        title: "Erreur",
+        description: error.response?.data?.message || "Impossible de changer le statut de la banque",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleViewBankDetails = (bank: BankWithStats) => {
     console.log('Voir détails:', bank);
     toast({
@@ -123,38 +236,6 @@ const AdminBanksPage: React.FC = () => {
     });
   };
 
-  const handleEditBank = (bank: BankWithStats) => {
-    console.log('Modifier:', bank);
-    toast({
-      title: "Modification",
-      description: `Modification de ${bank.name}`,
-    });
-  };
-
-  const handleToggleStatus = (bank: BankWithStats) => {
-    console.log('Changer statut:', bank);
-    toast({
-      title: "Statut",
-      description: `${bank.isActive ? 'Désactivation' : 'Activation'} de ${bank.name}`,
-    });
-  };
-
-  const handleAddCollaborators = (bank: BankWithStats) => {
-    console.log('Ajouter collaborateurs:', bank);
-    toast({
-      title: "Collaborateurs",
-      description: `Ajout de collaborateurs à ${bank.name}`,
-    });
-  };
-
-  const handleDeleteBank = (bank: BankWithStats) => {
-    console.log('Supprimer:', bank);
-    toast({
-      title: "Suppression",
-      description: `Suppression de ${bank.name}`,
-      variant: "destructive",
-    });
-  };
 
   const toggleDropdown = (bankId: string) => {
     setActiveDropdown(activeDropdown === bankId ? null : bankId);
@@ -164,12 +245,7 @@ const AdminBanksPage: React.FC = () => {
     <div className="space-y-6">
       {/* En-tête avec filtres et vue */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Gestion des Banques</h1>
-            <p className="text-gray-600">Gérez les établissements bancaires et leurs collaborateurs</p>
-          </div>
-          
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">         
           <div className="flex items-center gap-3">
             {/* Bouton vue */}
             <div className="flex bg-gray-100 rounded-lg p-1">
@@ -199,11 +275,19 @@ const AdminBanksPage: React.FC = () => {
 
             {/* Bouton nouvelle banque */}
             <button
-              onClick={() => console.log('Créer nouvelle banque')}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('🚀 AdminBanksPage - CLIC DÉTECTÉ sur Nouvelle Banque');
+                console.log('🚀 AdminBanksPage - showCreateModal avant:', showCreateModal);
+                setShowCreateModal(true);
+                console.log('🚀 AdminBanksPage - setShowCreateModal(true) appelé');
+              }}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              style={{ zIndex: 1000 }}
             >
               <Plus className="h-5 w-5" />
-              Nouvelle Banque
+              
             </button>
           </div>
         </div>
@@ -332,17 +416,7 @@ const AdminBanksPage: React.FC = () => {
                               </button>
                               <button
                                 onClick={() => {
-                                  handleAddCollaborators(bank);
-                                  setActiveDropdown(null);
-                                }}
-                                className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                              >
-                                <UserPlus className="h-4 w-4 mr-3" />
-                                Ajouter des collaborateurs
-                              </button>
-                              <button
-                                onClick={() => {
-                                  handleToggleStatus(bank);
+                                  handleToggleBank(bank);
                                   setActiveDropdown(null);
                                 }}
                                 className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -430,17 +504,7 @@ const AdminBanksPage: React.FC = () => {
                         </button>
                         <button
                           onClick={() => {
-                            handleAddCollaborators(bank);
-                            setActiveDropdown(null);
-                          }}
-                          className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                        >
-                          <UserPlus className="h-4 w-4 mr-3" />
-                          Ajouter des collaborateurs
-                        </button>
-                        <button
-                          onClick={() => {
-                            handleToggleStatus(bank);
+                            handleToggleBank(bank);
                             setActiveDropdown(null);
                           }}
                           className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -511,6 +575,30 @@ const AdminBanksPage: React.FC = () => {
           </p>
         </div>
       )}
+
+      {/* Modales */}
+      <CreateBankModal
+        isOpen={showCreateModal}
+        onClose={() => {
+          console.log('❌ AdminBanksPage - Fermeture modale, showCreateModal:', showCreateModal);
+          setShowCreateModal(false);
+        }}
+        onSuccess={() => {
+          console.log('✅ AdminBanksPage - Succès création, fermeture modale');
+          loadBanks();
+          setShowCreateModal(false);
+        }}
+      />
+
+      <BankModal
+        bank={editingBank}
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingBank(null);
+        }}
+        onSave={handleSaveBank}
+      />
     </div>
   );
 };

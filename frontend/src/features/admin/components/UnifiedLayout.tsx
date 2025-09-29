@@ -47,6 +47,7 @@ import LearnerDashboardPage from './LearnerDashboardPage';
 import LearnerFormationsPage from './LearnerFormationsPage';
 import LearnerProgressPage from './LearnerProgressPage';
 import LearnerCertificatesPage from './LearnerCertificatesPage';
+import LearnerSettingsPage from './LearnerSettingsPage';
 
 // Import des nouvelles pages apprenant
 import OpportunitiesPage from '../../learner/pages/OpportunitiesPage';
@@ -352,7 +353,7 @@ const UnifiedLayoutContent: React.FC = () => {
         case 'dashboard':
           return <LearnerDashboardPage />;
         case 'formations':
-          return <AdminFormationsPage />;
+          return <LearnerFormationsPage />;
         case 'progress':
           return <LearnerProgressPage />;
         case 'certificates':
@@ -362,7 +363,7 @@ const UnifiedLayoutContent: React.FC = () => {
         case 'calendar':
           return <CalendarPage />;
         case 'settings':
-          return <div className="p-6"><h1 className="text-2xl font-bold">Paramètres apprenant</h1><p>Page des paramètres en cours de développement...</p></div>;
+          return <LearnerSettingsPage />;
         default:
           return <LearnerDashboardPage />;
       }

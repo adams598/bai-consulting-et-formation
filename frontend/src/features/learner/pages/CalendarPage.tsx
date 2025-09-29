@@ -88,16 +88,16 @@ const CalendarPage: React.FC = () => {
             id: assignment.formation.id,
             title: assignment.formation.title,
             description: assignment.formation.description,
-            category: 'FORMATION',
-            level: 'STANDARD',
             duration: assignment.formation.duration,
             isActive: assignment.formation.isActive,
+            hasQuiz: assignment.formation.hasQuiz || false,
+            quizRequired: assignment.formation.quizRequired || false,
             createdAt: assignment.formation.createdAt,
             updatedAt: assignment.formation.updatedAt
           },
           assignedAt: assignment.assignedAt,
           dueDate: assignment.dueDate,
-          status: assignment.status,
+          status: assignment.status as any,
           progress: assignment.progress || 0
         }));
         
@@ -166,17 +166,17 @@ const CalendarPage: React.FC = () => {
             id: 'form-1',
             title: 'Formation Crédit Immobilier',
             description: 'Apprenez les bases du crédit immobilier',
-            category: 'BANQUE',
-            level: 'DEBUTANT',
             duration: 120,
             isActive: true,
+            hasQuiz: false,
+            quizRequired: false,
             createdAt: '2023-12-01',
             updatedAt: '2023-12-01'
           },
           assignedAt: '2023-12-01',
           dueDate: '2024-02-01',
-          status: 'IN_PROGRESS',
-          progress: 45
+          status: 'IN_PROGRESS' as any,
+          progress: 45 as any
         }
       ];
       
@@ -421,7 +421,7 @@ const CalendarPage: React.FC = () => {
     });
   };
 
-  const handleConnectCalendar = async (integrationType: 'GOOGLE' | 'OUTLOOK') => {
+  const handleConnectCalendar = async (integrationType: 'GOOGLE' | 'OUTLOOK' | 'APPLE') => {
     try {
       // Simuler la connexion au calendrier externe
       if (integrationType === 'GOOGLE') {
@@ -524,6 +524,21 @@ const CalendarPage: React.FC = () => {
     };
   };
 
+  // Filtrer les formations qui ne sont pas encore planifiées
+  const getUnplannedFormations = () => {
+    // Récupérer les IDs des formations déjà planifiées
+    const plannedFormationIds = new Set(
+      events
+        .filter(event => event.type === 'FORMATION' && event.formationId)
+        .map(event => event.formationId)
+    );
+    
+    // Retourner seulement les formations non planifiées
+    return formations.filter(formation => 
+      !plannedFormationIds.has(formation.formation.id)
+    );
+  };
+
   const stats = getCalendarStats();
 
   if (loading) {
@@ -590,24 +605,26 @@ const CalendarPage: React.FC = () => {
         </div> */}
 
         {/* Formations à planifier */}
-        {formations.length > 0 && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              Formations à planifier
-            </h3>
-            <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-3">
-            <button
-              onClick={() => setShowIntegrationModal(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <Settings className="h-4 w-4" />
-              <span>Intégrations</span> 
-            </button>
-          </div>
-          <br />
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {formations.slice(0, 3).map((formation) => (
+        {(() => {
+          const unplannedFormations = getUnplannedFormations();
+          return unplannedFormations.length > 0 && (
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Formations à planifier ({unplannedFormations.length})
+              </h3>
+              <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setShowIntegrationModal(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <Settings className="h-4 w-4" />
+                <span>Intégrations</span> 
+              </button>
+            </div>
+            <br />
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {unplannedFormations.slice(0, 3).map((formation) => (
                 <div key={formation.id} className="border border-gray-200 rounded-lg p-4">
                   <h4 className="font-medium text-gray-900 mb-2">
                     {formation.formation.title}
@@ -622,11 +639,12 @@ const CalendarPage: React.FC = () => {
                     Planifier une session
                   </button>
                 </div>
-              ))}
+                ))}
+              </div>
+              </div>
             </div>
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Calendrier principal */}
         <Calendar

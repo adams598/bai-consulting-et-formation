@@ -1006,38 +1006,66 @@ export const progressController = {
   // Obtenir les statistiques de progression
   getStats: async (req, res) => {
     try {
-      const userId = req.user.userId;
+      const userId = req.user.id || req.user.userId; // Support des deux formats
 
       // Récupérer les assignations de l'utilisateur
       const assignments = await prisma.formationAssignment.findMany({
         where: { userId },
         include: {
           formation: true,
-          progress: true,
+        },
+      });
+
+      // Récupérer les progressions de l'utilisateur
+      const userProgress = await prisma.userProgress.findMany({
+        where: { userId },
+        include: {
+          formation: true,
         },
       });
 
       // Calculer les statistiques
       const totalFormations = assignments.length;
-      const completedFormations = assignments.filter((a) =>
-        a.progress.some((p) => p.status === "COMPLETED")
-      ).length;
-      const inProgressFormations = assignments.filter((a) =>
-        a.progress.some((p) => p.status === "IN_PROGRESS")
-      ).length;
+
+      // Calculer les formations complétées (toutes les leçons terminées)
+      const completedFormations = assignments.filter((assignment) => {
+        const formationLessons = userProgress.filter(
+          (progress) => progress.formationId === assignment.formationId
+        );
+        const completedLessons = formationLessons.filter(
+          (progress) => progress.isCompleted
+        );
+        return (
+          formationLessons.length > 0 &&
+          completedLessons.length === formationLessons.length
+        );
+      }).length;
+
+      // Calculer les formations en cours (au moins une leçon commencée mais pas toutes terminées)
+      const inProgressFormations = assignments.filter((assignment) => {
+        const formationLessons = userProgress.filter(
+          (progress) => progress.formationId === assignment.formationId
+        );
+        const completedLessons = formationLessons.filter(
+          (progress) => progress.isCompleted
+        );
+        return (
+          formationLessons.length > 0 &&
+          completedLessons.length > 0 &&
+          completedLessons.length < formationLessons.length
+        );
+      }).length;
+
       const upcomingFormations =
         totalFormations - completedFormations - inProgressFormations;
 
       // Calculer le temps total et progression moyenne
-      const totalTimeSpent = assignments.reduce((total, assignment) => {
-        return (
-          total +
-          assignment.progress.reduce((sum, p) => sum + (p.timeSpent || 0), 0)
-        );
+      const totalTimeSpent = userProgress.reduce((total, progress) => {
+        return total + (progress.totalTime || 0);
       }, 0);
 
-      const progressValues = assignments
-        .map((a) => a.progress[0]?.progress || 0)
+      const progressValues = userProgress
+        .map((p) => p.progress || 0)
         .filter((p) => p > 0);
       const averageProgress =
         progressValues.length > 0

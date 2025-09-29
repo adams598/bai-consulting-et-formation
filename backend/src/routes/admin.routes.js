@@ -1,6 +1,9 @@
 import express from "express";
 import { authMiddleware } from "../middleware/auth.middleware.js";
-import { adminMiddleware } from "../middleware/admin.middleware.js";
+import {
+  adminMiddleware,
+  adminOrCollaboratorMiddleware,
+} from "../middleware/admin.middleware.js";
 import {
   uploadSingleImage,
   uploadSingleVideo,
@@ -35,6 +38,7 @@ import { advancedAssignmentsController } from "../controllers/advanced-assignmen
 import { formationAssignmentsController } from "../controllers/formation-assignments.controller.js";
 import { certificatesController } from "../controllers/certificates.controller.js";
 import { opportunitiesController } from "../controllers/opportunities.controller.js";
+import { settingsController } from "../controllers/settings.controller.js";
 import {
   getMetricsMiddleware,
   getLogsMiddleware,
@@ -295,7 +299,7 @@ router.patch(
 router.get(
   "/formations/:formationId/content",
   authMiddleware,
-  adminMiddleware,
+  adminOrCollaboratorMiddleware,
   formationContentController.getByFormation
 );
 
@@ -1004,6 +1008,70 @@ router.post(
   authMiddleware,
   adminMiddleware,
   universeController.createUniverse
+);
+
+// Routes des paramètres système
+router.get(
+  "/settings",
+  authMiddleware,
+  adminMiddleware,
+  settingsController.getAllSettings
+);
+
+router.get(
+  "/settings/category/:category",
+  authMiddleware,
+  adminMiddleware,
+  settingsController.getSettingsByCategory
+);
+
+router.put(
+  "/settings/:key",
+  authMiddleware,
+  adminMiddleware,
+  settingsController.updateSetting
+);
+
+router.get(
+  "/settings/system-info",
+  authMiddleware,
+  adminMiddleware,
+  settingsController.getSystemInfo
+);
+
+router.get(
+  "/settings/system-health",
+  authMiddleware,
+  adminMiddleware,
+  settingsController.getSystemHealth
+);
+
+router.get(
+  "/settings/logs",
+  authMiddleware,
+  adminMiddleware,
+  settingsController.getSystemLogs
+);
+
+router.post(
+  "/settings/test-email",
+  authMiddleware,
+  adminMiddleware,
+  settingsController.testEmailConfig
+);
+
+router.post(
+  "/settings/backup",
+  authMiddleware,
+  adminMiddleware,
+  settingsController.backupSettings
+);
+
+router.post(
+  "/settings/restore",
+  authMiddleware,
+  adminMiddleware,
+  settingsController.restoreSettings
 );
 
 router.put(
