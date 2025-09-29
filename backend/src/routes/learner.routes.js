@@ -9,6 +9,7 @@ import {
   formationsController,
   progressController,
   notificationsController,
+  universesController,
 } from "../controllers/learner.controllers.js";
 import { quizController as learnerQuizController } from "../controllers/quiz.controller.js";
 import { calendarController } from "../controllers/calendar.controller.js";
@@ -49,6 +50,20 @@ router.put(
   authMiddleware,
   learnerMiddleware,
   authController.changePassword
+);
+
+// Routes des univers
+router.get(
+  "/universes",
+  authMiddleware,
+  learnerMiddleware,
+  universesController.getAll
+);
+router.get(
+  "/universes/:id",
+  authMiddleware,
+  learnerMiddleware,
+  universesController.getById
 );
 
 // Routes des formations

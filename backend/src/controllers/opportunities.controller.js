@@ -5,14 +5,16 @@ import path from "path";
 const prisma = new PrismaClient();
 
 // Fonction utilitaire pour sanitizer les titres
+// Version améliorée qui préserve mieux la lisibilité en utilisant des tirets
 function sanitizeTitle(title) {
   return title
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") // Retirer les accents
-    .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
-    .replace(/_+/g, "_") // Remplacer les underscores multiples par un seul
-    .replace(/^_|_$/g, ""); // Retirer les underscores en début/fin
+    .replace(/[^a-zA-Z0-9\s\-]/g, "") // Supprimer seulement les caractères vraiment problématiques
+    .replace(/\s+/g, "-") // Remplacer les espaces par des tirets
+    .replace(/-+/g, "-") // Remplacer les tirets multiples par un seul
+    .replace(/^-|-$/g, ""); // Retirer les tirets en début/fin
 }
 
 // Fonction helper pour déterminer le type MIME d'un fichier

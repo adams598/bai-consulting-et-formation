@@ -313,6 +313,7 @@ export const formationsController = {
           formation: {
             include: {
               content: true, // Inclure le contenu pour compter les leçons
+              universe: true, // Inclure l'univers de la formation
             },
           },
           user: true,
@@ -375,6 +376,7 @@ export const formationsController = {
           createdAt: assignment.formation.createdAt,
           updatedAt: assignment.formation.updatedAt,
           universeId: assignment.formation.universeId,
+          universe: assignment.formation.universe,
           hasQuiz: !!assignment.formation.quiz,
         },
         status: assignment.status,
@@ -1442,6 +1444,71 @@ export const quizController = {
 
   getProgress: async (req, res) => {
     return progressController.getMyProgress(req, res);
+  },
+};
+
+// Contrôleur des univers pour apprenants
+export const universesController = {
+  // Obtenir tous les univers (pour les apprenants)
+  getAll: async (req, res) => {
+    try {
+      const universes = await prisma.universe.findMany({
+        where: { isActive: true },
+        orderBy: { name: "asc" },
+      });
+
+      res.json({
+        success: true,
+        data: universes,
+      });
+    } catch (error) {
+      console.error("Erreur getAll universes:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Obtenir un univers par ID
+  getById: async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const universe = await prisma.universe.findUnique({
+        where: { id },
+        include: {
+          formations: {
+            where: { isActive: true },
+            include: {
+              formation: {
+                include: {
+                  content: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!universe) {
+        return res.status(404).json({
+          success: false,
+          message: "Univers non trouvé",
+        });
+      }
+
+      res.json({
+        success: true,
+        data: universe,
+      });
+    } catch (error) {
+      console.error("Erreur getById universe:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
   },
 };
 
