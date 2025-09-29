@@ -37,7 +37,7 @@ export default function AdminLoginPage() {
         description: "Bienvenue dans l'espace administration",
       });
       
-      navigate('/admin/opportunities');
+      navigate('/admin/formations');
     } catch (error) {
       toast({
         title: "Erreur de connexion",

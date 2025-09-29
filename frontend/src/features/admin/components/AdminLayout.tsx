@@ -27,7 +27,7 @@ import { SidebarProvider, useSidebar } from '../../../contexts/SidebarContext';
 // Import des composants de contenu
 import { EnhancedDashboardPage } from './EnhancedDashboardPage';
 import AdminFormationsPage from './AdminFormationsPage';
-import AdminOpportunitiesPage from './AdminOpportunitiesPage';
+// import AdminOpportunitiesPage from './AdminOpportunitiesPage';
 import AdminBanksPage from './AdminBanksPage';
 import AdminUsersPage from './AdminUsersPage';
 import AdminStatsPage from './AdminStatsPage';
@@ -50,11 +50,6 @@ interface MenuItem {
 }
 
 const menuItems: MenuItem[] = [
-  {
-    label: 'TRAITEMENT DES OPPORTUNITÉS COMMERCIALES (OC)',
-    icon: <FileText className="w-5 h-5" />,
-    id: 'opportunities'
-  },
   {
     label: 'Formations',
     icon: <BookOpen className="w-5 h-5" />,
@@ -154,8 +149,6 @@ const AdminLayoutContent: React.FC = () => {
       newView = 'banks';
     } else if (path === '/admin' || path === '/admin/') {
       newView = 'dashboard';
-    } else if (path.includes('/admin/opportunities')) {
-      newView = 'opportunities';
     } else if (path.includes('/admin/dashboard')) {
       newView = 'dashboard';
     } else if (path.includes('/admin/formations')) {
@@ -221,8 +214,6 @@ const AdminLayoutContent: React.FC = () => {
 
     // Sinon, utiliser la navigation normale
     switch (activeView) {
-      case 'opportunities':
-        return <AdminOpportunitiesPage />;
       case 'dashboard':
         return <EnhancedDashboardPage />;
       case 'formations':
@@ -555,7 +546,6 @@ const AdminLayoutContent: React.FC = () => {
               <div>
                 <h1 className="admin-title-lg admin-title-spacing">{getActiveViewTitle()}</h1>
                 <p className="admin-text-lg admin-body-spacing">
-                  {activeView === 'opportunities' && ''}
                   {activeView === 'dashboard' && 'Vue d\'ensemble de votre plateforme de formation'}
                   {activeView === 'formations' && 'Gérez les formations de votre plateforme'}
                   {activeView === 'users' && 'Gérez les collaborateurs de votre plateforme'}

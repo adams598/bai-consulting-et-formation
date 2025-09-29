@@ -4,5 +4,4 @@ export { default as CourseDetailPage } from './CourseDetailPage';
 export { default as ProgressionPage } from './ProgressionPage';
 export { default as CertificatesPage } from './CertificatesPage';
 export { default as SettingsPage } from './SettingsPage';
-export { default as OpportunitiesPage } from './OpportunitiesPage';
 export { default as CalendarPage } from './CalendarPage';

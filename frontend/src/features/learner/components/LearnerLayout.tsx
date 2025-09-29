@@ -53,13 +53,6 @@ const LearnerLayout: React.FC<LearnerLayoutProps> = ({ children }) => {
       active: location.pathname.startsWith('/apprenant/courses')
     },
     {
-      id: 'opportunities',
-      label: 'Opportunités',
-      icon: <Target className="h-5 w-5" />,
-      path: '/apprenant/opportunities',
-      active: location.pathname === '/apprenant/opportunities'
-    },
-    {
       id: 'agenda',
       // label: 'Mon agenda',
       icon: <Calendar className="h-5 w-5" />,

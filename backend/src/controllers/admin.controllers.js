@@ -4074,6 +4074,12 @@ export const universeController = {
         where: { formationId },
       });
 
+      // Mettre à jour le champ universeId dans la formation
+      await prisma.formation.update({
+        where: { id: formationId },
+        data: { universeId },
+      });
+
       let result;
 
       if (universeId) {

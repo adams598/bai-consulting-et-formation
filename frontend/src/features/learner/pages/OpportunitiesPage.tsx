@@ -183,11 +183,6 @@ const OpportunitiesPage: React.FC = () => {
 
       {/* Contenu principal */}
       <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">
-            Fichiers PDF de présentation
-          </h2>
-        </div>
 
         {isLoading ? (
           <div className="text-center py-12">

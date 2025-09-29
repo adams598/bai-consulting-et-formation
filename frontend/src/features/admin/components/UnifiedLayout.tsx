@@ -35,7 +35,6 @@ import { SidebarProvider, useSidebar } from '../../../contexts/SidebarContext';
 // Import des composants de contenu admin
 import { EnhancedDashboardPage } from './EnhancedDashboardPage';
 import AdminFormationsPage from './AdminFormationsPage';
-import AdminOpportunitiesPage from './AdminOpportunitiesPage';
 import AdminBanksPage from './AdminBanksPage';
 import AdminUsersPage from './AdminUsersPage';
 import AdminStatsPage from './AdminStatsPage';
@@ -50,7 +49,6 @@ import LearnerCertificatesPage from './LearnerCertificatesPage';
 import LearnerSettingsPage from './LearnerSettingsPage';
 
 // Import des nouvelles pages apprenant
-import OpportunitiesPage from '../../learner/pages/OpportunitiesPage';
 import CalendarPage from '../../learner/pages/CalendarPage';
 
 // Import des modales
@@ -71,12 +69,6 @@ interface MenuItem {
 
 // Menu items pour les admins
 const adminMenuItems: MenuItem[] = [
-  {
-    label: 'TRAITEMENT DES OPPORTUNITÉS COMMERCIALES (OC)',
-    icon: <FileText className="w-5 h-5" />,
-    id: 'opportunities',
-    roles: ['SUPER_ADMIN', 'BANK_ADMIN']
-  },
   {
     label: 'Formations',
     icon: <BookOpen className="w-5 h-5" />,
@@ -102,12 +94,6 @@ const adminMenuItems: MenuItem[] = [
     roles: ['SUPER_ADMIN', 'BANK_ADMIN']
   },
   {
-    label: 'Statistiques',
-    icon: <BarChart3 className="w-5 h-5" />,
-    id: 'stats',
-    roles: ['SUPER_ADMIN', 'BANK_ADMIN']
-  },
-  {
     label: 'Paramètres',
     icon: <Settings className="w-5 h-5" />,
     id: 'settings',
@@ -117,12 +103,6 @@ const adminMenuItems: MenuItem[] = [
 
 // Menu items pour les apprenants (navigation horizontale)
 const learnerMenuItems: MenuItem[] = [
-  {
-    label: 'Opportunités',
-    icon: <Target className="h-5 w-5" />,
-    id: 'opportunities',
-    roles: ['COLLABORATOR']
-  },
   {
     label: 'Tableau de bord',
     icon: <Home className="h-5 w-5" />,
@@ -253,8 +233,6 @@ const UnifiedLayoutContent: React.FC = () => {
       newView = 'banks';
     } else if (path === '/admin' || path === '/admin/') {
       newView = 'dashboard';
-    } else if (path.includes('/admin/opportunities')) {
-      newView = 'opportunities';
     } else if (path.includes('/admin/dashboard')) {
       newView = 'dashboard';
     } else if (path.includes('/admin/formations')) {
@@ -328,8 +306,6 @@ const UnifiedLayoutContent: React.FC = () => {
     // Contenu pour les admins
     if (isAdmin()) {
       switch (activeView) {
-        case 'opportunities':
-          return <AdminOpportunitiesPage />;
         case 'dashboard':
           return <EnhancedDashboardPage />;
         case 'formations':
@@ -338,8 +314,6 @@ const UnifiedLayoutContent: React.FC = () => {
           return <AdminUsersPage />;
         case 'banks':
           return <AdminBanksPage />;
-        case 'stats':
-          return <AdminStatsPage />;
         case 'settings':
           return <AdminSettingsPage />;
         default:
@@ -358,8 +332,6 @@ const UnifiedLayoutContent: React.FC = () => {
           return <LearnerProgressPage />;
         case 'certificates':
           return <LearnerCertificatesPage />;
-        case 'opportunities':
-          return <OpportunitiesPage />;
         case 'calendar':
           return <CalendarPage />;
         case 'settings':
@@ -394,7 +366,6 @@ const UnifiedLayoutContent: React.FC = () => {
   const getActiveViewDescription = () => {
     if (isAdmin()) {
       switch (activeView) {
-        case 'opportunities': return '';
         case 'dashboard': return 'Vue d\'ensemble de votre plateforme de formation';
         case 'formations': return 'Gérez les formations de votre plateforme';
         case 'users': return 'Gérez les collaborateurs de votre plateforme';
@@ -405,7 +376,6 @@ const UnifiedLayoutContent: React.FC = () => {
       }
     } else if (isLearner()) {
       switch (activeView) {
-        case 'opportunities': return 'Traitement des opportunités commerciales';
         case 'dashboard': return 'Vue d\'ensemble de vos formations et progression';
         case 'formations': return 'Consultez vos formations assignées';
         // case 'progress': return 'Suivez votre progression dans les formations';

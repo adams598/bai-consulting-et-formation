@@ -1,18 +1,46 @@
 // TestViewer.tsx
 import React, { useEffect, useState, useRef } from 'react';
-import { FileText } from 'lucide-react';
+import { FileText, Presentation } from 'lucide-react';
 import { FormationContent } from '../types';
 import { Document, Page } from 'react-pdf';
 import { useProgress } from '../../../contexts/ProgressContext';
 
+// Interface étendue pour la progression des leçons
+interface ExtendedLessonProgress {
+  lessonId: string;
+  timeSpent: number;
+  progress: number;
+  completed: boolean;
+  lastUpdated: string;
+  currentPage?: number;
+  totalPages?: number;
+  currentSlide?: number;
+  totalSlides?: number;
+  currentTime?: number;
+  totalTime?: number;
+  lastAccessedAt?: string;
+}
+
 // Configuration du worker pour react-pdf et pdfjs-dist
 import { pdfjs } from 'react-pdf';
 
-   // Configuration globale du worker - utiliser un worker local depuis public
-   if (typeof window !== 'undefined') {
-     pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-     console.log('✅ Worker PDF configuré avec worker local');
-   }
+// Configuration globale du worker - utiliser un worker local depuis public
+if (typeof window !== 'undefined') {
+  try {
+    // Essayer d'abord le worker local
+    pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+    console.log('✅ Worker PDF configuré avec worker local');
+  } catch (error) {
+    console.error('❌ Erreur lors de la configuration du worker PDF local:', error);
+    try {
+      // Fallback vers le CDN
+      pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+      console.log('✅ Worker PDF configuré avec CDN');
+    } catch (cdnError) {
+      console.error('❌ Erreur lors de la configuration du worker PDF CDN:', cdnError);
+    }
+  }
+}
 
 interface TestViewerProps {
   lesson: FormationContent;
@@ -27,11 +55,33 @@ interface TestViewerProps {
 }
 
 export default function TestViewer({ lesson, fileUrl, formationId, userId, onProgressUpdate }: TestViewerProps) {
-  const { updateProgress: saveGlobalProgress, loadProgress: loadGlobalProgress, getProgress: getGlobalProgress } = useProgress();
+  const { updateProgress: saveGlobalProgress, getProgress: getGlobalProgress } = useProgress();
   
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [mimeType, setMimeType] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Vérifier l'état du worker PDF au montage du composant
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (!pdfjs.GlobalWorkerOptions.workerSrc) {
+        console.warn('⚠️ Worker PDF non configuré, tentative de configuration...');
+        try {
+          pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+          console.log('✅ Worker PDF configuré avec worker local');
+        } catch (error) {
+          console.error('❌ Erreur worker local, tentative CDN:', error);
+          try {
+            pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+            console.log('✅ Worker PDF configuré avec CDN');
+          } catch (cdnError) {
+            console.error('❌ Erreur lors de la configuration du worker PDF:', cdnError);
+          }
+        }
+      }
+      console.log('🔍 État du worker PDF:', pdfjs.GlobalWorkerOptions.workerSrc);
+    }
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [fullUrl, setFullUrl] = useState<string>("");
   const [conversionStatus, setConversionStatus] = useState<any>(null);
@@ -51,11 +101,16 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   const [retryCount, setRetryCount] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [showControls, setShowControls] = useState<boolean>(true);
+  const [presentationSlides, setPresentationSlides] = useState<any[]>([]);
+  const [currentSlide, setCurrentSlide] = useState<number>(0);
+  const [totalSlides, setTotalSlides] = useState<number>(0);
+  const [isPresentationLoading, setIsPresentationLoading] = useState<boolean>(false);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
   const pdfContainerRef = useRef<HTMLDivElement | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const presentationContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Effet pour bloquer les raccourcis clavier et captures d'écran
   useEffect(() => {
@@ -128,6 +183,10 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     setTotalTime(0);
     setIsTrackingProgress(false);
     setScrollMode('vertical');
+    setPresentationSlides([]);
+    setCurrentSlide(0);
+    setTotalSlides(0);
+    setIsPresentationLoading(false);
     
     console.log('✅ TestViewer - État réinitialisé pour nouvelle leçon');
   }, [lesson.id]); // Seulement quand lesson.id change
@@ -136,13 +195,22 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
    const resetPdfWorker = () => {
      if (typeof window !== 'undefined') {
        try {
-         const { pdfjs } = require('react-pdf');
+         // Essayer d'abord le worker local
          pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-         console.log('🔄 Worker PDF réinitialisé');
+         console.log('🔄 Worker PDF réinitialisé avec worker local');
          setPdfError(false);
          setRetryCount(0);
        } catch (error) {
-         console.error('❌ Erreur lors de la réinitialisation du worker PDF:', error);
+         console.error('❌ Erreur worker local, tentative CDN:', error);
+         try {
+           // Fallback vers le CDN
+           pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+           console.log('🔄 Worker PDF réinitialisé avec CDN');
+           setPdfError(false);
+           setRetryCount(0);
+         } catch (cdnError) {
+           console.error('❌ Erreur lors de la réinitialisation du worker PDF:', cdnError);
+         }
        }
      }
    };
@@ -156,7 +224,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
       console.log('🔍 Lesson ID:', lesson.id);
       console.log('🔍 Formation ID:', formationId);
       console.log('🔍 User ID:', userId);
-      const savedProgress = await loadGlobalProgress(lesson.id, formationId, userId);
+      const savedProgress = getGlobalProgress(lesson.id, formationId, userId) as ExtendedLessonProgress | undefined;
       console.log('🔍 Progression trouvée en base de données:', savedProgress);
       if (savedProgress) {
         console.log('📊 Progression trouvée en base de données:', {
@@ -164,6 +232,8 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
           lessonTitle: lesson.title,
           currentPage: savedProgress.currentPage,
           totalPages: savedProgress.totalPages,
+          currentSlide: savedProgress.currentSlide,
+          totalSlides: savedProgress.totalSlides,
           progress: savedProgress.progress + '%',
           completed: savedProgress.completed ? 'Oui' : 'Non',
           lastAccessed: savedProgress.lastAccessedAt
@@ -251,6 +321,12 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
          // Pour les PDFs, react-pdf gère tout automatiquement
          if (detectedMimeType === "application/pdf") {
            console.log('✅ PDF détecté - react-pdf va gérer le chargement');
+         }
+         
+         // Pour les présentations PowerPoint
+         if (detectedMimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+           console.log('✅ Présentation PowerPoint détectée - chargement avec pptx-preview');
+           loadPresentation(blob);
          }
 
              } catch (err) {
@@ -409,6 +485,39 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     }, 1000);
   };
 
+  // Fonction pour charger une présentation PowerPoint
+  const loadPresentation = async (blob: Blob) => {
+    try {
+      setIsPresentationLoading(true);
+      console.log('📊 Chargement de la présentation PowerPoint...');
+      
+      // Pour l'instant, nous simulons une présentation avec des informations de base
+      // Dans une version future, nous pourrions intégrer une vraie bibliothèque de lecture
+      const mockSlides = [
+        { id: '1', title: 'Diapositive 1', content: 'Contenu de la première diapositive' },
+        { id: '2', title: 'Diapositive 2', content: 'Contenu de la deuxième diapositive' },
+        { id: '3', title: 'Diapositive 3', content: 'Contenu de la troisième diapositive' }
+      ];
+      
+      console.log('✅ Présentation simulée chargée:', mockSlides);
+      setPresentationSlides(mockSlides);
+      setTotalSlides(mockSlides.length);
+      setCurrentSlide(0);
+      
+      // Charger la progression sauvegardée
+      if (formationId && userId) {
+        console.log('📊 Chargement de la progression présentation après chargement...');
+        loadSavedProgress();
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement de la présentation:', error);
+      setError('Erreur lors du chargement de la présentation PowerPoint');
+    } finally {
+      setIsPresentationLoading(false);
+    }
+  };
+
      // Fonction pour mettre à jour la progression
    const updateProgress = () => {
      console.log(`📊 updateProgress appelée - mimeType: ${mimeType}, pageCount: ${pageCount}, currentPage: ${currentPage}`);
@@ -418,8 +527,8 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
        console.log(`📊 updateProgress - PDF: ${currentPage}/${pageCount} = ${progressPercentage}%`);
        
        // Récupérer la progression actuelle pour éviter la régression
-       const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '');
-       const savedProgressPercentage = currentProgress?.progress || 0;
+         const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '') as ExtendedLessonProgress | undefined;
+         const savedProgressPercentage = currentProgress?.progress || 0;
        
        // Ne pas diminuer la progression si on recule
        const finalProgressPercentage = Math.max(progressPercentage, savedProgressPercentage);
@@ -437,6 +546,30 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
        
        // Toujours sauvegarder la progression actuelle en base de données
        saveLocalProgress(currentPage, pageCount, finalProgressPercentage);
+            } else if (mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" && totalSlides > 0) {
+         const progressPercentage = Math.round((currentSlide / totalSlides) * 100);
+         console.log(`📊 updateProgress - Présentation: ${currentSlide}/${totalSlides} = ${progressPercentage}%`);
+         
+         // Récupérer la progression actuelle pour éviter la régression
+         const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '') as ExtendedLessonProgress | undefined;
+         const savedProgressPercentage = currentProgress?.progress || 0;
+         
+         // Ne pas diminuer la progression si on recule
+         const finalProgressPercentage = Math.max(progressPercentage, savedProgressPercentage);
+         
+         console.log(`📊 Progression présentation: actuelle=${progressPercentage}%, sauvegardée=${savedProgressPercentage}%, finale=${finalProgressPercentage}%`);
+         
+         // Mettre à jour l'interface parent
+         if (onProgressUpdate) {
+           onProgressUpdate({
+             timeSpent: finalProgressPercentage,
+             progress: finalProgressPercentage,
+             completed: finalProgressPercentage >= 100
+           });
+         }
+         
+         // Sauvegarder la progression en base de données
+         saveLocalProgress();
             } else if (mimeType.startsWith("video/") && videoRef.current) {
          const video = videoRef.current;
          const currentTime = video.currentTime;
@@ -452,7 +585,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
            console.log(`🎬 updateProgress vidéo - Progression calculée: ${currentTime}s/${duration}s = ${progress}%`);
            
            // Récupérer la progression actuelle pour éviter la régression
-           const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '');
+           const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '') as ExtendedLessonProgress | undefined;
            const savedProgressPercentage = currentProgress?.progress || 0;
            
            // Ne pas diminuer la progression si on recule
@@ -491,7 +624,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
            setTotalTime(duration);
            
            // Récupérer la progression actuelle pour éviter la régression
-           const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '');
+           const currentProgress = getGlobalProgress(lesson.id, formationId || '', userId || '') as ExtendedLessonProgress | undefined;
            const savedProgressPercentage = currentProgress?.progress || 0;
            
            // Ne pas diminuer la progression si on recule
@@ -529,6 +662,10 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
            finalProgress = progressPercentage !== undefined 
              ? progressPercentage 
              : Math.round((currentPage / totalPages) * 100);
+         } else if (mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" && totalSlides > 0) {
+           // Pour les présentations PowerPoint
+           finalProgress = Math.round((currentSlide / totalSlides) * 100);
+           console.log(`📊 saveLocalProgress - Présentation: ${currentSlide}/${totalSlides} = ${finalProgress}%`);
          } else if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) {
            // Pour les vidéos et audios - vérifier que les temps sont disponibles
            console.log(`🎬 saveLocalProgress - totalTime: ${totalTime}, currentTime: ${currentTime}, isNaN: ${isNaN(totalTime)}/${isNaN(currentTime)}`);
@@ -549,6 +686,8 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
            userId: userId,
            currentPage: mimeType === "application/pdf" ? currentPage : undefined,
            totalPages: mimeType === "application/pdf" ? totalPages : undefined,
+           currentSlide: mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ? currentSlide : undefined,
+           totalSlides: mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ? totalSlides : undefined,
            currentTime: (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) ? currentTime : undefined,
            totalTime: (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) ? totalTime : undefined,
            progress: finalProgress,
@@ -559,7 +698,12 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
          console.log(`💾 Données à envoyer au backend:`, progressData);
          console.log(`💾 Type de contenu: ${mimeType}, currentTime: ${currentTime}, totalTime: ${totalTime}`);
          
-         await saveGlobalProgress(progressData);
+         // Sauvegarder via le contexte de progression
+         saveGlobalProgress(lesson.id, {
+           timeSpent: finalProgress,
+           progress: finalProgress,
+           completed: finalProgress >= 100
+         });
          
          console.log(`📊 Progression sauvegardée: ${finalProgress}% (${mimeType}) - Temps: ${Math.floor(currentTime / 60)}:${(currentTime % 60).toFixed(0).padStart(2, '0')}/${Math.floor(totalTime / 60)}:${(totalTime % 60).toFixed(0).padStart(2, '0')}`);
        } catch (error) {
@@ -572,7 +716,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
    const loadSavedProgress = async () => {
      if (fileUrl && formationId && userId) {
        try {
-         const savedProgress = await loadGlobalProgress(lesson.id, formationId, userId);
+         const savedProgress = getGlobalProgress(lesson.id, formationId, userId) as ExtendedLessonProgress | undefined;
          if (savedProgress) {
            console.log('📊 Progression chargée:', savedProgress);
            
@@ -581,6 +725,11 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
              const lastPage = savedProgress.currentPage || 1;
              setCurrentPage(lastPage);
              console.log(`📊 Repositionnement PDF: page ${lastPage}/${savedProgress.totalPages || '?'}`);
+           } else if (mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
+             // Pour les présentations : restaurer la diapositive exacte
+             const lastSlide = savedProgress.currentSlide || 0;
+             setCurrentSlide(lastSlide);
+             console.log(`📊 Repositionnement présentation: diapositive ${lastSlide}/${savedProgress.totalSlides || '?'}`);
            } else if (mimeType.startsWith("video/") || mimeType.startsWith("audio/")) {
              // Pour les vidéos/audios : restaurer le temps exact
              const lastTime = savedProgress.currentTime || 0;
@@ -809,6 +958,14 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                              console.error('❌ Erreur lors du chargement du PDF:', error);
                              setPdfError(true);
                              
+                             // Vérifier l'état du worker
+                             if (typeof window !== 'undefined' && pdfjs.GlobalWorkerOptions.workerSrc) {
+                               console.log('🔍 Worker PDF configuré:', pdfjs.GlobalWorkerOptions.workerSrc);
+                             } else {
+                               console.error('❌ Worker PDF non configuré');
+                               resetPdfWorker();
+                             }
+                             
                              // Réessayer automatiquement jusqu'à 3 fois
                              if (retryCount < 3) {
                                console.log(`🔄 Tentative de récupération ${retryCount + 1}/3...`);
@@ -997,6 +1154,146 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                  </div>
                )}
 
+              {/* Présentations PowerPoint */}
+              {mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" && (
+                <div className="w-full h-[calc(100vh-120px)] border rounded bg-white relative">
+                  {isPresentationLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Presentation className="h-8 w-8 text-blue-600 animate-pulse" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                          Chargement de la présentation...
+                        </h3>
+                        <p className="text-gray-600">
+                          Veuillez patienter pendant le traitement
+                        </p>
+                      </div>
+                    </div>
+                  ) : presentationSlides.length > 0 ? (
+                    <div className="w-full h-full relative">
+                      {/* Header avec informations */}
+                      <div className="bg-gray-50 p-4 border-b">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-800">
+                              Présentation PowerPoint
+                            </h3>
+                            <p className="text-sm text-gray-600">
+                              {lesson.title}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-500">
+                              {totalSlides} diapositive{totalSlides > 1 ? 's' : ''}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              Diapositive {currentSlide + 1} sur {totalSlides}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Contenu de la diapositive actuelle */}
+                      <div className="flex-1 p-6">
+                        <div className="bg-white border rounded-lg p-6 h-full flex flex-col items-center justify-center">
+                          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                            <Presentation className="h-8 w-8 text-blue-600" />
+                          </div>
+                          <h4 className="text-xl font-semibold text-gray-800 mb-2">
+                            {presentationSlides[currentSlide]?.title || 'Diapositive'}
+                          </h4>
+                          <p className="text-gray-600 text-center mb-6">
+                            {presentationSlides[currentSlide]?.content || 'Contenu de la diapositive'}
+                          </p>
+                          
+                          {/* Message informatif */}
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md">
+                            <div className="flex items-start">
+                              <Presentation className="h-5 w-5 text-blue-600 mt-0.5 mr-3" />
+                              <div>
+                                <h5 className="text-sm font-medium text-blue-800 mb-1">
+                                  Lecture de présentation
+                                </h5>
+                                <p className="text-sm text-blue-700">
+                                  Pour une lecture complète de cette présentation PowerPoint, 
+                                  veuillez la télécharger et l'ouvrir avec Microsoft PowerPoint 
+                                  ou un lecteur compatible.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Contrôles de navigation */}
+                      {totalSlides > 1 && (
+                        <div className="absolute bottom-4 right-4 z-20 bg-white/95 p-3 rounded-lg shadow-lg border">
+                          <div className="flex items-center space-x-3">
+                            <button
+                              onClick={() => {
+                                const newSlide = Math.max(0, currentSlide - 1);
+                                setCurrentSlide(newSlide);
+                                console.log(`📊 Navigation présentation: Diapositive ${newSlide + 1}/${totalSlides}`);
+                                updateProgress();
+                              }}
+                              className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 transition-colors text-sm font-medium"
+                              disabled={currentSlide <= 0}
+                            >
+                              ← Précédente
+                            </button>
+                            
+                            <span className="text-sm font-medium text-gray-700 px-2">
+                              {currentSlide + 1} / {totalSlides}
+                            </span>
+                            
+                            <button
+                              onClick={() => {
+                                const newSlide = Math.min(totalSlides - 1, currentSlide + 1);
+                                setCurrentSlide(newSlide);
+                                console.log(`📊 Navigation présentation: Diapositive ${newSlide + 1}/${totalSlides}`);
+                                updateProgress();
+                              }}
+                              className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 transition-colors text-sm font-medium"
+                              disabled={currentSlide >= totalSlides - 1}
+                            >
+                              Suivante →
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Bouton de téléchargement */}
+                      <div className="absolute bottom-4 left-4 z-20">
+                        <a
+                          href={blobUrl || ''}
+                          download={`${lesson.title}.pptx`}
+                          className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+                        >
+                          <FileText className="h-4 w-4 mr-2" />
+                          Télécharger la présentation
+                        </a>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="text-center">
+                        <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Presentation className="h-8 w-8 text-red-600" />
+                        </div>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                          Erreur de chargement
+                        </h3>
+                        <p className="text-gray-600">
+                          La présentation n'a pas pu être chargée
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Audio */}
               {mimeType.startsWith("audio/") && (
                 <div className="w-full h-[80vh] border rounded bg-white">
@@ -1093,6 +1390,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
               {/* Autres fichiers */}
               {!mimeType.startsWith("image/") && 
                mimeType !== "application/pdf" && 
+               mimeType !== "application/vnd.openxmlformats-officedocument.presentationml.presentation" &&
                !mimeType.startsWith("video/") &&
                !mimeType.startsWith("audio/") && (
                 <div className="text-center">
