@@ -303,6 +303,21 @@ router.get(
   formationContentController.getByFormation
 );
 
+// Routes de progression des leçons
+router.put(
+  "/lessons/:lessonId/progress",
+  authMiddleware,
+  adminOrCollaboratorMiddleware,
+  formationContentController.updateLessonProgress
+);
+
+router.get(
+  "/formations/:formationId/progress-details",
+  authMiddleware,
+  adminOrCollaboratorMiddleware,
+  formationContentController.getFormationProgressDetails
+);
+
 router.post(
   "/formations/:formationId/sections",
   authMiddleware,

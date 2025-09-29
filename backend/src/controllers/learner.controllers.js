@@ -79,6 +79,22 @@ export const authController = {
         },
       });
 
+      // Créer une session utilisateur avec timeout d'inactivité de 10 minutes
+      const now = new Date();
+      const sessionExpiresAt = new Date(now.getTime() + 10 * 60 * 1000); // 10 minutes d'inactivité
+
+      await prisma.userSession.create({
+        data: {
+          userId: user.id,
+          token: token,
+          refreshToken: null, // Pas de refresh token pour les collaborateurs
+          expiresAt: sessionExpiresAt,
+          lastActivity: now,
+          userAgent: req.headers["user-agent"] || "Unknown",
+          ipAddress: req.ip || req.connection.remoteAddress || "Unknown",
+        },
+      });
+
       // Retourner la réponse
       res.json({
         success: true,

@@ -210,44 +210,7 @@ export default function Dashboard() {
           </Tabs.Content>
         </Tabs.Root>
 
-        {/* Actions rapides */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Link
-              to="/apprenant/courses"
-              className="flex items-center space-x-3 p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-            >
-              <BookOpen className="h-6 w-6 text-blue-600" />
-              <div>
-                <p className="font-medium text-blue-900">Voir toutes mes formations</p>
-                <p className="text-sm text-blue-600">Gérer mes formations</p>
-              </div>
-            </Link>
-            
-            <Link
-              to="/apprenant/progression"
-              className="flex items-center space-x-3 p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-            >
-              <BarChart className="h-6 w-6 text-green-600" />
-              <div>
-                <p className="font-medium text-green-900">Voir ma progression</p>
-                <p className="text-sm text-green-600">Analyser mes résultats</p>
-              </div>
-            </Link>
-            
-            <Link
-              to="/apprenant/certificates"
-              className="flex items-center space-x-3 p-4 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors"
-            >
-              <Award className="h-6 w-6 text-yellow-600" />
-              <div>
-                <p className="font-medium text-yellow-900">Mes certificats</p>
-                <p className="text-sm text-yellow-600">Télécharger mes certificats</p>
-              </div>
-            </Link>
-          </div>
-          </div>
+
         </div>
       </LearnerLayout>
   );

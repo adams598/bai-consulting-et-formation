@@ -365,6 +365,8 @@ export const opportunitiesController = {
         });
       }
 
+      // L'authentification est gérée par le middleware authMiddleware
+
       // Ajouter les en-têtes CORS pour permettre l'accès cross-origin
       res.header("Access-Control-Allow-Origin", "*");
       res.header("Access-Control-Allow-Methods", "GET, OPTIONS");

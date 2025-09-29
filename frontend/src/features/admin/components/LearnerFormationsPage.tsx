@@ -23,6 +23,7 @@ import '../styles/admin-typography.css';
 import { authService } from '../../../services/authService';
 import { formationsApi } from '../../../api/learnerApi';
 import { getFormationCoverImageUrl } from '../../../utils/imageUtils';
+import { getFormationProgressDetails } from '../../../utils/progressUtils';
 import { useToast } from '../../../components/ui/use-toast';
 import FormationDetailView from './FormationDetailView';
 
@@ -57,6 +58,9 @@ interface LearnerFormation {
     lastAccessed?: string;
     timeSpent: number; // en minutes
   };
+  
+  // Progression globale calculée par le backend
+  globalProgress?: number;
   
   hasQuiz: boolean;
   quizPassed?: boolean;
@@ -109,33 +113,49 @@ const LearnerFormationsPage: React.FC = () => {
         const response = await formationsApi.getMyFormations();
         
         // Transformer les données pour correspondre à notre interface
-        const transformedFormations: LearnerFormation[] = response.data.map((assignment: any) => ({
-          id: assignment.formation.id,
-          title: assignment.formation.title,
-          description: assignment.formation.description,
-          duration: assignment.formation.duration,
-          totalDuration: assignment.formation.totalDuration || assignment.formation.duration,
-          coverImage: assignment.formation.coverImage,
-          code: assignment.formation.code,
-          isActive: assignment.formation.isActive,
-          lessonCount: assignment.formation.lessonCount || 0,
-          createdAt: assignment.formation.createdAt,
-          updatedAt: assignment.formation.updatedAt,
-          universeId: assignment.formation.universeId,
-          hasQuiz: assignment.formation.hasQuiz || false,
-          
-          // Informations d'assignation
-          assignment: {
-            id: assignment.id,
-            status: assignment.status,
-            progress: assignment.progress || 0,
-            assignedAt: assignment.assignedAt,
-            dueDate: assignment.dueDate,
-            isMandatory: assignment.isMandatory || false,
-            lastAccessed: assignment.lastAccessed,
-            timeSpent: assignment.timeSpent || 0,
-          }
-        }));
+        const transformedFormations: LearnerFormation[] = await Promise.all(
+          response.data.map(async (assignment: any) => {
+            // Récupérer la progression globale pour chaque formation
+            let globalProgress = 0;
+            try {
+              const progressData = await getFormationProgressDetails(assignment.formation.id);
+              globalProgress = progressData.data.globalProgress || 0;
+            } catch (error) {
+              console.warn('Erreur lors de la récupération de la progression globale:', error);
+            }
+
+            return {
+              id: assignment.formation.id,
+              title: assignment.formation.title,
+              description: assignment.formation.description,
+              duration: assignment.formation.duration,
+              totalDuration: assignment.formation.totalDuration || assignment.formation.duration,
+              coverImage: assignment.formation.coverImage,
+              code: assignment.formation.code,
+              isActive: assignment.formation.isActive,
+              lessonCount: assignment.formation.lessonCount || 0,
+              createdAt: assignment.formation.createdAt,
+              updatedAt: assignment.formation.updatedAt,
+              universeId: assignment.formation.universeId,
+              hasQuiz: assignment.formation.hasQuiz || false,
+              
+              // Informations d'assignation
+              assignment: {
+                id: assignment.id,
+                status: assignment.status,
+                progress: assignment.progress || 0,
+                assignedAt: assignment.assignedAt,
+                dueDate: assignment.dueDate,
+                isMandatory: assignment.isMandatory || false,
+                lastAccessed: assignment.lastAccessed,
+                timeSpent: assignment.timeSpent || 0,
+              },
+              
+              // Progression globale calculée
+              globalProgress: globalProgress
+            };
+          })
+        );
         
         setFormations(transformedFormations);
       } catch (apiError) {
@@ -484,7 +504,7 @@ const LearnerFormationsPage: React.FC = () => {
                   {/* Progression au survol */}
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
                     <div className="text-white text-center">
-                      <div className="text-2xl font-bold">{formation.assignment?.progress || 0}%</div>
+                      <div className="text-2xl font-bold">{formation.globalProgress || formation.assignment?.progress || 0}%</div>
                       <div className="text-xs">Progression</div>
                     </div>
                   </div>
@@ -512,12 +532,12 @@ const LearnerFormationsPage: React.FC = () => {
                   <div className="pt-2">
                     <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
                       <span>Progression</span>
-                      <span>{formation.assignment?.progress || 0}%</span>
+                      <span>{formation.globalProgress || formation.assignment?.progress || 0}%</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
                         className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${formation.assignment?.progress || 0}%` }}
+                        style={{ width: `${formation.globalProgress || formation.assignment?.progress || 0}%` }}
                       ></div>
                     </div>
                   </div>

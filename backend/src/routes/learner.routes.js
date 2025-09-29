@@ -12,6 +12,7 @@ import {
 } from "../controllers/learner.controllers.js";
 import { quizController as learnerQuizController } from "../controllers/quiz.controller.js";
 import { calendarController } from "../controllers/calendar.controller.js";
+import { opportunitiesController } from "../controllers/opportunities.controller.js";
 
 const router = express.Router();
 
@@ -246,5 +247,15 @@ router.get("/certificates", authMiddleware, learnerMiddleware, (req, res) => {
     data: [],
   });
 });
+
+// Routes des opportunités (fichiers PDF de présentation)
+router.get(
+  "/opportunities/files",
+  authMiddleware,
+  learnerMiddleware,
+  opportunitiesController.getPresentationFiles
+);
+
+// Route supprimée - utilisation de la route publique /api/opportunities/files/:filename
 
 export default router;

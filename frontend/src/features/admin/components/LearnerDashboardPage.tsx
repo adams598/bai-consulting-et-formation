@@ -537,24 +537,6 @@ const LearnerDashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Actions rapides */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="admin-title-md admin-title-spacing mb-4">Actions rapides</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <button className="flex items-center justify-center space-x-2 p-4 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors">
-            <BookOpen className="w-5 h-5 text-blue-600" />
-            <span className="text-blue-900 font-medium">Continuer une formation</span>
-          </button>
-          <button className="flex items-center justify-center space-x-2 p-4 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition-colors">
-            <Award className="w-5 h-5 text-green-600" />
-            <span className="text-green-900 font-medium">Voir mes certificats</span>
-          </button>
-          <button className="flex items-center justify-center space-x-2 p-4 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors">
-            <TrendingUp className="w-5 h-5 text-purple-600" />
-            <span className="text-purple-900 font-medium">Suivre ma progression</span>
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

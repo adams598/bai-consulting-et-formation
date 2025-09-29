@@ -118,6 +118,12 @@ const adminMenuItems: MenuItem[] = [
 // Menu items pour les apprenants (navigation horizontale)
 const learnerMenuItems: MenuItem[] = [
   {
+    label: 'Opportunités',
+    icon: <Target className="h-5 w-5" />,
+    id: 'opportunities',
+    roles: ['COLLABORATOR']
+  },
+  {
     label: 'Tableau de bord',
     icon: <Home className="h-5 w-5" />,
     id: 'dashboard',
@@ -130,29 +136,23 @@ const learnerMenuItems: MenuItem[] = [
     roles: ['COLLABORATOR']
   },
   {
-    label: 'Opportunités',
-    icon: <Target className="h-5 w-5" />,
-    id: 'opportunities',
-    roles: ['COLLABORATOR']
-  },
-  {
     label: 'Mon agenda',
     icon: <Calendar className="h-5 w-5" />,
     id: 'calendar',
     roles: ['COLLABORATOR']
   },
-  {
-    label: 'Progression',
-    icon: <BarChart3 className="h-5 w-5" />,
-    id: 'progress',
-    roles: ['COLLABORATOR']
-  },
-  {
-    label: 'Certificats',
-    icon: <Award className="h-5 w-5" />,
-    id: 'certificates',
-    roles: ['COLLABORATOR']
-  },
+  // {
+  //   label: 'Progression',
+  //   icon: <BarChart3 className="h-5 w-5" />,
+  //   id: 'progress',
+  //   roles: ['COLLABORATOR']
+  // },
+  // {
+  //   label: 'Certificats',
+  //   icon: <Award className="h-5 w-5" />,
+  //   id: 'certificates',
+  //   roles: ['COLLABORATOR']
+  // },
   {
     label: 'Paramètres',
     icon: <Settings className="h-5 w-5" />,
@@ -399,17 +399,17 @@ const UnifiedLayoutContent: React.FC = () => {
         case 'formations': return 'Gérez les formations de votre plateforme';
         case 'users': return 'Gérez les collaborateurs de votre plateforme';
         case 'banks': return 'Gérez les banques de votre plateforme';
-        case 'stats': return 'Analysez les performances de votre plateforme';
+        // case 'stats': return 'Analysez les performances de votre plateforme';
         case 'settings': return 'Configurez votre plateforme';
         default: return '';
       }
     } else if (isLearner()) {
       switch (activeView) {
+        case 'opportunities': return 'Traitement des opportunités commerciales';
         case 'dashboard': return 'Vue d\'ensemble de vos formations et progression';
-        // case 'formations': return 'Consultez vos formations assignées';
-        case 'progress': return 'Suivez votre progression dans les formations';
-        case 'certificates': return 'Consultez vos certificats obtenus';
-        case 'opportunities': return 'Gérez vos opportunités commerciales';
+        case 'formations': return 'Consultez vos formations assignées';
+        // case 'progress': return 'Suivez votre progression dans les formations';
+        // case 'certificates': return 'Consultez vos certificats obtenus';
         // case 'calendar': return '';
         case 'settings': return 'Gérez vos préférences et paramètres';
         default: return '';

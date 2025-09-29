@@ -342,6 +342,17 @@ export const calendarApi = {
   getUpcomingDeadlines: () => api.get<ApiResponse<any[]>>('/calendar/upcoming')
 };
 
+// ===== OPPORTUNITÉS =====
+export const opportunitiesApi = {
+  // Récupérer tous les fichiers PDF de présentation des formations
+  getPresentationFiles: () => 
+    api.get<ApiResponse<any[]>>('/opportunities/files'),
+  
+  // Obtenir l'URL d'un fichier PDF (route publique comme pour les admins)
+  getPresentationFileUrl: (fileName: string) => 
+    `${API_URL}/api/opportunities/files/${fileName}`,
+};
+
 // Export par défaut avec toutes les API
 export default {
   auth: authApi,
@@ -353,5 +364,6 @@ export default {
   certificates: certificatesApi,
   notifications: notificationsApi,
   contentVisit: contentVisitApi,
-  calendar: calendarApi
+  calendar: calendarApi,
+  opportunities: opportunitiesApi
 };

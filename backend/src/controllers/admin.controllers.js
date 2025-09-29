@@ -3,6 +3,7 @@ import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { generatePassword } from "../utils/password.js";
 import { sendEmail } from "../services/email.service.js";
+import progressService from "../services/progress.service.js";
 
 const prisma = new PrismaClient();
 
@@ -2373,9 +2374,102 @@ export const formationContentController = {
         },
       });
 
-      res.json({ success: true, data: content });
+      // Calculer la progression globale si un utilisateur est spécifié
+      let globalProgress = 0;
+      if (userId) {
+        globalProgress = await progressService.calculateFormationProgress(
+          userId,
+          formationId
+        );
+      }
+
+      res.json({
+        success: true,
+        data: content,
+        globalProgress: globalProgress,
+      });
     } catch (error) {
       console.error("Erreur getByFormation:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Mettre à jour la progression d'une leçon
+  async updateLessonProgress(req, res) {
+    try {
+      const { lessonId } = req.params;
+      const { progress, isCompleted } = req.body;
+      const userId = req.user?.userId || req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié",
+        });
+      }
+
+      // Validation des données
+      if (typeof progress !== "number" || progress < 0 || progress > 100) {
+        return res.status(400).json({
+          success: false,
+          message: "La progression doit être un nombre entre 0 et 100",
+        });
+      }
+
+      // Mettre à jour la progression de la leçon
+      const globalProgress = await progressService.updateLessonProgress(
+        userId,
+        lessonId,
+        progress,
+        isCompleted || false
+      );
+
+      res.json({
+        success: true,
+        data: {
+          lessonProgress: progress,
+          globalProgress: globalProgress,
+          isCompleted: isCompleted || false,
+        },
+        message: "Progression mise à jour avec succès",
+      });
+    } catch (error) {
+      console.error("Erreur updateLessonProgress:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Récupérer les détails de progression d'une formation
+  async getFormationProgressDetails(req, res) {
+    try {
+      const { formationId } = req.params;
+      const userId = req.user?.userId || req.user?.id;
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié",
+        });
+      }
+
+      // Récupérer les détails de progression
+      const progressDetails = await progressService.getFormationProgressDetails(
+        userId,
+        formationId
+      );
+
+      res.json({
+        success: true,
+        data: progressDetails,
+      });
+    } catch (error) {
+      console.error("Erreur getFormationProgressDetails:", error);
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
