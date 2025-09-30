@@ -484,7 +484,7 @@ const UnifiedLayoutContent: React.FC = () => {
   if (isLearner()) {
     // Interface apprenant avec navigation horizontale
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-white">
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
           <div className="px-4 sm:px-6 lg:px-8">
@@ -657,10 +657,10 @@ const UnifiedLayoutContent: React.FC = () => {
 
   // Interface admin avec sidebar (existante)
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex h-screen bg-gray-100">
+    <div className="min-h-screen bg-white">
+      <div className="flex h-screen bg-white">
         {/* Sidebar */}
-        <aside className={`hidden md:flex flex-col bg-gradient-to-b from-white to-blue-50 transition-all duration-300 ${
+        <aside className={`hidden md:flex flex-col bg-white transition-all duration-300 ${
           isSidebarCollapsed ? 'w-16' : 'w-64'
         }`}>
           <div className="flex flex-col flex-1 overflow-y-auto">
@@ -671,7 +671,7 @@ const UnifiedLayoutContent: React.FC = () => {
                 <div className="flex justify-end px-2">
                   <button
                     onClick={toggleSidebar}
-                    className="p-2 text-blue-900 hover:bg-blue-200 rounded-lg transition-colors flex items-center justify-center"
+                    className="p-2 text-blue-900 rounded-lg transition-colors flex items-center justify-center"
                     title={isSidebarCollapsed ? 'Ouvrir la sidebar' : 'Fermer la sidebar'}
                   >
                     {isSidebarCollapsed ? (
@@ -708,8 +708,8 @@ const UnifiedLayoutContent: React.FC = () => {
                       }}
                       className={`flex items-center ${isSidebarCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-2'} mt-2 text-blue-900 rounded-lg transition-colors ${
                         isActive
-                          ? 'bg-blue-500 text-white shadow-md'
-                          : 'hover:bg-blue-400 hover:text-white hover:shadow-md'
+                          ? 'bg-brand-blue text-white shadow-md'
+                          : 'hover:bg-gray-100 hover:text-brand-blue hover:shadow-md'
                       }`}
                       title={isSidebarCollapsed ? item.label : ''}
                     >

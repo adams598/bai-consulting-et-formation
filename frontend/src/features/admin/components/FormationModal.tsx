@@ -10,7 +10,7 @@ import {
   BookOpen,
   GripVertical
 } from 'lucide-react';
-import { Formation, FormationType, FormationContent, ContentType } from '../types';
+import { Formation, FormationType, FormationContent, ContentType, Universe } from '../types';
 import { formationsApi } from '../../../api/adminApi';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
@@ -24,13 +24,15 @@ interface FormationModalProps {
   onClose: () => void;
   onSave: () => void;
   universeId?: string;
+  universes?: Universe[];
 }
 
 export const FormationModal: React.FC<FormationModalProps> = ({
   formation,
   onClose,
   onSave,
-  universeId
+  universeId,
+  universes = []
 }) => {
   const [formData, setFormData] = useState({
     title: '',
@@ -46,11 +48,18 @@ export const FormationModal: React.FC<FormationModalProps> = ({
     prerequisites: 'Aucune connaissance préalable n\'est nécessaire.',
     objectives: '',
     detailedProgram: '',
-    targetAudience: ''
+    targetAudience: '',
+    // Nouveau champ pour le type de formation
+    isOpportunity: false
   });
+  
+  const [selectedUniverseId, setSelectedUniverseId] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
   
   const { toast } = useToast();
 
@@ -89,8 +98,11 @@ export const FormationModal: React.FC<FormationModalProps> = ({
         prerequisites: formation.prerequisites || 'Aucune connaissance préalable n\'est nécessaire.',
         objectives: parseJsonToTextarea(formation.objectives),
         detailedProgram: parseJsonToTextarea(formation.detailedProgram),
-        targetAudience: parseJsonToTextarea(formation.targetAudience)
+        targetAudience: parseJsonToTextarea(formation.targetAudience),
+        isOpportunity: formation.isOpportunity || false
       });
+      // Initialiser l'univers sélectionné
+      setSelectedUniverseId(formation.universeId || '');
     } else {
       // Mode création : réinitialiser complètement l'état
       setFormData({
@@ -107,11 +119,22 @@ export const FormationModal: React.FC<FormationModalProps> = ({
         prerequisites: 'Aucune connaissance préalable n\'est nécessaire.',
         objectives: '',
         detailedProgram: '',
-        targetAudience: ''
+        targetAudience: '',
+        isOpportunity: false
       });
       setCoverImageFile(null);
+      setSelectedUniverseId('');
     }
   }, [formation]);
+
+  // Mettre à jour isOpportunity quand l'univers change
+  useEffect(() => {
+    const isOpportunity = selectedUniverseId === 'opportunites-commerciales';
+    setFormData(prev => ({
+      ...prev,
+      isOpportunity
+    }));
+  }, [selectedUniverseId]);
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -167,6 +190,24 @@ export const FormationModal: React.FC<FormationModalProps> = ({
     }
   };
 
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Vérifier le format MP4
+      if (!file.type.includes('video/mp4')) {
+        toast({
+          title: "Format non supporté",
+          description: "Seuls les fichiers MP4 sont acceptés",
+          variant: "destructive",
+        });
+        e.target.value = '';
+        return;
+      }
+      
+      setVideoFile(file);
+    }
+  };
+
   // Fonction pour convertir les textareas en JSON
   const processFormData = (data: any) => {
     const processed = { ...data };
@@ -203,7 +244,52 @@ export const FormationModal: React.FC<FormationModalProps> = ({
     e.preventDefault();
     setIsLoading(true);
 
-    try {
+        try {
+          // Validation : s'assurer qu'un univers est sélectionné
+          if (!selectedUniverseId && !universeId) {
+            setErrors({ universe: 'Veuillez sélectionner un univers' });
+            toast({
+              title: "Erreur",
+              description: "Veuillez sélectionner un univers pour cette formation",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+
+          // Validation : s'assurer qu'une formation appartient soit à un univers soit aux opportunités commerciales
+          if (!formData.isOpportunity && !selectedUniverseId && !universeId) {
+            toast({
+              title: "Erreur",
+              description: "Veuillez sélectionner un univers pour cette formation",
+              variant: "destructive",
+            });
+            setIsLoading(false);
+            return;
+          }
+
+      // Validation : pour les formations d'univers, description et objectifs sont obligatoires
+      if (!formData.isOpportunity) {
+        if (!formData.description.trim()) {
+          toast({
+            title: "Erreur",
+            description: "La description est obligatoire pour les formations d'univers",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+        if (!formData.objectives.trim()) {
+          toast({
+            title: "Erreur",
+            description: "Les objectifs pédagogiques sont obligatoires pour les formations d'univers",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
       let finalFormData = processFormData(formData);
       let createdFormationId: string | null = null;
       
@@ -229,7 +315,11 @@ export const FormationModal: React.FC<FormationModalProps> = ({
           }
         }
         
-        await formationsApi.updateFormation(formation.id, finalFormData);
+        await formationsApi.updateFormation(formation.id, {
+          ...finalFormData,
+          universeId: formData.isOpportunity ? null : (selectedUniverseId || universeId),
+          isOpportunity: formData.isOpportunity
+        });
         toast({
           title: "Succès",
           description: "Formation mise à jour avec succès",
@@ -238,7 +328,8 @@ export const FormationModal: React.FC<FormationModalProps> = ({
         // Mode création : créer la formation d'abord, puis uploader l'image
         const newFormation = await formationsApi.createFormation({
           ...finalFormData,
-          universeId: universeId
+          universeId: formData.isOpportunity ? null : (selectedUniverseId || universeId),
+          isOpportunity: formData.isOpportunity
         });
         createdFormationId = newFormation.data.data.id;
         
@@ -321,108 +412,173 @@ export const FormationModal: React.FC<FormationModalProps> = ({
             />
           </div>
 
+          {/* Sélection de l'univers */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
+              Univers *
+            </label>
+            <select
+              value={selectedUniverseId}
+              onChange={(e) => {
+                setSelectedUniverseId(e.target.value);
+                // Mettre à jour isOpportunity selon l'univers sélectionné
+                const isOpportunity = e.target.value === 'opportunites-commerciales';
+                handleInputChange('isOpportunity', isOpportunity);
+              }}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required
+            >
+              <option value="">Sélectionnez un univers</option>
+              {universes.map((universe) => (
+                <option key={universe.id} value={universe.id}>
+                  {universe.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Description {!formData.isOpportunity && '*'}
             </label>
             <Textarea
               value={formData.description}
               onChange={(e) => handleInputChange('description', e.target.value)}
               placeholder="Description de la formation"
               rows={3}
+              required={!formData.isOpportunity}
             />
+            {formData.isOpportunity && (
+              <p className="text-xs text-gray-500 mt-1">
+                Optionnel pour les formations d'opportunités commerciales
+              </p>
+            )}
           </div>
 
-          {/* Nouveaux champs dynamiques */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Nouveaux champs dynamiques - cachés pour les formations d'opportunités */}
+          {!formData.isOpportunity && (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Code Formation
+                  </label>
+                  <Input
+                    type="text"
+                    value={formData.code}
+                    onChange={(e) => handleInputChange('code', e.target.value)}
+                    placeholder="Ex: NL001008"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Modalité Pédagogique
+                  </label>
+                  <select
+                    value={formData.pedagogicalModality}
+                    onChange={(e) => handleInputChange('pedagogicalModality', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="E-learning">E-learning</option>
+                    <option value="Présentiel">Présentiel</option>
+                    <option value="Hybride">Hybride</option>
+                    <option value="Webinaire">Webinaire</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Organisme de Formation
+                </label>
+                <Input
+                  type="text"
+                  value={formData.organization}
+                  onChange={(e) => handleInputChange('organization', e.target.value)}
+                  placeholder="Ex: SHERPA Developpement"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Prérequis
+                </label>
+                <Textarea
+                  value={formData.prerequisites}
+                  onChange={(e) => handleInputChange('prerequisites', e.target.value)}
+                  placeholder="Ex: Aucune connaissance préalable n'est nécessaire."
+                  rows={2}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Champ vidéo */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Vidéo de formation (MP4 uniquement)
+            </label>
+            <input
+              type="file"
+              accept=".mp4,video/mp4"
+              onChange={handleVideoChange}
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {videoFile && (
+              <p className="text-sm text-green-600 mt-1">
+                ✓ Fichier sélectionné: {videoFile.name}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-1">
+              Seuls les fichiers MP4 sont acceptés. Un seul fichier par formation.
+            </p>
+          </div>
+
+          {/* Objectifs pédagogiques - cachés pour les formations d'opportunités */}
+          {!formData.isOpportunity && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Code Formation
+                Objectifs Pédagogiques (un par ligne) *
               </label>
-              <Input
-                type="text"
-                value={formData.code}
-                onChange={(e) => handleInputChange('code', e.target.value)}
-                placeholder="Ex: NL001008"
+              <Textarea
+                value={formData.objectives}
+                onChange={(e) => handleInputChange('objectives', e.target.value)}
+                placeholder="Ex:&#10;• Qualifier une opportunité d'achat&#10;• Guider les clients dans leur décision&#10;• Optimiser la mise en relation"
+                rows={4}
+                required={true}
               />
             </div>
+          )}
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Modalité Pédagogique
-              </label>
-              <select
-                value={formData.pedagogicalModality}
-                onChange={(e) => handleInputChange('pedagogicalModality', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="E-learning">E-learning</option>
-                <option value="Présentiel">Présentiel</option>
-                <option value="Hybride">Hybride</option>
-                <option value="Webinaire">Webinaire</option>
-              </select>
-            </div>
-          </div>
+          {/* Programme détaillé et public cible - cachés pour les formations d'opportunités */}
+          {!formData.isOpportunity && (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Programme Détaillé (un par ligne)
+                </label>
+                <Textarea
+                  value={formData.detailedProgram}
+                  onChange={(e) => handleInputChange('detailedProgram', e.target.value)}
+                  placeholder="Ex:&#10;1. Introduction&#10;2. Comprendre l'immobilier locatif&#10;3. Rôle du conseiller&#10;4. Bon à savoir"
+                  rows={4}
+                />
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Organisme de Formation
-            </label>
-            <Input
-              type="text"
-              value={formData.organization}
-              onChange={(e) => handleInputChange('organization', e.target.value)}
-              placeholder="Ex: SHERPA Developpement"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Prérequis
-            </label>
-            <Textarea
-              value={formData.prerequisites}
-              onChange={(e) => handleInputChange('prerequisites', e.target.value)}
-              placeholder="Ex: Aucune connaissance préalable n'est nécessaire."
-              rows={2}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Objectifs Pédagogiques (un par ligne)
-            </label>
-            <Textarea
-              value={formData.objectives}
-              onChange={(e) => handleInputChange('objectives', e.target.value)}
-              placeholder="Ex:&#10;• Qualifier une opportunité d'achat&#10;• Guider les clients dans leur décision&#10;• Optimiser la mise en relation"
-              rows={4}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Programme Détaillé (un par ligne)
-            </label>
-            <Textarea
-              value={formData.detailedProgram}
-              onChange={(e) => handleInputChange('detailedProgram', e.target.value)}
-              placeholder="Ex:&#10;1. Introduction&#10;2. Comprendre l'immobilier locatif&#10;3. Rôle du conseiller&#10;4. Bon à savoir"
-              rows={4}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Public Concerné (un par ligne)
-            </label>
-            <Textarea
-              value={formData.targetAudience}
-              onChange={(e) => handleInputChange('targetAudience', e.target.value)}
-              placeholder="Ex:&#10;Chargé de clientèle&#10;particuliers&#10;Conseiller clientèle&#10;Téléconseiller"
-              rows={3}
-            />
-          </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Public Concerné (un par ligne)
+                </label>
+                <Textarea
+                  value={formData.targetAudience}
+                  onChange={(e) => handleInputChange('targetAudience', e.target.value)}
+                  placeholder="Ex:&#10;Chargé de clientèle&#10;particuliers&#10;Conseiller clientèle&#10;Téléconseiller"
+                  rows={3}
+                />
+              </div>
+            </>
+          )}
 
           {/* Image de couverture */}
           <div>

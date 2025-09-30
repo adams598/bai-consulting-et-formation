@@ -49,6 +49,7 @@ export interface Formation {
   bankCount?: number; // nombre de banques ayant accès
   coverImage?: string;
   universeId?: string; // ID de l'univers auquel appartient la formation
+  isOpportunity?: boolean; // Indique si c'est une formation d'opportunités commerciales
   
   // Nouveaux champs pour rendre l'interface dynamique
   code?: string; // Code de formation (ex: NL001008)

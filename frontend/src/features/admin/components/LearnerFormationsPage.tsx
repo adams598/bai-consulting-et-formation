@@ -17,7 +17,8 @@ import {
   Eye,
   CalendarPlus,
   MoreVertical,
-  Folder
+  Folder,
+  Play
 } from 'lucide-react';
 import '../styles/admin-typography.css';
 import { authService } from '../../../services/authService';
@@ -46,6 +47,7 @@ interface LearnerFormation {
   createdAt: string;
   updatedAt: string;
   universeId?: string;
+  isOpportunity?: boolean;
   
   // Informations spécifiques à l'assignation
   assignment?: {
@@ -67,10 +69,21 @@ interface LearnerFormation {
   certificateEarned?: boolean;
 }
 
+interface Universe {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 const LearnerFormationsPage: React.FC = () => {
   const navigate = useNavigate();
   const [formations, setFormations] = useState<LearnerFormation[]>([]);
   const [filteredFormations, setFilteredFormations] = useState<LearnerFormation[]>([]);
+  const [universes, setUniverses] = useState<Universe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('all');
@@ -83,6 +96,7 @@ const LearnerFormationsPage: React.FC = () => {
 
   useEffect(() => {
     loadFormations();
+    loadUniverses();
   }, []);
 
   useEffect(() => {
@@ -103,6 +117,37 @@ const LearnerFormationsPage: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [activeDropdown]);
+
+  const loadUniverses = async () => {
+    try {
+      // Pour les COLLABORATOR, on peut essayer de charger les univers via l'API admin
+      // ou utiliser des données par défaut
+      const defaultUniverse: Universe = {
+        id: 'mes-formations',
+        name: 'Mes Formations',
+        description: 'Formations qui vous sont assignées',
+        color: '#3B82F6',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      setUniverses([defaultUniverse]);
+    } catch (error) {
+      console.warn('Erreur lors du chargement des univers:', error);
+      // En cas d'erreur, utiliser l'univers par défaut
+      const defaultUniverse: Universe = {
+        id: 'mes-formations',
+        name: 'Mes Formations',
+        description: 'Formations qui vous sont assignées',
+        color: '#3B82F6',
+        isActive: true,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      setUniverses([defaultUniverse]);
+    }
+  };
 
   const loadFormations = async () => {
     try {
@@ -138,6 +183,7 @@ const LearnerFormationsPage: React.FC = () => {
               updatedAt: assignment.formation.updatedAt,
               universeId: assignment.formation.universeId,
               hasQuiz: assignment.formation.hasQuiz || false,
+              isOpportunity: assignment.formation.isOpportunity || false,
               
               // Informations d'assignation
               assignment: {
@@ -318,9 +364,18 @@ const LearnerFormationsPage: React.FC = () => {
 
   // Gestionnaires d'événements
   const handleFormationClick = (formation: LearnerFormation) => {
-    // Pour les COLLABORATOR, rester dans l'interface admin mais ouvrir FormationDetailView
-    setSelectedFormation(formation);
-    setShowFormationDetail(true);
+    // Si c'est une formation d'opportunités commerciales, ouvrir directement le viewer vidéo
+    if (formation.isOpportunity) {
+      // TODO: Implémenter l'ouverture du viewer vidéo pour les opportunités
+      console.log('Ouverture du viewer vidéo pour formation opportunité:', formation.id);
+      // Pour l'instant, on garde la vue détail mais on pourrait ajouter un paramètre spécial
+      setSelectedFormation(formation);
+      setShowFormationDetail(true);
+    } else {
+      // Comportement normal pour les formations d'univers
+      setSelectedFormation(formation);
+      setShowFormationDetail(true);
+    }
   };
 
   const handleScheduleFormation = (formation: LearnerFormation) => {
@@ -438,8 +493,194 @@ const LearnerFormationsPage: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {filteredFormations.map((formation) => (
+          <div className="space-y-8">
+            {/* Section opportunités commerciales */}
+            {filteredFormations.filter(f => f.isOpportunity).length > 0 && (
+              <div>
+                <div className="flex items-center mb-4">
+                  <div className="flex-1 border-t border-gray-200"></div>
+                  <div className="px-4">
+                    <div className="flex items-center">
+                      <div 
+                        className="w-6 h-6 rounded-lg flex items-center justify-center text-white mr-2"
+                        style={{ backgroundColor: '#F59E0B' }}
+                      >
+                        <Play className="h-3 w-3" />
+                      </div>
+                      <span className="text-sm font-medium text-gray-700">
+                        Traitement des opportunités commerciales
+                      </span>
+                      <span className="ml-2 text-xs text-orange-600 font-medium">
+                        (Vidéo + Quiz)
+                      </span>
+                      <span className="ml-2 text-xs text-gray-500">
+                        ({filteredFormations.filter(f => f.isOpportunity).length} formation{filteredFormations.filter(f => f.isOpportunity).length > 1 ? 's' : ''})
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-1 border-t border-gray-200"></div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {filteredFormations.filter(f => f.isOpportunity).map((formation) => (
+                    <div
+                      key={formation.id}
+                      className="bg-gradient-to-b from-white to-orange-50 border border-orange-200 rounded-lg p-3 hover:shadow-md transition-shadow relative"
+                    >
+                      {/* Menu apprenant (3 points) */}
+                      <div className="absolute top-2 right-2 z-10">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveDropdown(activeDropdown === formation.id ? null : formation.id);
+                          }}
+                          className="dropdown-trigger p-1 bg-white/80 hover:bg-white rounded-full shadow-sm transition-colors"
+                        >
+                          <MoreVertical className="h-4 w-4 text-gray-600" />
+                        </button>
+
+                        {activeDropdown === formation.id && (
+                          <div className="dropdown-menu absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-48 z-20">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleFormationClick(formation);
+                                setActiveDropdown(null);
+                              }}
+                              className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              Voir la vidéo
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleScheduleFormation(formation);
+                                setActiveDropdown(null);
+                              }}
+                              className="w-full flex items-center px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
+                            >
+                              <CalendarPlus className="h-4 w-4 mr-2" />
+                              Planifier dans l'agenda
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Image de formation */}
+                      <div 
+                        className="relative h-32 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg mb-3 overflow-hidden group cursor-pointer"
+                        onClick={() => handleFormationClick(formation)}
+                      >
+                        {formation.coverImage ? (
+                          <img
+                            src={getFormationCoverImageUrl(formation.coverImage)}
+                            alt={`Couverture de ${formation.title}`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Play className="h-12 w-12 text-orange-500" />
+                          </div>
+                        )}
+
+                        {/* Badge vidéo */}
+                        <div className="absolute top-2 left-2">
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
+                            <Play className="h-3 w-3 mr-1" />
+                            Vidéo
+                          </span>
+                        </div>
+
+                        {/* Progression au survol */}
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
+                          <div className="text-white text-center">
+                            <div className="text-2xl font-bold">{formation.globalProgress || formation.assignment?.progress || 0}%</div>
+                            <div className="text-xs">Progression</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Contenu de la carte */}
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between">
+                          <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 flex-1 pr-2">
+                            {formatFormationTitle(formation.title)}
+                          </h3>
+                          <div className="flex items-center text-gray-600 flex-shrink-0">
+                            <Clock className="h-3 w-3 mr-1" />
+                            <span className="text-xs">
+                              {formatDuration(formation.totalDuration || formation.duration)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          {formatFormationDescription(formation.description)}
+                        </p>
+
+                        {/* Barre de progression */}
+                        <div className="pt-2">
+                          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                            <span>Progression</span>
+                            <span>{formation.globalProgress || formation.assignment?.progress || 0}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-orange-600 h-2 rounded-full transition-all duration-300"
+                              style={{ width: `${formation.globalProgress || formation.assignment?.progress || 0}%` }}
+                            ></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Section formations d'univers - groupées par univers */}
+            {(() => {
+              // Grouper les formations par univers
+              const formationsByUniverse: { [key: string]: LearnerFormation[] } = {};
+              filteredFormations.filter(f => !f.isOpportunity).forEach(formation => {
+                const universeId = formation.universeId || 'mes-formations';
+                if (!formationsByUniverse[universeId]) {
+                  formationsByUniverse[universeId] = [];
+                }
+                formationsByUniverse[universeId].push(formation);
+              });
+
+              return Object.entries(formationsByUniverse).map(([universeId, formations]) => {
+                // Trouver l'univers correspondant ou utiliser l'univers par défaut
+                const universe = universes.find(u => u.id === universeId) || {
+                  id: 'mes-formations',
+                  name: 'Mes Formations',
+                  color: '#3B82F6'
+                };
+
+                return (
+                  <div key={universeId}>
+                    <div className="flex items-center mb-4">
+                      <div className="flex-1 border-t border-gray-200"></div>
+                      <div className="px-4">
+                        <div className="flex items-center">
+                          <div 
+                            className="w-6 h-6 rounded-lg flex items-center justify-center text-white mr-2"
+                            style={{ backgroundColor: universe.color }}
+                          >
+                            <Folder className="h-3 w-3" />
+                          </div>
+                          <span className="text-sm font-medium text-gray-700">
+                            {universe.name}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex-1 border-t border-gray-200"></div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {formations.map((formation) => (
               <div
                 key={formation.id}
                 className="bg-gradient-to-b from-white to-blue-50 border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow relative"
@@ -543,7 +784,12 @@ const LearnerFormationsPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+                      ))}
+                    </div>
+                  </div>
+                );
+              });
+            })()}
           </div>
         )}
       </div>

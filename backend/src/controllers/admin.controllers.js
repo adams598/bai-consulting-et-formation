@@ -852,6 +852,8 @@ export const formationsController = {
           objectives: true,
           detailedProgram: true,
           targetAudience: true,
+          universeId: true,
+          isOpportunity: true,
           createdAt: true,
           updatedAt: true,
           content: {
@@ -974,6 +976,7 @@ export const formationsController = {
             createdAt: true,
             updatedAt: true,
             universeId: true,
+            isOpportunity: true,
             creator: {
               select: {
                 id: true,
@@ -1148,6 +1151,16 @@ export const formationsController = {
         hasQuiz,
         quizRequired,
         coverImage,
+        universeId,
+        isOpportunity,
+        // Nouveaux champs pour les informations détaillées
+        code,
+        pedagogicalModality,
+        organization,
+        prerequisites,
+        objectives,
+        detailedProgram,
+        targetAudience,
       } = req.body;
       const userId = req.user.id;
 
@@ -1169,6 +1182,17 @@ export const formationsController = {
           quizRequired: quizRequired !== undefined ? quizRequired : true,
           coverImage: coverImage || null,
           createdBy: userId,
+          // Nouveaux champs pour les univers et opportunités
+          universeId: universeId || null,
+          isOpportunity: isOpportunity !== undefined ? isOpportunity : false,
+          // Nouveaux champs pour les informations détaillées
+          code: code || null,
+          pedagogicalModality: pedagogicalModality || null,
+          organization: organization || null,
+          prerequisites: prerequisites || null,
+          objectives: objectives || null,
+          detailedProgram: detailedProgram || null,
+          targetAudience: targetAudience || null,
         },
         include: {
           creator: {
@@ -1181,6 +1205,16 @@ export const formationsController = {
           },
         },
       });
+
+      // Créer l'association avec l'univers si nécessaire
+      if (universeId && !isOpportunity) {
+        await prisma.universeFormation.create({
+          data: {
+            universeId,
+            formationId: formation.id,
+          },
+        });
+      }
 
       // Invalider le cache des formations
       const cacheService = (await import("../services/cache.service.js"))
@@ -4057,6 +4091,12 @@ export const universeController = {
     try {
       const { formationId, universeId } = req.body;
 
+      console.log(
+        `🔄 Déplacement de la formation ${formationId} vers l'univers ${
+          universeId || "opportunités commerciales"
+        }`
+      );
+
       // Vérifier que la formation existe
       const formation = await prisma.formation.findUnique({
         where: { id: formationId },
@@ -4074,10 +4114,21 @@ export const universeController = {
         where: { formationId },
       });
 
-      // Mettre à jour le champ universeId dans la formation
+      // Déterminer si c'est un déplacement vers les opportunités commerciales
+      const isOpportunity =
+        universeId === "opportunites-commerciales" || universeId === null;
+
+      // Mettre à jour les champs universeId et isOpportunity dans la formation
+      const updateData = {
+        universeId: isOpportunity ? null : universeId,
+        isOpportunity: isOpportunity,
+      };
+
+      console.log(`📝 Mise à jour de la formation:`, updateData);
+
       await prisma.formation.update({
         where: { id: formationId },
-        data: { universeId },
+        data: updateData,
       });
 
       let result;

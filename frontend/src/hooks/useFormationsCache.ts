@@ -64,32 +64,28 @@ export const useFormationsCache = () => {
       const formations = formationsResponse.data.data || [];
       const universesData = universesResponse.data.success ? universesResponse.data.data : [];
       
-      // Ajouter l'univers FSU pour les formations sans univers
-      const formationsWithoutUniverse = formations.filter(f => !f.universeId);
-      const latestFSUUpdate = formationsWithoutUniverse.length > 0 
-        ? new Date(Math.max(...formationsWithoutUniverse.map(f => new Date(f.updatedAt).getTime())))
-        : new Date('2025-01-01');
-
-      const fsuUniverse: Universe = {
-        id: 'fsu',
-        name: 'FSU',
-        description: 'Formations Sans Univers',
-        color: '#6B7280',
-        isActive: true,
-        createdAt: new Date('2025-01-01'),
-        updatedAt: latestFSUUpdate,
-        formationCount: formationsWithoutUniverse.length
-      };
-
-      // Calculer le nombre de formations par univers
-      const universesWithCounts = [fsuUniverse, ...universesData].map(universe => {
-        const universeFormations = formations.filter(f => f.universeId === universe.id);
+      // S'assurer que toutes les formations ont le champ isOpportunity
+      const formationsWithOpportunity = formations.map(formation => ({
+        ...formation,
+        isOpportunity: formation.isOpportunity || false
+      }));
+      
+      // Convertir les dates des univers de string vers Date
+      const universesWithDates = universesData.map(universe => ({
+        ...universe,
+        createdAt: new Date(universe.createdAt),
+        updatedAt: new Date(universe.updatedAt)
+      }));
+      
+      // Calculer le nombre de formations par univers (sans FSU)
+      const universesWithCounts = universesWithDates.map(universe => {
+        const universeFormations = formationsWithOpportunity.filter(f => f.universeId === universe.id && !f.isOpportunity);
         return { ...universe, formationCount: universeFormations.length };
       });
       
       const universes = universesWithCounts;
 
-      console.log(`📊 Chargement des statistiques pour ${formations.length} formations...`);
+      console.log(`📊 Chargement des statistiques pour ${formationsWithOpportunity.length} formations...`);
       
       // Charger toutes les statistiques en une seule requête
       const statsResponse = await bankFormationApi.getAllFormationsStats();
@@ -99,7 +95,7 @@ export const useFormationsCache = () => {
       const formationStats = statsResponse.data.data || {};
 
       const cacheData: CacheData = {
-        formations,
+        formations: formationsWithOpportunity,
         universes,
         formationStats,
         lastUpdated: Date.now()
@@ -145,26 +141,9 @@ export const useFormationsCache = () => {
       f.id === updatedFormation.id ? updatedFormation : f
     );
     
-    // Recalculer les univers avec les nouveaux compteurs
-    const formationsWithoutUniverse = updatedFormations.filter(f => !f.universeId);
-    const latestFSUUpdate = formationsWithoutUniverse.length > 0 
-      ? new Date(Math.max(...formationsWithoutUniverse.map(f => new Date(f.updatedAt).getTime())))
-      : new Date('2025-01-01');
-
-    const fsuUniverse: Universe = {
-      id: 'fsu',
-      name: 'FSU',
-      description: 'Formations Sans Univers',
-      color: '#6B7280',
-      isActive: true,
-      createdAt: new Date('2025-01-01'),
-      updatedAt: latestFSUUpdate,
-      formationCount: formationsWithoutUniverse.length
-    };
-
-    // Recalculer les compteurs des autres univers
-    const updatedUniverses = [fsuUniverse, ...globalCache.universes.slice(1)].map(universe => {
-      const universeFormations = updatedFormations.filter(f => f.universeId === universe.id);
+    // Recalculer les compteurs des univers (sans FSU)
+    const updatedUniverses = globalCache.universes.map(universe => {
+      const universeFormations = updatedFormations.filter(f => f.universeId === universe.id && !f.isOpportunity);
       return { ...universe, formationCount: universeFormations.length };
     });
     

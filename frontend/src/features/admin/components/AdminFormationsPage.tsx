@@ -88,8 +88,8 @@ const AdminFormationsPage: React.FC = () => {
           description: 'Formations qui vous sont assignées',
           color: '#3B82F6',
           isActive: true,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          createdAt: new Date(),
+          updatedAt: new Date()
         }
       ];
     }
@@ -124,13 +124,32 @@ const AdminFormationsPage: React.FC = () => {
   // Mémorisation des formations par univers pour éviter les recalculs
   const formationsByUniverse = useMemo(() => {
     const grouped: Record<string, Formation[]> = {};
+    
+    // Section opportunités commerciales
+    grouped['opportunites-commerciales'] = formations.filter(f => f.isOpportunity);
+    
+    // Univers normaux - toutes les formations doivent avoir un universeId ou être des opportunités
     universes.forEach(universe => {
-      if (universe.id === 'fsu') {
-        grouped[universe.id] = formations.filter(f => !f.universeId);
-      } else {
-        grouped[universe.id] = formations.filter(f => f.universeId === universe.id);
+      if (universe.id !== 'fsu') { // Supprimer FSU
+        grouped[universe.id] = formations.filter(f => f.universeId === universe.id && !f.isOpportunity);
       }
     });
+    
+    // Vérifier qu'aucune formation n'est orpheline (sans univers et sans opportunité)
+    const orphanFormations = formations.filter(f => !f.isOpportunity && !f.universeId);
+    if (orphanFormations.length > 0) {
+      console.warn('⚠️ Formations orphelines détectées (sans univers et sans opportunité):', orphanFormations.map(f => f.title));
+      // Assigner automatiquement à "Mes Formations" si cet univers existe
+      const mesFormationsUniverse = universes.find(u => u.id === 'mes-formations');
+      if (mesFormationsUniverse) {
+        if (!grouped['mes-formations']) {
+          grouped['mes-formations'] = [];
+        }
+        grouped['mes-formations'].push(...orphanFormations);
+        console.log('✅ Formations orphelines assignées à "Mes Formations"');
+      }
+    }
+    
     return grouped;
   }, [formations, universes]);
 
@@ -193,19 +212,25 @@ const AdminFormationsPage: React.FC = () => {
 
   // Fonction de filtrage mémorisée
   const filterFormations = useCallback(() => {
+    console.log('🔍 filterFormations - Formations originales:', formations.length);
+    console.log('🔍 filterFormations - Terme de recherche:', searchTerm);
+    
     if (!searchTerm.trim()) {
+      console.log('🔍 filterFormations - Pas de terme de recherche, formations:', formations.length);
       setFilteredFormations(formations);
     } else {
       const filtered = formations.filter(formation =>
         formation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         formation.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
+      console.log('🔍 filterFormations - Avec terme de recherche:', searchTerm, 'résultats:', filtered.length);
       setFilteredFormations(filtered);
     }
   }, [formations, searchTerm]);
 
   useEffect(() => {
     // Chargement une seule fois au montage du composant
+    console.log('🔍 AdminFormationsPage - Chargement initial, isAdminUser:', isAdminUser);
     if (isAdminUser) {
       loadData();
     } else {
@@ -213,6 +238,27 @@ const AdminFormationsPage: React.FC = () => {
       loadSimpleFormations();
     }
   }, []); // Pas de dépendances pour éviter la boucle
+
+  // Debug: afficher les données chargées
+  useEffect(() => {
+    console.log('📊 AdminFormationsPage - Données mises à jour:');
+    console.log('  - formations:', formations.length);
+    console.log('  - universes:', universes.length);
+    console.log('  - isLoading:', isLoading);
+    console.log('  - selectedUniverse:', selectedUniverse ? selectedUniverse.name : 'null');
+    console.log('  - viewMode:', viewMode);
+    console.log('  - cacheData:', cacheData);
+    
+    // Debug: afficher les premières formations pour voir leur structure
+    if (formations.length > 0) {
+      console.log('🔍 Toutes les formations chargées:', formations.length);
+      console.log('🔍 Première formation:', formations[0]);
+      console.log('🔍 Deuxième formation:', formations[1] || 'Pas de deuxième formation');
+      console.log('🔍 Formations avec isOpportunity:', formations.filter(f => f.isOpportunity).length);
+      console.log('🔍 Formations avec universeId:', formations.filter(f => f.universeId).length);
+      console.log('🔍 Formations sans universeId:', formations.filter(f => !f.universeId).length);
+    }
+  }, [formations, universes, isLoading, cacheData, selectedUniverse, viewMode]);
 
   useEffect(() => {
     filterFormations();
@@ -572,7 +618,12 @@ const AdminFormationsPage: React.FC = () => {
       // Mise à jour optimiste : mettre à jour toutes les formations sélectionnées
       const formationsToUpdate = formations.filter(f => selectedFormations.includes(f.id));
       formationsToUpdate.forEach(formation => {
-        const updatedFormation = { ...formation, universeId: targetUniverseId || undefined };
+        const isOpportunity = targetUniverseId === 'opportunites-commerciales' || targetUniverseId === '';
+        const updatedFormation = { 
+          ...formation, 
+          universeId: isOpportunity ? undefined : (targetUniverseId || undefined),
+          isOpportunity: isOpportunity
+        };
         updateFormationOptimistically(updatedFormation);
       });
       
@@ -716,11 +767,13 @@ const AdminFormationsPage: React.FC = () => {
       setShowMoveFormationModal(false);
       setFormationToMove(null);
       
-      // Mise à jour optimiste : modifier immédiatement l'universeId de la formation
+      // Mise à jour optimiste : modifier immédiatement l'universeId et isOpportunity de la formation
       const newUniverseId = targetUniverseId === '' ? null : targetUniverseId;
+      const isOpportunity = targetUniverseId === 'opportunites-commerciales' || targetUniverseId === '';
       const updatedFormation = { 
         ...formationToMove, 
-        universeId: newUniverseId || undefined
+        universeId: isOpportunity ? undefined : (newUniverseId || undefined),
+        isOpportunity: isOpportunity
       };
       updateFormationOptimistically(updatedFormation);
       
@@ -750,9 +803,12 @@ const AdminFormationsPage: React.FC = () => {
   const getFormationsToDisplay = useCallback(() => {
     if (selectedUniverse) {
       // Si on est dans un univers spécifique, afficher ses formations
-      return formationsByUniverse[selectedUniverse.id] || [];
+      const universeFormations = formationsByUniverse[selectedUniverse.id] || [];
+      console.log(`🔍 getFormationsToDisplay - Univers sélectionné "${selectedUniverse.name}":`, universeFormations.length, 'formations');
+      return universeFormations;
     } else {
       // Sinon, afficher toutes les formations
+      console.log('🔍 getFormationsToDisplay - Aucun univers sélectionné, filteredFormations:', filteredFormations.length);
       return filteredFormations;
     }
   }, [selectedUniverse, formationsByUniverse, filteredFormations]);
@@ -761,24 +817,66 @@ const AdminFormationsPage: React.FC = () => {
   const getFormationsGroupedByUniverse = () => {
     const grouped: { universe: Universe; formations: Formation[] }[] = [];
     
-    universes.forEach(universe => {
-      let universeFormations: Formation[] = [];
+    console.log('🔍 getFormationsGroupedByUniverse - filteredFormations:', filteredFormations.length);
+    console.log('🔍 getFormationsGroupedByUniverse - universes:', universes.length);
+    console.log('🔍 getFormationsGroupedByUniverse - Détail filteredFormations:', filteredFormations.map(f => ({ id: f.id, title: f.title, universeId: f.universeId, isOpportunity: f.isOpportunity })));
+    
+    // 1. Grouper toutes les formations par univers (y compris les opportunités)
+    const formationsByUniverseMap: { [universeId: string]: Formation[] } = {};
+    
+    filteredFormations.forEach(formation => {
+      let universeId: string | null = null;
       
-      if (universe.id === 'fsu') {
-        universeFormations = filteredFormations.filter(f => !f.universeId);
-      } else if (universe.id === 'mes-formations') {
-        // Pour l'univers "Mes Formations" des COLLABORATOR, afficher toutes les formations
-        universeFormations = filteredFormations;
-      } else {
-        universeFormations = filteredFormations.filter(f => f.universeId === universe.id);
+      if (formation.isOpportunity) {
+        // Les formations d'opportunités vont dans l'univers 'opportunites-commerciales'
+        universeId = 'opportunites-commerciales';
+      } else if (formation.universeId) {
+        // Les autres formations vont dans leur univers assigné seulement s'il existe en BD
+        const universeExists = universes.find(u => u.id === formation.universeId);
+        if (universeExists) {
+          universeId = formation.universeId;
+        }
       }
       
-      // Ne pas afficher les univers vides
-      if (universeFormations.length > 0) {
-        grouped.push({ universe, formations: universeFormations });
+      // Ne grouper que si l'univers existe en base de données
+      if (universeId) {
+        if (!formationsByUniverseMap[universeId]) {
+          formationsByUniverseMap[universeId] = [];
+        }
+        formationsByUniverseMap[universeId].push(formation);
+      } else {
+        console.warn(`⚠️ Formation "${formation.title}" sans univers valide, ignorée`);
       }
     });
     
+    console.log('🔍 getFormationsGroupedByUniverse - formationsByUniverseMap:', Object.keys(formationsByUniverseMap).length, 'univers');
+    
+    // 2. Créer les sections pour chaque univers qui existe en base de données
+    Object.entries(formationsByUniverseMap).forEach(([universeId, universeFormations]) => {
+      // Trouver l'univers correspondant dans la base de données
+      const universe = universes.find(u => u.id === universeId);
+      
+      // Ne traiter que les univers qui existent réellement en base de données
+      if (universe) {
+        console.log(`🔍 getFormationsGroupedByUniverse - Univers "${universe.name}":`, universeFormations.length, 'formations');
+        
+        grouped.push({ 
+          universe: universe, 
+          formations: universeFormations 
+        });
+      } else {
+        console.warn(`⚠️ Univers "${universeId}" non trouvé en base de données, formations ignorées:`, universeFormations.length);
+      }
+    });
+    
+    // 3. Trier les groupes pour que 'opportunites-commerciales' soit en premier
+    grouped.sort((a, b) => {
+      if (a.universe.id === 'opportunites-commerciales') return -1;
+      if (b.universe.id === 'opportunites-commerciales') return 1;
+      return 0;
+    });
+    
+    console.log('🔍 getFormationsGroupedByUniverse - Groupes finaux:', grouped.length);
     return grouped;
   };
 
@@ -806,6 +904,18 @@ const AdminFormationsPage: React.FC = () => {
       return `${hours}h`;
     }
     return `${hours}h ${remainingMinutes}min`;
+  }, []);
+
+  // Fonction pour formater la date de modification
+  const formatModificationDate = useCallback((updatedAt: string | Date) => {
+    if (!updatedAt) return '0';
+    
+    const updateDate = new Date(updatedAt);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - updateDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays.toString();
   }, []);
 
   if (isLoading) {
@@ -846,17 +956,6 @@ const AdminFormationsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* En-tête */}
-      {/* <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-900">Gestion des Formations</h1>
-        <button
-          onClick={handleCreateFormation}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
-        >
-          <Plus className="h-5 w-5" />
-          Nouvelle Formation
-        </button>
-      </div> */}
 
       {/* Barre d'actions en lot - Visible uniquement pour les admins */}
       {showBulkActions && isAdmin() && (
@@ -943,7 +1042,10 @@ const AdminFormationsPage: React.FC = () => {
           {isAdmin() && (
             <div className="flex bg-gray-100 rounded-lg p-1">
               <button
-                onClick={() => setViewMode('formations')}
+                onClick={() => {
+                  setViewMode('formations');
+                  setSelectedUniverse(null); // S'assurer qu'aucun univers n'est sélectionné
+                }}
                 className={`px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${
                   viewMode === 'formations' 
                     ? 'bg-white text-blue-600 shadow-sm' 
@@ -998,18 +1100,31 @@ const AdminFormationsPage: React.FC = () => {
       </div>
 
       {/* Contenu principal */}
-      <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
+      <div className="bg-white p-6">
         <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
           <h2 className="admin-title-md admin-title-spacing">
             {viewMode === 'universes' ? 'Univers disponibles' : 
              selectedUniverse ? `Formations - ${selectedUniverse.name}` : 
-             ''}
+               'Toutes les formations'}
           </h2>
+            
+            {viewMode === 'formations' && selectedUniverse && (
+              <button
+                onClick={() => setSelectedUniverse(null)}
+                className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+                title="Voir toutes les formations"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Voir toutes
+              </button>
+            )}
+          </div>
           
           {viewMode === 'formations' && isAdmin() && (
           <button
           onClick={handleCreateFormation}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="bg-brand-beige text-white px-4 py-2 rounded-lg hover:bg-brand-blue/90 flex items-center gap-2"
         >
           <Plus className="h-5 w-5" />
           Nouvelle Formation
@@ -1285,544 +1400,111 @@ const AdminFormationsPage: React.FC = () => {
             </div>
           )
         ) : (
-          /* Vue Formations */
+          /* Vue Formations - Groupées par univers avec barres de séparation */
           getFormationsToDisplay().length === 0 ? (
-          <div className="text-center py-12">
-            <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">Aucune formation trouvée</p>
+            <div className="text-center py-12">
+              <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500 text-lg">Aucune formation trouvée</p>
               <p className="text-gray-400">
-                {selectedUniverse ? 
-                  `Aucune formation dans l'univers "${selectedUniverse.name}"` : 
-                  'Commencez par créer votre première formation'
-                }
+                Commencez par créer votre première formation
               </p>
-          </div>
-          ) : selectedUniverse ? (
-            /* Vue formations d'un univers spécifique avec Drag and Drop */
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {getFormationsToDisplay().map((formation) => (
-                <div
-                  key={formation.id}
-                  className="bg-gradient-to-b from-white to-blue-50 border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow relative"
-                >
-                  {/* Menu Admin (3 points) - Visible uniquement pour les admins */}
-                  {isAdmin() && (
-                    <div className="absolute top-2 right-2 z-10">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveDropdown(activeDropdown === formation.id ? null : formation.id);
-                        }}
-                        className="dropdown-trigger p-1 bg-white/80 hover:bg-white rounded-full shadow-sm transition-colors"
-                        title="Actions d'administration"
-                      >
-                        <MoreVertical className="h-4 w-4 text-gray-600" />
-                      </button>
-
-                      {/* Menu déroulant */}
-                      {activeDropdown === formation.id && (
-                        <div className="dropdown-menu absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-48 z-20">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleManageContent(formation);
-                              setActiveDropdown(null);
-                            }}
-                            className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <FolderOpen className="h-4 w-4 mr-2" />
-                            Gérer le contenu
-                          </button>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleConfigureQuiz(formation);
-                              setActiveDropdown(null);
-                            }}
-                            className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <Settings className="h-4 w-4 mr-2" />
-                            Configurer le quiz
-                          </button>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleAssignFormation(formation);
-                              setActiveDropdown(null);
-                            }}
-                            className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <UserPlus className="h-4 w-4 mr-2" />
-                            Assigner
-                          </button>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleEditFormation(formation);
-                              setActiveDropdown(null);
-                            }}
-                            className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <Edit className="h-4 w-4 mr-2" />
-                            Modifier la formation
-                          </button>
-
-                          <div className="border-t border-gray-200 my-1"></div>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveFormation(formation);
-                              setActiveDropdown(null);
-                            }}
-                            className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                          >
-                            <Move className="h-4 w-4 mr-2" />
-                            Déplacer
-                          </button>
-
-                          <div className="border-t border-gray-200 my-1"></div>
-
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteFormation(formation);
-                              setActiveDropdown(null);
-                            }}
-                            className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Supprimer
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  <div 
-                    className="relative h-32 bg-gray-200 rounded-lg mb-3 overflow-hidden group cursor-pointer"
-                    onClick={() => handleFormationClick(formation)}
-                  >
-                    {formation.coverImage ? (
-                      <img
-                        src={getFormationCoverImageUrl(formation.coverImage)}
-                        alt={`Couverture de ${formation.title}`}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          console.error('❌ Erreur de chargement de l\'image de couverture:', formation.coverImage);
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          target.nextElementSibling?.classList.remove('hidden');
-                        }}
-                      />
-                    ) : null}
-
-                    {/* Fallback si pas d'image */}
-                    <div className={`w-full h-full flex items-center justify-center ${formation.coverImage ? 'hidden' : ''}`}>
-                      <BookOpen className="h-12 w-12 text-gray-400" />
-                    </div>
-
-                    {/* Badge de statut - Visible uniquement pour les admins */}
-                    {isAdmin() && (
-                      <div className="absolute top-2 left-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleToggleActive(formation);
-                          }}
-                          className="cursor-pointer"
-                        >
-                          {getStatusIcon(formation.isActive)}
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Statistiques au survol - Visible uniquement pour les admins */}
-                    {isAdmin() && (
-                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                        <div className="flex items-center space-x-6 text-white">
-                          <div
-                            className="flex flex-col items-center hover:text-blue-300 transition-colors cursor-pointer"
-                            onClick={(e) => handleLessonsClick(formation, e)}
-                            title={`${formation.lessonCount || 0} leçon(s)`}
-                          >
-                            <BookOpen className="h-4 w-4 mb-1" />
-                            <span className="text-xs">{formation.lessonCount || 0}</span>
-                          </div>
-
-                          <div
-                            className="flex flex-col items-center hover:text-blue-300 transition-colors cursor-pointer"
-                            onClick={(e) => handleBanksClick(formation, e)}
-                            title={`${formationStats[formation.id]?.bankCount || 0} banque(s)`}
-                          >
-                            <Database className="h-4 w-4 mb-1" />
-                            <span className="text-xs">{formationStats[formation.id]?.bankCount || 0}</span>
-                          </div>
-
-                          <div
-                            className="flex flex-col items-center hover:text-yellow-300 transition-colors cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleConfigureQuiz(formation);
-                            }}
-                            title={formation.hasQuiz ? 'Quiz configuré - Cliquer pour modifier' : 'Quiz non configuré - Cliquer pour configurer'}
-                          >
-                            <HelpCircle className={`h-4 w-4 mb-1 ${
-                              formation.hasQuiz
-                                ? 'text-yellow-300'
-                                : 'text-white/70'
-                            }`} />
-                            <span className="text-xs">Quiz</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Contenu de la carte */}
-                  <div className="space-y-2">
-                    {/* Titre et durée */}
-                    <div className="flex items-start justify-between">
-                      <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 flex-1 pr-2">
-                        {formatFormationTitle(formation.title)}
-                      </h3>
-                      <div className="flex items-center text-gray-600 flex-shrink-0">
-                        <Clock className="h-3 w-3 mr-1" />
-                        <span className="text-xs">
-                          {formatDuration(formation.totalDuration || formation.duration)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Description */}
-                    <p className="text-xs text-gray-600 line-clamp-2">
-                      {formatFormationDescription(formation.description)}
-                    </p>
-
-                    {/* Action principale - Voir la formation */}
-                    <div className="pt-2">
-                      {/* <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleFormationClick(formation);
-                        }}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded-md transition-colors duration-200 flex items-center justify-center"
-                        title="Voir la formation"
-                      >
-                        <BookOpen className="h-3 w-3 mr-1" />
-                        Voir
-                      </button> */}
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           ) : (
-            /* Vue formations avec sections par univers */
             <div className="space-y-8">
-              {getFormationsGroupedByUniverse().map(({ universe, formations }) => (
-                <div key={universe.id}>
-                  {/* Séparateur avec titre */}
-                  <div className="flex items-center mb-4">
-                    <div className="flex-1 border-t border-gray-200"></div>
-                    <div className="px-4">
-                      <div className="flex items-center">
-                        <div 
-                          className="w-6 h-6 rounded-lg flex items-center justify-center text-white mr-2"
-                          style={{ backgroundColor: universe.color }}
-                        >
-                          <Folder className="h-3 w-3" />
-                        </div>
-                        <span className="text-sm font-medium text-gray-700">
-                          {universe.name}
-                        </span>
-                        <span className="ml-2 text-xs text-gray-500">
-                          ({formations.length} formation{formations.length > 1 ? 's' : ''})
-                        </span>
-                      </div>
+              {getFormationsGroupedByUniverse().map((group, groupIndex) => (
+                <div key={group.universe?.id || 'no-universe'} className="space-y-4">
+                  {/* Barre de séparation grise et discrète */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 h-px bg-gray-300"></div>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
+                      <div 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: group.universe?.color || '#6B7280' }}
+                      ></div>
+                      <span className="text-sm font-medium text-gray-700">
+                        {group.universe?.name || 'Sans univers'}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        ({group.formations.length} formation{group.formations.length > 1 ? 's' : ''})
+                      </span>
                     </div>
-                    <div className="flex-1 border-t border-gray-200"></div>
+                    <div className="flex-1 h-px bg-gray-300"></div>
                   </div>
                   
-                  {/* Formations de cet univers */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {formations.map((formation) => (
+                  {/* Grille de formations pour cet univers */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {group.formations.map((formation, index) => (
                       <div
                         key={formation.id}
-                        className={`bg-gradient-to-b from-white to-blue-50 border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow relative ${
-                          selectedFormations.includes(formation.id) ? 'ring-2 ring-blue-500 bg-blue-50' : ''
-                        }`}
+                        className="group bg-slate-700 rounded-lg overflow-hidden hover:bg-slate-600 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer"
+                        onClick={() => handleFormationClick(formation)}
                       >
-                        {/* Checkbox de sélection multiple */}
-                        {isAdmin() && (
-                          <div className="absolute top-2 left-2 z-10">
-                            <input
-                              type="checkbox"
-                              checked={selectedFormations.includes(formation.id)}
-                              onChange={() => handleSelectFormation(formation.id)}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                            />
-                          </div>
-                        )}
-
-                        {/* Menu Admin (3 points) - Visible uniquement pour les admins */}
-                        {isAdmin() && (
-                          <div className="absolute top-2 right-2 z-10">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveDropdown(activeDropdown === formation.id ? null : formation.id);
-                              }}
-                              className="dropdown-trigger p-1 bg-white/80 hover:bg-white rounded-full shadow-sm transition-colors"
-                              title="Actions d'administration"
-                            >
-                              <MoreVertical className="h-4 w-4 text-gray-600" />
-                            </button>
-
-                            {/* Menu déroulant */}
-                            {activeDropdown === formation.id && (
-                              <div className="dropdown-menu absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-48 z-20">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleManageContent(formation);
-                                    setActiveDropdown(null);
-                                  }}
-                                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  <FolderOpen className="h-4 w-4 mr-2" />
-                                  Gérer le contenu
-                                </button>
-
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleConfigureQuiz(formation);
-                                    setActiveDropdown(null);
-                                  }}
-                                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  <Settings className="h-4 w-4 mr-2" />
-                                  Configurer le quiz
-                                </button>
-
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleAssignFormation(formation);
-                                    setActiveDropdown(null);
-                                  }}
-                                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  <UserPlus className="h-4 w-4 mr-2" />
-                                  Assigner
-                                </button>
-
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleEditFormation(formation);
-                                    setActiveDropdown(null);
-                                  }}
-                                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  <Edit className="h-4 w-4 mr-2" />
-                                  Modifier la formation
-                                </button>
-
-                                <div className="border-t border-gray-200 my-1"></div>
-
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleMoveFormation(formation);
-                                    setActiveDropdown(null);
-                                  }}
-                                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  <Move className="h-4 w-4 mr-2" />
-                                  Déplacer
-                                </button>
-
-                                <div className="border-t border-gray-200 my-1"></div>
-
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteFormation(formation);
-                                    setActiveDropdown(null);
-                                  }}
-                                  className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  Supprimer
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Menu Apprenant (3 points) - Visible uniquement pour les apprenants */}
-                        {!isAdmin() && (
-                          <div className="absolute top-2 right-2 z-10">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveDropdown(activeDropdown === formation.id ? null : formation.id);
-                              }}
-                              className="dropdown-trigger p-1 bg-white/80 hover:bg-white rounded-full shadow-sm transition-colors"
-                              title="Actions disponibles"
-                            >
-                              <MoreVertical className="h-4 w-4 text-gray-600" />
-                            </button>
-
-                            {/* Menu déroulant apprenant */}
-                            {activeDropdown === formation.id && (
-                              <div className="dropdown-menu absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-48 z-20">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleFormationClick(formation);
-                                    setActiveDropdown(null);
-                                  }}
-                                  className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Voir les détails
-                                </button>
-
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleScheduleFormation(formation);
-                                    setActiveDropdown(null);
-                                  }}
-                                  className="w-full flex items-center px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
-                                >
-                                  <Calendar className="h-4 w-4 mr-2" />
-                                  Planifier dans l'agenda
-                                </button>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
+                        {/* Section supérieure bleue foncée avec logo */}
                         <div 
-                          className="relative h-32 bg-gray-200 rounded-lg mb-3 overflow-hidden group cursor-pointer"
-                          onClick={() => handleFormationClick(formation)}
+                          className="h-32 bg-slate-700 group-hover:bg-slate-600 relative flex items-center justify-center transition-colors duration-300"
                         >
-                          {formation.coverImage ? (
-                            <img
-                              src={getFormationCoverImageUrl(formation.coverImage)}
-                              alt={`Couverture de ${formation.title}`}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                console.error('❌ Erreur de chargement de l\'image de couverture:', formation.coverImage);
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                                target.nextElementSibling?.classList.remove('hidden');
-                              }}
-                            />
-                          ) : null}
-
-                          {/* Fallback si pas d'image */}
-                          <div className={`w-full h-full flex items-center justify-center ${formation.coverImage ? 'hidden' : ''}`}>
-                            <BookOpen className="h-12 w-12 text-gray-400" />
+                          {/* Logo BAI en haut à gauche */}
+                          <div className="absolute top-3 left-3">
+                            <div className="w-8 h-8">
+                              <img 
+                                src="/images/BAI 2-modified.png" 
+                                alt="BAI Logo" 
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  // Fallback si l'image n'est pas trouvée
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                            </div>
                           </div>
 
-                          {/* Badge de statut - Visible uniquement pour les admins */}
-                          {isAdmin() && (
-                            <div className="absolute top-2 left-2">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleToggleActive(formation);
-                                }}
-                                className="cursor-pointer"
-                              >
-                                {getStatusIcon(formation.isActive)}
-                              </button>
-                            </div>
-                          )}
-
-                          {/* Statistiques au survol - Visible uniquement pour les admins */}
-                          {isAdmin() && (
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                              <div className="flex items-center space-x-6 text-white">
-                                <div
-                                  className="flex flex-col items-center hover:text-blue-300 transition-colors cursor-pointer"
-                                  onClick={(e) => handleLessonsClick(formation, e)}
-                                  title={`${formation.lessonCount || 0} leçon(s)`}
-                                >
-                                  <BookOpen className="h-4 w-4 mb-1" />
-                                  <span className="text-xs">{formation.lessonCount || 0}</span>
-                                </div>
-
-                                <div
-                                  className="flex flex-col items-center hover:text-blue-300 transition-colors cursor-pointer"
-                                  onClick={(e) => handleBanksClick(formation, e)}
-                                  title={`${formationStats[formation.id]?.bankCount || 0} banque(s)`}
-                                >
-                                  <Database className="h-4 w-4 mb-1" />
-                                  <span className="text-xs">{formationStats[formation.id]?.bankCount || 0}</span>
-                                </div>
-
-                                <div
-                                  className="flex flex-col items-center hover:text-yellow-300 transition-colors cursor-pointer"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleConfigureQuiz(formation);
-                                  }}
-                                  title={formation.hasQuiz ? 'Quiz configuré - Cliquer pour modifier' : 'Quiz non configuré - Cliquer pour configurer'}
-                                >
-                                  <HelpCircle className={`h-4 w-4 mb-1 ${
-                                    formation.hasQuiz
-                                      ? 'text-yellow-300'
-                                      : 'text-white/70'
-                                  }`} />
-                                  <span className="text-xs">Quiz</span>
-                                </div>
+                          {/* Icône Quiz en haut à droite */}
+                          <div className="absolute top-3 right-3">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleConfigureQuiz(formation);
+                              }}
+                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+                                formation.hasQuiz 
+                                  ? 'bg-green-500 hover:bg-green-600' 
+                                  : 'bg-orange-500 hover:bg-orange-600'
+                              }`}
+                              title={formation.hasQuiz ? 'Quiz configuré' : 'Configurer le quiz'}
+                            >
+                              <HelpCircle className="h-4 w-4 text-white" />
+                            </button>
+                          </div>
+                          
+                          {/* Titre de la formation centré */}
+                          <div className="text-center px-6">
+                            <h3 className="text-amber-50 font-bold text-sm leading-tight mb-1">
+                              {formation.title}
+                            </h3>
+                            <div className="w-full h-px bg-amber-50 opacity-50"></div>
+                          </div>
+                        </div>
+                        
+                        {/* Section inférieure bleue foncée */}
+                        <div className="p-4 bg-slate-700 group-hover:bg-slate-600 transition-colors duration-300">
+                          <div className="flex items-center justify-between">
+                            {/* Numéro de cours */}
+                            <div>
+                              <div className="text-amber-50 font-bold text-sm">
+                                cours n°{index + 1}
                               </div>
                             </div>
-                          )}
-                        </div>
-
-                        {/* Contenu de la carte */}
-                        <div className="space-y-2">
-                          {/* Titre et durée */}
-                          <div className="flex items-start justify-between">
-                            <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 flex-1 pr-2">
-                              {formatFormationTitle(formation.title)}
-                            </h3>
-                            <div className="flex items-center text-gray-600 flex-shrink-0">
-                              <Clock className="h-3 w-3 mr-1" />
-                              <span className="text-xs">
-                                {formatDuration(formation.totalDuration || formation.duration)}
+                            
+                            {/* Date de modification centrée */}
+                            <div className="flex items-center">
+                              <div className="w-3 h-3 bg-amber-50 rounded-full mr-2 flex items-center justify-center">
+                                <div className="w-1.5 h-1.5 bg-slate-900 rounded-full"></div>
+                              </div>
+                              <span className="text-amber-50 text-xs">
+                                • Modifié il y a {formatModificationDate(formation.updatedAt)} jours
                               </span>
                             </div>
-                          </div>
-
-                          {/* Description */}
-                          <p className="text-xs text-gray-600 line-clamp-2">
-                            {formatFormationDescription(formation.description)}
-                          </p>
-
-                          {/* Action principale - Voir la formation */}
-                          <div className="pt-2">
-                            {/* <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleFormationClick(formation);
-                              }}
-                              className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-2 rounded-md transition-colors duration-200 flex items-center justify-center"
-                              title="Voir la formation"
-                            >
-                              <BookOpen className="h-3 w-3 mr-1" />
-                              Voir
-                            </button> */}
                           </div>
                         </div>
                       </div>
@@ -1835,678 +1517,26 @@ const AdminFormationsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modal de création/édition de formation */}
+      {/* Modales */}
       {showFormationModal && (
         <FormationModal
-          formation={selectedFormation}
           onClose={() => setShowFormationModal(false)}
           onSave={handleSaveFormation}
-          universeId={selectedUniverse?.id === 'fsu' ? undefined : selectedUniverse?.id}
+          formation={selectedFormation}
+          universes={cacheData?.universes || []}
         />
       )}
 
-      {/* Modal de configuration du quiz */}
       {showQuizModal && selectedFormation && (
         <QuizConfigModal
           isOpen={showQuizModal}
+          formationId={selectedFormation.id}
           onClose={() => setShowQuizModal(false)}
           onSave={handleSaveQuiz}
-          formationId={selectedFormation.id}
-          existingQuiz={null}
         />
-      )}
-
-      {/* Gestionnaire de contenu */}
-      {showContentManager && selectedFormation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-            <FormationContentManager
-              formation={selectedFormation}
-              onClose={() => setShowContentManager(false)}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Modal de confirmation de suppression */}
-      {showConfirmModal && (
-        <ConfirmModal
-          title="Supprimer la formation"
-          message={`Êtes-vous sûr de vouloir supprimer la formation "${selectedFormation?.title}" ?`}
-          onConfirm={handleDeleteConfirm}
-          onCancel={() => setShowConfirmModal(false)}
-          confirmText="Supprimer"
-          variant="danger"
-        />
-      )}
-
-      {/* Modal d'attribution individuelle */}
-      {showAssignmentModal && selectedFormation && (
-        <FormationAssignmentModal
-          isOpen={showAssignmentModal}
-          onClose={() => setShowAssignmentModal(false)}
-          formation={selectedFormation}
-          onSave={handleSaveAssignments}
-        />
-      )}
-
-      {/* Modal de création d'univers */}
-      {showUniverseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Créer un nouvel univers</h3>
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target as HTMLFormElement);
-                const name = formData.get('name') as string;
-                const description = formData.get('description') as string;
-                const color = formData.get('color') as string;
-                
-                try {
-                  // Mise à jour optimiste : créer l'univers immédiatement dans l'interface
-                  const tempId = `temp-${Date.now()}`;
-                  const newUniverse: Universe = {
-                    id: tempId,
-                    name,
-                    description: description || undefined,
-                    color: color || '#3B82F6',
-                    isActive: true,
-                    createdAt: new Date(),
-                    updatedAt: new Date(),
-                    formationCount: 0
-                  };
-                  addUniverseOptimistically(newUniverse);
-                  setShowUniverseModal(false);
-                  
-                  // Appel API en arrière-plan
-                  const response = await universesApi.create({
-                    name,
-                    description: description || undefined,
-                    color: color || '#3B82F6',
-                    isActive: true
-                  });
-                  
-                  // Recharger les données pour avoir l'univers réel
-                  if (response.data.success) {
-                    await refreshData();
-                  }
-                } catch (error) {
-                  console.error('Erreur lors de la création de l\'univers:', error);
-                  // En cas d'erreur, supprimer l'univers temporaire et recharger
-                  removeUniverseOptimistically(`temp-${Date.now()}`);
-                  await refreshData();
-                }
-              }}>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nom de l'univers
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ex: Banque, Conformité..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description (optionnel)
-                    </label>
-                    <textarea
-                      name="description"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={3}
-                      placeholder="Description de l'univers..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Couleur
-                    </label>
-                    <div className="flex gap-2">
-                      {['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'].map(color => (
-                        <button
-                          key={color}
-                          type="button"
-                          name="color"
-                          value={color}
-                          className="w-8 h-8 rounded-lg border-2 border-gray-300 hover:border-gray-400"
-                          style={{ backgroundColor: color }}
-                          onClick={(e) => {
-                            const target = e.target as HTMLButtonElement;
-                            const form = target.closest('form');
-                            if (form) {
-                              const colorInput = form.querySelector('input[name="color"]') as HTMLInputElement;
-                              if (colorInput) {
-                                colorInput.value = color;
-                              }
-                            }
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <input type="hidden" name="color" value="#3B82F6" />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowUniverseModal(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Créer
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal d'édition d'univers */}
-      {showUniverseEditModal && universeToEdit && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Modifier l'univers</h3>
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target as HTMLFormElement);
-                const name = formData.get('name') as string;
-                const description = formData.get('description') as string;
-                const color = formData.get('color') as string;
-                
-                await handleUpdateUniverse({
-                  name,
-                  description: description || undefined,
-                  color: color || universeToEdit.color
-                });
-              }}>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Nom de l'univers
-                    </label>
-                    <input
-                      type="text"
-                      name="name"
-                      defaultValue={universeToEdit.name}
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Ex: Banque, Conformité..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Description (optionnel)
-                    </label>
-                    <textarea
-                      name="description"
-                      defaultValue={universeToEdit.description || ''}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={3}
-                      placeholder="Description de l'univers..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Couleur
-                    </label>
-                    <div className="flex gap-2 flex-wrap">
-                      {[
-                        { name: 'Bleu', value: '#3B82F6' },
-                        { name: 'Vert', value: '#10B981' },
-                        { name: 'Violet', value: '#8B5CF6' },
-                        { name: 'Orange', value: '#F59E0B' },
-                        { name: 'Rouge', value: '#EF4444' },
-                        { name: 'Cyan', value: '#06B6D4' },
-                        { name: 'Rose', value: '#EC4899' },
-                        { name: 'Indigo', value: '#6366F1' }
-                      ].map(colorOption => (
-                        <button
-                          key={colorOption.value}
-                          type="button"
-                          name="color"
-                          value={colorOption.value}
-                          className={`w-8 h-8 rounded-lg border-2 transition-all ${
-                            universeToEdit.color === colorOption.value 
-                              ? 'border-gray-400 scale-110' 
-                              : 'border-gray-300 hover:border-gray-400'
-                          }`}
-                          style={{ backgroundColor: colorOption.value }}
-                          onClick={(e) => {
-                            const target = e.target as HTMLButtonElement;
-                            const form = target.closest('form');
-                            if (form) {
-                              const colorInput = form.querySelector('input[name="color"]') as HTMLInputElement;
-                              if (colorInput) {
-                                colorInput.value = colorOption.value;
-                              }
-                            }
-                          }}
-                          title={colorOption.name}
-                        />
-                      ))}
-                    </div>
-                    <input type="hidden" name="color" defaultValue={universeToEdit.color} />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowUniverseEditModal(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Sauvegarder
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de confirmation */}
-      <ConfirmationModal
-        isOpen={confirmation.isOpen}
-        onClose={confirmation.hideConfirmation}
-        onConfirm={confirmation.handleConfirm}
-        title={confirmation.options?.title || ''}
-        message={confirmation.options?.message || ''}
-        confirmText={confirmation.options?.confirmText}
-        cancelText={confirmation.options?.cancelText}
-        type={confirmation.options?.type}
-        isLoading={confirmation.isLoading}
-      />
-
-      {/* Modal de déplacement de formation */}
-      {showMoveFormationModal && formationToMove && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Déplacer "{formationToMove.title}"
-              </h3>
-              <div className="space-y-3">
-                <p className="text-sm text-gray-600 mb-4">
-                  Choisissez l'univers de destination pour cette formation :
-                </p>
-                {universes.map(universe => (
-                  <button
-                    key={universe.id}
-                    onClick={() => handleSaveMoveFormation(universe.id)}
-                    className="w-full flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                  >
-                    <div 
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white mr-3"
-                      style={{ backgroundColor: universe.color }}
-                    >
-                      <Folder className="h-4 w-4" />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-medium text-gray-900">{universe.name}</div>
-                      {universe.description && (
-                        <div className="text-sm text-gray-500">{universe.description}</div>
-                      )}
-                    </div>
-                  </button>
-                ))}
-                <button
-                  onClick={() => handleSaveMoveFormation('')}
-                  className="w-full flex items-center p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-gray-500 flex items-center justify-center text-white mr-3">
-                    <Folder className="h-4 w-4" />
-                  </div>
-                  <div className="text-left">
-                    <div className="font-medium text-gray-900">Retirer de l'univers</div>
-                    <div className="text-sm text-gray-500">Placer dans FSU</div>
-                  </div>
-                </button>
-              </div>
-              <div className="flex justify-end gap-3 mt-6">
-                <button
-                  onClick={() => setShowMoveFormationModal(false)}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  Annuler
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de suppression en lot */}
-      {showBulkDeleteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                  <Trash2 className="h-5 w-5 text-red-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Supprimer les formations
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Cette action est irréversible
-                  </p>
-                </div>
-              </div>
-              
-              <p className="text-gray-700 mb-6">
-                Êtes-vous sûr de vouloir supprimer <strong>{selectedFormations.length}</strong> formation{selectedFormations.length > 1 ? 's' : ''} ?
-                Toutes les données associées seront définitivement perdues.
-              </p>
-              
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowBulkDeleteModal(false)}
-                  disabled={bulkActionLoading}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={handleBulkDelete}
-                  disabled={bulkActionLoading}
-                  className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {bulkActionLoading && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  )}
-                  Supprimer
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de déplacement en lot */}
-      {showBulkMoveModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                  <Move className="h-5 w-5 text-purple-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Déplacer les formations
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Sélectionnez l'univers de destination
-                  </p>
-                </div>
-              </div>
-              
-              <p className="text-gray-700 mb-4">
-                Déplacer <strong>{selectedFormations.length}</strong> formation{selectedFormations.length > 1 ? 's' : ''} vers :
-              </p>
-              
-              <div className="space-y-2 mb-6">
-                {/* Option FSU */}
-                <button
-                  onClick={() => handleBulkMove(null)}
-                  disabled={bulkActionLoading}
-                  className="w-full text-left p-3 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-4 h-4 rounded-full bg-gray-400"></div>
-                    <span className="font-medium">FSU (Formations Sans Univers)</span>
-                  </div>
-                </button>
-                
-                {/* Autres univers */}
-                {universes.map((universe) => (
-                  <button
-                    key={universe.id}
-                    onClick={() => handleBulkMove(universe.id)}
-                    disabled={bulkActionLoading}
-                    className="w-full text-left p-3 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div 
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: universe.color }}
-                      ></div>
-                      <span className="font-medium">{universe.name}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-              
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowBulkMoveModal(false)}
-                  disabled={bulkActionLoading}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
-                >
-                  Annuler
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal d'assignation en lot */}
-      {showBulkAssignModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4">
-            <div className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                  <UserPlus className="h-5 w-5 text-green-600" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    Assigner les formations
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Sélectionnez les collaborateurs et paramètres
-                  </p>
-                </div>
-              </div>
-              
-              <p className="text-gray-700 mb-6">
-                Assigner <strong>{selectedFormations.length}</strong> formation{selectedFormations.length > 1 ? 's' : ''} aux collaborateurs :
-              </p>
-              
-              <div className="space-y-4 mb-6">
-                {/* Sélection des collaborateurs */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Collaborateurs à assigner
-                  </label>
-                  <div className="bg-gray-50 border border-gray-200 rounded-md p-4">
-                    <p className="text-sm text-gray-600 mb-2">
-                      Sélectionnez les collaborateurs qui recevront ces formations :
-                    </p>
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <input type="checkbox" id="all-users" className="rounded" />
-                        <label htmlFor="all-users" className="text-sm text-gray-700">
-                          Tous les collaborateurs de la banque
-                        </label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <input type="checkbox" id="specific-users" className="rounded" />
-                        <label htmlFor="specific-users" className="text-sm text-gray-700">
-                          Collaborateurs spécifiques
-                        </label>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Paramètres d'assignation */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Paramètres d'assignation
-                  </label>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <input type="checkbox" id="is-mandatory" className="rounded" />
-                      <label htmlFor="is-mandatory" className="text-sm text-gray-700">
-                        Formation obligatoire
-                      </label>
-                    </div>
-                    
-                    <div>
-                      <label htmlFor="due-date" className="block text-sm text-gray-600 mb-1">
-                        Date d'échéance (optionnelle)
-                      </label>
-                      <input
-                        type="date"
-                        id="due-date"
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setShowBulkAssignModal(false)}
-                  disabled={bulkActionLoading}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={() => {
-                    // TODO: Implémenter la logique de sélection des utilisateurs
-                    const mockAssignments = [
-                      { userId: 'user1', bankId: 'bank1', isMandatory: true, dueDate: null }
-                    ];
-                    handleBulkAssign(mockAssignments);
-                  }}
-                  disabled={bulkActionLoading}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
-                >
-                  {bulkActionLoading && (
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                  )}
-                  Assigner les formations
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de planification dans l'agenda */}
-      {showScheduleModal && selectedFormation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Planifier dans l'agenda
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Formation : <strong>{selectedFormation.title}</strong>
-              </p>
-              
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target as HTMLFormElement);
-                const date = formData.get('date') as string;
-                const time = formData.get('time') as string;
-                
-                try {
-                  // Appel API pour planifier la formation
-                  const { formationsApi } = await import('../../../api/learnerApi');
-                  
-                  await formationsApi.scheduleFormation({
-                    formationId: selectedFormation.id,
-                    date,
-                    time,
-                    title: selectedFormation.title,
-                    description: `Formation planifiée : ${selectedFormation.title}`
-                  });
-                  
-                  toast({
-                    title: "Formation planifiée",
-                    description: `"${selectedFormation.title}" a été ajoutée à votre agenda le ${new Date(date).toLocaleDateString('fr-FR')} à ${time}`,
-                  });
-                  
-                  setShowScheduleModal(false);
-                } catch (error) {
-                  console.error('Erreur lors de la planification:', error);
-                  toast({
-                    title: "Erreur",
-                    description: "Impossible de planifier la formation",
-                    variant: "destructive"
-                  });
-                }
-              }}>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Date
-                    </label>
-                    <input
-                      type="date"
-                      name="date"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Heure
-                    </label>
-                    <input
-                      type="time"
-                      name="time"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowScheduleModal(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Planifier
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
 };
 
-export default AdminFormationsPage; 
+export default AdminFormationsPage;

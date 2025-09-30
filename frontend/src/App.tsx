@@ -16,7 +16,7 @@ import AdminDashboardPage from './app/admin/dashboard/page';
 import AdminBanksPage from './app/admin/banks/page';
 import AdminUsersPage from './app/admin/users/page';
 import AdminFormationsPage from './features/admin/components/AdminFormationsPage';
-import AdminOpportunitiesPage from './features/admin/components/AdminOpportunitiesPage';
+// import AdminOpportunitiesPage from './features/admin/components/AdminOpportunitiesPage';
 import AdminStatsPage from './app/admin/stats/page';
 import AdminSettingsPage from './app/admin/settings/page';
 import BankDetailPage from './features/admin/components/BankDetailPage';

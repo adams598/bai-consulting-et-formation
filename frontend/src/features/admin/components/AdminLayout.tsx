@@ -343,10 +343,10 @@ const AdminLayoutContent: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex h-screen bg-gray-100">
+    <div className="min-h-screen bg-white">
+      <div className="flex h-screen bg-white">
         {/* Sidebar */}
-        <aside className={`hidden md:flex flex-col bg-gradient-to-b from-white to-blue-50 transition-all duration-300 ${
+        <aside className={`hidden md:flex flex-col bg-gradient-to-b from-white to-beige-50 transition-all duration-300 ${
           isSidebarCollapsed ? 'w-16' : 'w-64'
         }`}>
           <div className="flex flex-col flex-1 overflow-y-auto">
