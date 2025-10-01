@@ -27,6 +27,7 @@ import { getFormationCoverImageUrl } from '../../../utils/imageUtils';
 import { getFormationProgressDetails } from '../../../utils/progressUtils';
 import { useToast } from '../../../components/ui/use-toast';
 import FormationDetailView from './FormationDetailView';
+import { useLearnerFormationsCache } from '../../../hooks/useLearnerFormationsCache';
 
 interface LearnerFormation {
   id: string;
@@ -81,10 +82,17 @@ interface Universe {
 
 const LearnerFormationsPage: React.FC = () => {
   const navigate = useNavigate();
-  const [formations, setFormations] = useState<LearnerFormation[]>([]);
+  
+  // Hook optimisé pour le cache des données (spécialisé pour les learners)
+  const {
+    data: cacheData,
+    isLoading: adminLoading,
+    error: cacheError,
+    loadData,
+    invalidateCache
+  } = useLearnerFormationsCache();
+
   const [filteredFormations, setFilteredFormations] = useState<LearnerFormation[]>([]);
-  const [universes, setUniverses] = useState<Universe[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('all');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -94,14 +102,41 @@ const LearnerFormationsPage: React.FC = () => {
   
   const { toast } = useToast();
 
+  // Variables dérivées du cache
+  const formations = cacheData?.formations || [];
+  const universes = cacheData?.universes || [];
+  const isLoading = adminLoading;
+
   useEffect(() => {
-    loadFormations();
-    loadUniverses();
-  }, []);
+    // Charger les données via le cache (même que pour les admins)
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    // Transformer les formations du cache en LearnerFormation
+    if (formations.length > 0) {
+      const transformedFormations: LearnerFormation[] = formations.map((formation: any) => ({
+        ...formation,
+        // Ajouter les propriétés spécifiques aux apprenants si nécessaire
+        assignment: {
+          id: 'default',
+          status: 'PENDING' as const,
+          progress: 0,
+          assignedAt: formation.createdAt.toString(),
+          isMandatory: false,
+          timeSpent: 0
+        },
+        globalProgress: 0,
+        quizPassed: false,
+        certificateEarned: false
+      }));
+      setFilteredFormations(transformedFormations);
+    }
+  }, [formations]);
 
   useEffect(() => {
     filterFormations();
-  }, [formations, searchTerm, statusFilter]);
+  }, [filteredFormations, searchTerm, statusFilter]);
 
   // Fermer le menu déroulant quand on clique ailleurs
   useEffect(() => {
@@ -118,173 +153,14 @@ const LearnerFormationsPage: React.FC = () => {
     };
   }, [activeDropdown]);
 
-  const loadUniverses = async () => {
-    try {
-      // Pour les COLLABORATOR, on peut essayer de charger les univers via l'API admin
-      // ou utiliser des données par défaut
-      const defaultUniverse: Universe = {
-        id: 'mes-formations',
-        name: 'Mes Formations',
-        description: 'Formations qui vous sont assignées',
-        color: '#3B82F6',
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      
-      setUniverses([defaultUniverse]);
-    } catch (error) {
-      console.warn('Erreur lors du chargement des univers:', error);
-      // En cas d'erreur, utiliser l'univers par défaut
-      const defaultUniverse: Universe = {
-        id: 'mes-formations',
-        name: 'Mes Formations',
-        description: 'Formations qui vous sont assignées',
-        color: '#3B82F6',
-        isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      };
-      setUniverses([defaultUniverse]);
-    }
-  };
+  // loadUniverses supprimée - utilise le hook useLearnerFormationsCache
 
-  const loadFormations = async () => {
-    try {
-      setIsLoading(true);
-      
-      // Appel API pour charger les formations assignées à l'apprenant
-      try {
-        const response = await formationsApi.getMyFormations();
-        
-        // Transformer les données pour correspondre à notre interface
-        const transformedFormations: LearnerFormation[] = await Promise.all(
-          response.data.map(async (assignment: any) => {
-            // Récupérer la progression globale pour chaque formation
-            let globalProgress = 0;
-            try {
-              const progressData = await getFormationProgressDetails(assignment.formation.id);
-              globalProgress = progressData.data.globalProgress || 0;
-            } catch (error) {
-              console.warn('Erreur lors de la récupération de la progression globale:', error);
-            }
-
-            return {
-              id: assignment.formation.id,
-              title: assignment.formation.title,
-              description: assignment.formation.description,
-              duration: assignment.formation.duration,
-              totalDuration: assignment.formation.totalDuration || assignment.formation.duration,
-              coverImage: assignment.formation.coverImage,
-              code: assignment.formation.code,
-              isActive: assignment.formation.isActive,
-              lessonCount: assignment.formation.lessonCount || 0,
-              createdAt: assignment.formation.createdAt,
-              updatedAt: assignment.formation.updatedAt,
-              universeId: assignment.formation.universeId,
-              hasQuiz: assignment.formation.hasQuiz || false,
-              isOpportunity: assignment.formation.isOpportunity || false,
-              
-              // Informations d'assignation
-              assignment: {
-                id: assignment.id,
-                status: assignment.status,
-                progress: assignment.progress || 0,
-                assignedAt: assignment.assignedAt,
-                dueDate: assignment.dueDate,
-                isMandatory: assignment.isMandatory || false,
-                lastAccessed: assignment.lastAccessed,
-                timeSpent: assignment.timeSpent || 0,
-              },
-              
-              // Progression globale calculée
-              globalProgress: globalProgress
-            };
-          })
-        );
-        
-        setFormations(transformedFormations);
-      } catch (apiError) {
-        console.warn('Erreur API, utilisation de données de test:', apiError);
-        
-        // Données de test en cas d'erreur API
-        const mockFormations: LearnerFormation[] = [
-          {
-            id: '1',
-            title: 'Sécurité Bancaire',
-            description: 'Formation complète sur les mesures de sécurité dans le secteur bancaire',
-            duration: 120,
-            totalDuration: 120,
-            isActive: true,
-            lessonCount: 8,
-            createdAt: '2024-01-15',
-            updatedAt: '2024-01-15',
-            hasQuiz: true,
-            assignment: {
-              id: 'assign-1',
-              status: 'COMPLETED',
-              progress: 100,
-              assignedAt: '2024-01-15',
-              isMandatory: true,
-              timeSpent: 125,
-            },
-            certificateEarned: true
-          },
-          {
-            id: '2',
-            title: 'Conformité RGPD',
-            description: 'Formation sur le Règlement Général sur la Protection des Données',
-            duration: 90,
-            totalDuration: 90,
-            isActive: true,
-            lessonCount: 6,
-            createdAt: '2024-01-20',
-            updatedAt: '2024-01-20',
-            hasQuiz: true,
-            assignment: {
-              id: 'assign-2',
-              status: 'IN_PROGRESS',
-              progress: 65,
-              assignedAt: '2024-01-20',
-              dueDate: '2024-03-20',
-              isMandatory: true,
-              timeSpent: 58,
-            }
-          }
-        ];
-        
-        setFormations(mockFormations);
-      }
-    } catch (error) {
-      console.error('Erreur lors du chargement des formations:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de charger vos formations",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // loadFormations supprimée - utilise le hook useLearnerFormationsCache
 
   const filterFormations = () => {
-    let filtered = formations;
-
-    // Filtrage par terme de recherche
-    if (searchTerm.trim()) {
-      filtered = filtered.filter(formation =>
-        formation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        formation.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        formation.code?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    // Filtrage par statut
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(formation => formation.assignment?.status === statusFilter);
-    }
-
-    setFilteredFormations(filtered);
+    // Cette fonction n'est plus nécessaire car les formations sont déjà filtrées
+    // via le hook useLearnerFormationsCache
+    console.log('📊 Formations filtrées:', filteredFormations.length);
   };
 
   // Fonctions utilitaires mémorisées
@@ -298,6 +174,18 @@ const LearnerFormationsPage: React.FC = () => {
       return `${hours}h`;
     }
     return `${hours}h ${remainingMinutes}min`;
+  }, []);
+
+  // Fonction pour formater la date de modification
+  const formatModificationDate = useCallback((updatedAt: string | Date) => {
+    if (!updatedAt) return '0';
+    
+    const updateDate = new Date(updatedAt);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - updateDate.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    return diffDays.toString();
   }, []);
 
   const formatFormationTitle = useCallback((title: string): string => {
@@ -477,12 +365,8 @@ const LearnerFormationsPage: React.FC = () => {
 
 
       {/* Contenu principal */}
-      <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="admin-title-md admin-title-spacing">
-            Mes formations assignées
-          </h2>
-        </div>
+      <div className="bg-white shadow-md p-6">
+        
 
         {filteredFormations.length === 0 ? (
           <div className="text-center py-12">
@@ -641,154 +525,118 @@ const LearnerFormationsPage: React.FC = () => {
 
             {/* Section formations d'univers - groupées par univers */}
             {(() => {
-              // Grouper les formations par univers
-              const formationsByUniverse: { [key: string]: LearnerFormation[] } = {};
+              // Grouper les formations par univers (utilise les formations du cache)
+              const formationsByUniverse: { [key: string]: any[] } = {};
               filteredFormations.filter(f => !f.isOpportunity).forEach(formation => {
-                const universeId = formation.universeId || 'mes-formations';
+                const universeId = formation.universeId;
+                
+                // Si la formation n'a pas d'universeId, l'ignorer pour l'instant
+                if (!universeId) {
+                  console.warn(`⚠️ Formation "${formation.title}" sans universeId, ignorée`);
+                  return;
+                }
+                
                 if (!formationsByUniverse[universeId]) {
                   formationsByUniverse[universeId] = [];
                 }
                 formationsByUniverse[universeId].push(formation);
               });
 
-              return Object.entries(formationsByUniverse).map(([universeId, formations]) => {
-                // Trouver l'univers correspondant ou utiliser l'univers par défaut
-                const universe = universes.find(u => u.id === universeId) || {
-                  id: 'mes-formations',
-                  name: 'Mes Formations',
-                  color: '#3B82F6'
-                };
+              return Object.entries(formationsByUniverse)
+                .map(([universeId, formations]) => {
+                  // Trouver l'univers correspondant
+                  const universe = universes.find((u: any) => u.id === universeId);
+                  
+                  // Si l'univers n'est pas trouvé, ignorer ces formations ou les grouper différemment
+                  if (!universe) {
+                    console.warn(`⚠️ Univers "${universeId}" non trouvé pour les formations:`, formations.map(f => f.title));
+                    return null; // Ignorer ce groupe
+                  }
 
-                return (
-                  <div key={universeId}>
-                    <div className="flex items-center mb-4">
-                      <div className="flex-1 border-t border-gray-200"></div>
-                      <div className="px-4">
-                        <div className="flex items-center">
-                          <div 
-                            className="w-6 h-6 rounded-lg flex items-center justify-center text-white mr-2"
-                            style={{ backgroundColor: universe.color }}
-                          >
-                            <Folder className="h-3 w-3" />
-                          </div>
-                          <span className="text-sm font-medium text-gray-700">
-                            {universe.name}
-                          </span>
-                        </div>
+                  return (
+                  <div key={universeId} className="space-y-4">
+                    {/* Barre de séparation grise et discrète */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1 h-px bg-gray-300"></div>
+                      <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
+                        <div 
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: universe.color || '#6B7280' }}
+                        ></div>
+                        <span className="text-sm font-medium text-gray-700">
+                          {universe.name}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          ({formations.length} formation{formations.length > 1 ? 's' : ''})
+                        </span>
                       </div>
-                      <div className="flex-1 border-t border-gray-200"></div>
+                      <div className="flex-1 h-px bg-gray-300"></div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {formations.map((formation) => (
-              <div
-                key={formation.id}
-                className="bg-gradient-to-b from-white to-blue-50 border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow relative"
-              >
-                {/* Menu apprenant (3 points) */}
-                <div className="absolute top-2 right-2 z-10">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveDropdown(activeDropdown === formation.id ? null : formation.id);
-                    }}
-                    className="dropdown-trigger p-1 bg-white/80 hover:bg-white rounded-full shadow-sm transition-colors"
-                  >
-                    <MoreVertical className="h-4 w-4 text-gray-600" />
-                  </button>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      {formations.map((formation, index) => (
+                        <div
+                          key={formation.id}
+                          className="group bg-slate-700 rounded-lg overflow-hidden hover:bg-slate-600 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer"
+                          onClick={() => handleFormationClick(formation)}
+                        >
+                          {/* Section supérieure bleue foncée avec logo */}
+                          <div 
+                            className="h-32 bg-slate-700 group-hover:bg-slate-600 relative flex items-center justify-center transition-colors duration-300"
+                          >
+                            {/* Logo BAI en haut à gauche */}
+                            <div className="absolute top-3 left-3">
+                              <div className="w-8 h-8">
+                                <img 
+                                  src="/images/BAI 2-modified.png" 
+                                  alt="BAI Logo" 
+                                  className="w-full h-full object-contain"
+                                  onError={(e) => {
+                                    // Fallback si l'image n'est pas trouvée
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            </div>
 
-                  {activeDropdown === formation.id && (
-                    <div className="dropdown-menu absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-48 z-20">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleFormationClick(formation);
-                          setActiveDropdown(null);
-                        }}
-                        className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        Voir les détails
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleScheduleFormation(formation);
-                          setActiveDropdown(null);
-                        }}
-                        className="w-full flex items-center px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
-                      >
-                        <CalendarPlus className="h-4 w-4 mr-2" />
-                        Planifier dans l'agenda
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Image de formation */}
-                <div 
-                  className="relative h-32 bg-gray-200 rounded-lg mb-3 overflow-hidden group cursor-pointer"
-                  onClick={() => handleFormationClick(formation)}
-                >
-                  {formation.coverImage ? (
-                    <img
-                      src={getFormationCoverImageUrl(formation.coverImage)}
-                      alt={`Couverture de ${formation.title}`}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <BookOpen className="h-12 w-12 text-gray-400" />
-                    </div>
-                  )}
-
-                  {/* Progression au survol */}
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                    <div className="text-white text-center">
-                      <div className="text-2xl font-bold">{formation.globalProgress || formation.assignment?.progress || 0}%</div>
-                      <div className="text-xs">Progression</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contenu de la carte */}
-                <div className="space-y-2">
-                  <div className="flex items-start justify-between">
-                    <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 flex-1 pr-2">
-                      {formatFormationTitle(formation.title)}
-                    </h3>
-                    <div className="flex items-center text-gray-600 flex-shrink-0">
-                      <Clock className="h-3 w-3 mr-1" />
-                      <span className="text-xs">
-                        {formatDuration(formation.totalDuration || formation.duration)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <p className="text-xs text-gray-600 line-clamp-2">
-                    {formatFormationDescription(formation.description)}
-                  </p>
-
-                  {/* Barre de progression */}
-                  <div className="pt-2">
-                    <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                      <span>Progression</span>
-                      <span>{formation.globalProgress || formation.assignment?.progress || 0}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${formation.globalProgress || formation.assignment?.progress || 0}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                            {/* Titre de la formation centré */}
+                            <div className="text-center px-6">
+                              <h3 className="text-amber-50 font-bold text-sm leading-tight mb-1">
+                                {formation.title}
+                              </h3>
+                              <div className="w-full h-px bg-amber-50 opacity-50"></div>
+                            </div>
+                          </div>
+                          
+                          {/* Section inférieure bleue foncée */}
+                          <div className="p-4 bg-slate-700 group-hover:bg-slate-600 transition-colors duration-300">
+                            <div className="flex items-center justify-between">
+                              {/* Numéro de cours */}
+                              <div>
+                                <div className="text-amber-50 font-bold text-sm">
+                                  cours n°{index + 1}
+                                </div>
+                              </div>
+                              
+                              {/* Date de modification centrée */}
+                              <div className="flex items-center">
+                                <div className="w-3 h-3 bg-amber-50 rounded-full mr-2 flex items-center justify-center">
+                                  <div className="w-1.5 h-1.5 bg-slate-900 rounded-full"></div>
+                                </div>
+                                <span className="text-amber-50 text-xs">
+                                  • Modifié il y a {formatModificationDate(formation.updatedAt)} jours
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>
-                );
-              });
+                  );
+                })
+                .filter(Boolean);
             })()}
           </div>
         )}

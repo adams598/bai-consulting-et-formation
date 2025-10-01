@@ -1042,15 +1042,6 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
               {/* Sidebar gauche - Informations de la formation */}
               <div className="w-80 bg-gradient-to-b from-stone-50 to-stone-100 p-8 border-r border-stone-200">
                 <div className="space-y-6">
-                  {/* Code formation */}
-                  <div className="bg-white rounded-lg p-6 border border-stone-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div className="flex items-center mb-4">
-                      <div className="w-2.5 h-2.5 bg-blue-900 rounded-full mr-3 shadow-sm"></div>
-                      <h3 className="text-xs font-normal text-blue-900 uppercase tracking-wider">Code Formation</h3>
-                    </div>
-                    <p className="text-lg font-normal text-gray-900 tracking-wide">{getFormationCode(localFormation)}</p>
-                  </div>
-
                   {/* Public concerné */}
                   <div className="bg-white rounded-lg p-6 border border-stone-200 shadow-sm hover:shadow-md transition-shadow duration-200">
                     <div className="flex items-center mb-4">
@@ -1072,43 +1063,6 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
                         </div>
                       )}
                     </div>
-                  </div>
-
-                  {/* Modalité pédagogique */}
-                  <div className="bg-white rounded-lg p-6 border border-stone-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div className="flex items-center mb-4">
-                      <div className="w-2.5 h-2.5 bg-blue-900 rounded-full mr-3 shadow-sm"></div>
-                      <h3 className="text-xs font-normal text-blue-900 uppercase tracking-wider">Modalité</h3>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center mr-4 shadow-sm">
-                        <BookOpen className="h-4 w-4 text-blue-900" />
-                      </div>
-                      <p className="text-sm font-normal text-gray-900">{getFormationPedagogicalModality(localFormation)}</p>
-                    </div>
-                  </div>
-
-                  {/* Durée */}
-                  <div className="bg-white rounded-lg p-6 border border-stone-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div className="flex items-center mb-4">
-                      <div className="w-2.5 h-2.5 bg-blue-900 rounded-full mr-3 shadow-sm"></div>
-                      <h3 className="text-xs font-normal text-blue-900 uppercase tracking-wider">Durée</h3>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-8 h-8 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center mr-4 shadow-sm">
-                        <Clock className="h-4 w-4 text-blue-900" />
-                      </div>
-                      <p className="text-sm font-normal text-gray-900">{formatDuration(getTotalDuration())}</p>
-                    </div>
-                  </div>
-
-                  {/* Organisme de formation */}
-                  <div className="bg-white rounded-lg p-6 border border-stone-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div className="flex items-center mb-4">
-                      <div className="w-2.5 h-2.5 bg-blue-900 rounded-full mr-3 shadow-sm"></div>
-                      <h3 className="text-xs font-normal text-blue-900 uppercase tracking-wider">Organisme</h3>
-                    </div>
-                    <p className="text-sm font-normal text-gray-900">{getFormationOrganization(localFormation)}</p>
                   </div>
                 </div>
               </div>
