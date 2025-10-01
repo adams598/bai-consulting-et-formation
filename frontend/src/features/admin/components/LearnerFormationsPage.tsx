@@ -28,6 +28,9 @@ import { getFormationProgressDetails } from '../../../utils/progressUtils';
 import { useToast } from '../../../components/ui/use-toast';
 import FormationDetailView from './FormationDetailView';
 import { useLearnerFormationsCache } from '../../../hooks/useLearnerFormationsCache';
+import calendarApi from '../../../api/calendarApi';
+import { formationContentApi } from '../../../api/adminApi';
+import LessonPlayer from './LessonPlayer';
 
 interface LearnerFormation {
   id: string;
@@ -99,6 +102,9 @@ const LearnerFormationsPage: React.FC = () => {
   const [selectedFormation, setSelectedFormation] = useState<LearnerFormation | null>(null);
   const [showFormationDetail, setShowFormationDetail] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showLessonPlayer, setShowLessonPlayer] = useState(false);
+  const [lessons, setLessons] = useState<any[]>([]);
+  const [isLoadingLessons, setIsLoadingLessons] = useState(false);
   
   const { toast } = useToast();
 
@@ -251,17 +257,50 @@ const LearnerFormationsPage: React.FC = () => {
   };
 
   // Gestionnaires d'événements
-  const handleFormationClick = (formation: LearnerFormation) => {
+  const handleFormationClick = async (formation: LearnerFormation) => {
+    setSelectedFormation(formation);
+    
     // Si c'est une formation d'opportunités commerciales, ouvrir directement le viewer vidéo
-    if (formation.isOpportunity) {
-      // TODO: Implémenter l'ouverture du viewer vidéo pour les opportunités
-      console.log('Ouverture du viewer vidéo pour formation opportunité:', formation.id);
-      // Pour l'instant, on garde la vue détail mais on pourrait ajouter un paramètre spécial
-      setSelectedFormation(formation);
-      setShowFormationDetail(true);
+    if (formation.isOpportunity || formation.universeId === 'opportunites-commerciales') {
+      console.log('🎥 Ouverture du viewer vidéo pour formation opportunité:', formation.id);
+      
+      try {
+        setIsLoadingLessons(true);
+        
+        // Charger les leçons de la formation
+        const response = await formationContentApi.getByFormation(formation.id);
+        
+        // Filtrer seulement les leçons (pas les sections) et trier par ordre
+        const lessonsOnly = response.data
+          .filter((content: any) => content.contentType === 'LESSON')
+          .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+        
+        setLessons(lessonsOnly);
+        
+        console.log('📚 Leçons chargées:', lessonsOnly.length);
+        
+        // Ouvrir le viewer avec la première leçon
+        if (lessonsOnly.length > 0) {
+          setShowLessonPlayer(true);
+        } else {
+          toast({
+            title: "Aucune leçon",
+            description: "Cette formation ne contient pas encore de leçons.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors du chargement des leçons:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les leçons de cette formation.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingLessons(false);
+      }
     } else {
       // Comportement normal pour les formations d'univers
-      setSelectedFormation(formation);
       setShowFormationDetail(true);
     }
   };
@@ -295,11 +334,34 @@ const LearnerFormationsPage: React.FC = () => {
     });
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingLessons) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
+    );
+  }
+
+  // Si on affiche le viewer de leçons (pour les opportunités)
+  if (showLessonPlayer && selectedFormation && lessons.length > 0) {
+    return (
+      <LessonPlayer
+        formation={{
+          id: selectedFormation.id,
+          title: selectedFormation.title,
+          description: selectedFormation.description || ''
+        }}
+        lessons={lessons}
+        initialSelectedLesson={lessons[0]} // Commencer par la première leçon
+        onClose={() => {
+          setShowLessonPlayer(false);
+          setSelectedFormation(null);
+          setLessons([]);
+        }}
+        onProgressUpdate={(lessonId, progress) => {
+          console.log('📊 Progression mise à jour:', lessonId, progress);
+        }}
+      />
     );
   }
 
@@ -380,140 +442,94 @@ const LearnerFormationsPage: React.FC = () => {
           <div className="space-y-8">
             {/* Section opportunités commerciales */}
             {filteredFormations.filter(f => f.isOpportunity).length > 0 && (
-              <div>
-                <div className="flex items-center mb-4">
-                  <div className="flex-1 border-t border-gray-200"></div>
-                  <div className="px-4">
-                    <div className="flex items-center">
-                      <div 
-                        className="w-6 h-6 rounded-lg flex items-center justify-center text-white mr-2"
-                        style={{ backgroundColor: '#F59E0B' }}
-                      >
-                        <Play className="h-3 w-3" />
-                      </div>
-                      <span className="text-sm font-medium text-gray-700">
-                        Traitement des opportunités commerciales
-                      </span>
-                      <span className="ml-2 text-xs text-orange-600 font-medium">
-                        (Vidéo + Quiz)
-                      </span>
-                      <span className="ml-2 text-xs text-gray-500">
-                        ({filteredFormations.filter(f => f.isOpportunity).length} formation{filteredFormations.filter(f => f.isOpportunity).length > 1 ? 's' : ''})
-                      </span>
-                    </div>
+              <div className="space-y-4">
+                {/* Barre de séparation grise et discrète */}
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 h-px bg-gray-300"></div>
+                  <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
+                    <div 
+                      className="w-3 h-3 rounded-full"
+                      style={{ backgroundColor: '#F59E0B' }}
+                    ></div>
+                    <span className="text-sm font-medium text-gray-700">
+                      Traitement des opportunités commerciales
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      ({filteredFormations.filter(f => f.isOpportunity).length} formation{filteredFormations.filter(f => f.isOpportunity).length > 1 ? 's' : ''})
+                    </span>
                   </div>
-                  <div className="flex-1 border-t border-gray-200"></div>
+                  <div className="flex-1 h-px bg-gray-300"></div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {filteredFormations.filter(f => f.isOpportunity).map((formation) => (
+                {/* Grille de formations pour les opportunités */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  {filteredFormations.filter(f => f.isOpportunity).map((formation, index) => (
                     <div
                       key={formation.id}
-                      className="bg-gradient-to-b from-white to-orange-50 border border-orange-200 rounded-lg p-3 hover:shadow-md transition-shadow relative"
+                      className="group bg-slate-700 rounded-lg overflow-hidden hover:bg-slate-600 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer"
+                      onClick={() => handleFormationClick(formation)}
                     >
-                      {/* Menu apprenant (3 points) */}
-                      <div className="absolute top-2 right-2 z-10">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveDropdown(activeDropdown === formation.id ? null : formation.id);
-                          }}
-                          className="dropdown-trigger p-1 bg-white/80 hover:bg-white rounded-full shadow-sm transition-colors"
-                        >
-                          <MoreVertical className="h-4 w-4 text-gray-600" />
-                        </button>
-
-                        {activeDropdown === formation.id && (
-                          <div className="dropdown-menu absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-48 z-20">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleFormationClick(formation);
-                                setActiveDropdown(null);
-                              }}
-                              className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              Voir la vidéo
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleScheduleFormation(formation);
-                                setActiveDropdown(null);
-                              }}
-                              className="w-full flex items-center px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors"
-                            >
-                              <CalendarPlus className="h-4 w-4 mr-2" />
-                              Planifier dans l'agenda
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Image de formation */}
+                      {/* Section supérieure bleue foncée avec logo */}
                       <div 
-                        className="relative h-32 bg-gradient-to-br from-orange-100 to-orange-200 rounded-lg mb-3 overflow-hidden group cursor-pointer"
-                        onClick={() => handleFormationClick(formation)}
+                        className="h-32 bg-slate-700 group-hover:bg-slate-600 relative flex items-center justify-center transition-colors duration-300"
                       >
-                        {formation.coverImage ? (
-                          <img
-                            src={getFormationCoverImageUrl(formation.coverImage)}
-                            alt={`Couverture de ${formation.title}`}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Play className="h-12 w-12 text-orange-500" />
+                        {/* Logo BAI en haut à gauche */}
+                        <div className="absolute top-3 left-3">
+                          <div className="w-8 h-8">
+                            <img 
+                              src="/images/BAI 2-modified.png" 
+                              alt="BAI Logo" 
+                              className="w-full h-full object-contain"
+                              onError={(e) => {
+                                // Fallback si l'image n'est pas trouvée
+                                const target = e.target as HTMLImageElement;
+                                target.style.display = 'none';
+                              }}
+                            />
                           </div>
-                        )}
-
-                        {/* Badge vidéo */}
-                        <div className="absolute top-2 left-2">
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800 border border-orange-200">
-                            <Play className="h-3 w-3 mr-1" />
-                            Vidéo
-                          </span>
                         </div>
 
-                        {/* Progression au survol */}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center">
-                          <div className="text-white text-center">
-                            <div className="text-2xl font-bold">{formation.globalProgress || formation.assignment?.progress || 0}%</div>
-                            <div className="text-xs">Progression</div>
-                          </div>
+                        {/* Icône agenda au survol */}
+                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleScheduleFormation(formation);
+                            }}
+                            className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-600 flex items-center justify-center transition-all duration-200"
+                            title="Planifier dans l'agenda"
+                          >
+                            <Calendar className="h-4 w-4 text-white" />
+                          </button>
+                        </div>
+
+                        {/* Titre de la formation centré */}
+                        <div className="text-center px-6">
+                          <h3 className="text-amber-50 font-bold text-sm leading-tight mb-1">
+                            {formation.title}
+                          </h3>
+                          <div className="w-full h-px bg-amber-50 opacity-50"></div>
                         </div>
                       </div>
-
-                      {/* Contenu de la carte */}
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between">
-                          <h3 className="text-sm font-semibold text-gray-800 line-clamp-2 flex-1 pr-2">
-                            {formatFormationTitle(formation.title)}
-                          </h3>
-                          <div className="flex items-center text-gray-600 flex-shrink-0">
-                            <Clock className="h-3 w-3 mr-1" />
-                            <span className="text-xs">
-                              {formatDuration(formation.totalDuration || formation.duration)}
+                      
+                      {/* Section inférieure bleue foncée */}
+                      <div className="p-4 bg-slate-700 group-hover:bg-slate-600 transition-colors duration-300">
+                        <div className="flex items-center justify-between">
+                          {/* Numéro de cours */}
+                          <div>
+                            <div className="text-amber-50 font-bold text-sm">
+                              cours n°{index + 1}
+                            </div>
+                          </div>
+                          
+                          {/* Date de modification centrée */}
+                          <div className="flex items-center">
+                            <div className="w-3 h-3 bg-amber-50 rounded-full mr-2 flex items-center justify-center">
+                              <div className="w-1.5 h-1.5 bg-slate-900 rounded-full"></div>
+                            </div>
+                            <span className="text-amber-50 text-xs">
+                              • Modifié il y a {formatModificationDate(formation.updatedAt)} jours
                             </span>
-                          </div>
-                        </div>
-
-                        <p className="text-xs text-gray-600 line-clamp-2">
-                          {formatFormationDescription(formation.description)}
-                        </p>
-
-                        {/* Barre de progression */}
-                        <div className="pt-2">
-                          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
-                            <span>Progression</span>
-                            <span>{formation.globalProgress || formation.assignment?.progress || 0}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div 
-                              className="bg-orange-600 h-2 rounded-full transition-all duration-300"
-                              style={{ width: `${formation.globalProgress || formation.assignment?.progress || 0}%` }}
-                            ></div>
                           </div>
                         </div>
                       </div>
@@ -527,7 +543,10 @@ const LearnerFormationsPage: React.FC = () => {
             {(() => {
               // Grouper les formations par univers (utilise les formations du cache)
               const formationsByUniverse: { [key: string]: any[] } = {};
-              filteredFormations.filter(f => !f.isOpportunity).forEach(formation => {
+              
+              const formationsUniverse = filteredFormations.filter(f => !f.isOpportunity);
+              
+              formationsUniverse.forEach(formation => {
                 const universeId = formation.universeId;
                 
                 // Si la formation n'a pas d'universeId, l'ignorer pour l'instant
@@ -600,6 +619,20 @@ const LearnerFormationsPage: React.FC = () => {
                               </div>
                             </div>
 
+                            {/* Icône agenda au survol */}
+                            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleScheduleFormation(formation);
+                                }}
+                                className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-600 flex items-center justify-center transition-all duration-200"
+                                title="Planifier dans l'agenda"
+                              >
+                                <Calendar className="h-4 w-4 text-white" />
+                              </button>
+                            </div>
+
                             {/* Titre de la formation centré */}
                             <div className="text-center px-6">
                               <h3 className="text-amber-50 font-bold text-sm leading-tight mb-1">
@@ -660,12 +693,38 @@ const LearnerFormationsPage: React.FC = () => {
                 const date = formData.get('date') as string;
                 const time = formData.get('time') as string;
                 
-                toast({
-                  title: "Formation planifiée",
-                  description: `"${selectedFormation.title}" a été ajoutée à votre agenda le ${new Date(date).toLocaleDateString('fr-FR')} à ${time}`,
-                });
-                
-                setShowScheduleModal(false);
+                try {
+                  // Calculer les dates de début et de fin
+                  const startDateTime = new Date(`${date}T${time}`);
+                  const endDateTime = new Date(startDateTime.getTime() + (selectedFormation.duration || 60) * 60000); // Durée en minutes
+                  
+                  // Créer l'événement via l'API
+                  await calendarApi.createEvent({
+                    title: selectedFormation.title,
+                    description: selectedFormation.description || `Formation: ${selectedFormation.title}`,
+                    startDate: startDateTime.toISOString(),
+                    endDate: endDateTime.toISOString(),
+                    type: "FORMATION",
+                    formationId: selectedFormation.id,
+                    eventType: "formation",
+                    color: "#3B82F6", // Bleu pour les formations
+                    reminders: [15, 60] // Rappels 15 min et 1h avant
+                  });
+                  
+                  toast({
+                    title: "Formation planifiée",
+                    description: `"${selectedFormation.title}" a été ajoutée à votre agenda le ${new Date(date).toLocaleDateString('fr-FR')} à ${time}`,
+                  });
+                  
+                  setShowScheduleModal(false);
+                } catch (error) {
+                  console.error('Erreur lors de la planification:', error);
+                  toast({
+                    title: "Erreur",
+                    description: "Impossible de planifier la formation. Veuillez réessayer.",
+                    variant: "destructive",
+                  });
+                }
               }}>
                 <div className="space-y-4">
                   <div>

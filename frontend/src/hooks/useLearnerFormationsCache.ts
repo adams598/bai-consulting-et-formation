@@ -63,6 +63,7 @@ export const useLearnerFormationsCache = () => {
 
       // Transformer les assignations en formations
       const assignments = formationsResponse.data || [];
+      
       const formations = assignments.map((assignment: any) => {
         if (!assignment.formation) {
           console.error('Formation manquante dans assignation:', assignment);

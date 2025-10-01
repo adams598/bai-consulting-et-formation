@@ -7,6 +7,7 @@ export const calendarController = {
   getUserEvents: async (req, res) => {
     try {
       const userId = req.user.id;
+      console.log("📅 [CALENDAR] Récupération événements pour userId:", userId);
 
       const events = await prisma.calendarEvent.findMany({
         where: { userId },
@@ -23,12 +24,16 @@ export const calendarController = {
         orderBy: { startDate: "asc" },
       });
 
+      console.log(
+        `✅ [CALENDAR] ${events.length} événements trouvés pour l'utilisateur ${userId}`
+      );
+
       res.json({
         success: true,
         data: events,
       });
     } catch (error) {
-      console.error("Erreur getUserEvents:", error);
+      console.error("❌ [CALENDAR] Erreur getUserEvents:", error);
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
@@ -40,6 +45,12 @@ export const calendarController = {
   createEvent: async (req, res) => {
     try {
       const userId = req.user.id;
+      console.log("📅 [CALENDAR] Création événement pour userId:", userId);
+      console.log(
+        "📅 [CALENDAR] Body reçu:",
+        JSON.stringify(req.body, null, 2)
+      );
+
       const {
         title,
         description,
@@ -60,6 +71,7 @@ export const calendarController = {
 
       // Vérifier que la date de fin est après la date de début
       if (new Date(endDate) <= new Date(startDate)) {
+        console.log("❌ [CALENDAR] Erreur: date de fin avant date de début");
         return res.status(400).json({
           success: false,
           message: "La date de fin doit être après la date de début",
@@ -126,15 +138,24 @@ export const calendarController = {
         },
       });
 
+      console.log(
+        "✅ [CALENDAR] Événement créé avec succès:",
+        newEvent.id,
+        "-",
+        newEvent.title
+      );
+
       res.json({
         success: true,
         data: newEvent,
       });
     } catch (error) {
-      console.error("Erreur createEvent:", error);
+      console.error("❌ [CALENDAR] Erreur createEvent:", error);
+      console.error("❌ [CALENDAR] Stack:", error.stack);
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
+        error: error.message,
       });
     }
   },

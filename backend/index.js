@@ -100,6 +100,9 @@ app.use(express.json({ limit: "10mb" })); // Limiter la taille des requêtes
 // Import des routes
 import adminRoutes from "./src/routes/admin.routes.js";
 import learnerRoutes from "./src/routes/learner.routes.js";
+import calendarIntegrationRoutes from "./src/routes/calendarIntegration.js";
+import { calendarController } from "./src/controllers/calendar.controller.js";
+import { authMiddleware } from "./src/middleware/auth.middleware.js";
 
 // Route API pour servir les images
 app.get("/api/images/:type/:userFolder/:filename", (req, res) => {
@@ -248,6 +251,39 @@ app.get("/api/opportunities/files/:filename", (req, res) => {
 // Routes
 app.use("/api/admin", adminRoutes);
 app.use("/api/learner", learnerRoutes);
+app.use("/api/calendar", calendarIntegrationRoutes);
+
+// Routes pour les opérations CRUD du calendrier
+app.get(
+  "/api/calendar/events",
+  authMiddleware,
+  calendarController.getUserEvents
+);
+app.post(
+  "/api/calendar/events",
+  authMiddleware,
+  calendarController.createEvent
+);
+app.put(
+  "/api/calendar/events/:id",
+  authMiddleware,
+  calendarController.updateEvent
+);
+app.delete(
+  "/api/calendar/events/:id",
+  authMiddleware,
+  calendarController.deleteEvent
+);
+app.get(
+  "/api/calendar/events/range",
+  authMiddleware,
+  calendarController.getEventsByDateRange
+);
+app.get(
+  "/api/calendar/upcoming",
+  authMiddleware,
+  calendarController.getUpcomingDeadlines
+);
 
 // Import des nouvelles routes unifiées pour les apprenants
 import learnerUnifiedRoutes from "./src/routes/learner-unified.routes.js";

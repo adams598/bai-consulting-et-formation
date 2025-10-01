@@ -5,7 +5,7 @@ import './AdminFormationsPage.css';
 import './UniverseFolder.css';
 import './DragDrop.css';
 import '../styles/admin-typography.css';
-import { formationsApi, quizApi, bankFormationApi, universesApi, assignmentsApi } from '../../../api/adminApi';
+import { formationsApi, quizApi, bankFormationApi, universesApi, assignmentsApi, formationContentApi } from '../../../api/adminApi';
 import { formationsApi as learnerFormationsApi } from '../../../api/learnerApi';
 import { Formation, Universe, UniverseFormation } from '../types';
 import { getFormationCoverImageUrl } from '../../../utils/imageUtils';
@@ -22,6 +22,7 @@ import FormationAssignmentModal from './FormationAssignmentModal';
 import { useConfirmation } from '../../../hooks/useConfirmation';
 import { useSidebar } from '../../../contexts/SidebarContext';
 import { useToast } from '../../../components/ui/use-toast';
+import LessonPlayer from './LessonPlayer';
 
 const AdminFormationsPage: React.FC = () => {
   // Hook optimisé pour le cache des données (pour les admins)
@@ -57,6 +58,9 @@ const AdminFormationsPage: React.FC = () => {
   const [showBanksList, setShowBanksList] = useState(false);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showLessonPlayer, setShowLessonPlayer] = useState(false);
+  const [lessons, setLessons] = useState<any[]>([]);
+  const [isLoadingLessons, setIsLoadingLessons] = useState(false);
   const [selectedFormation, setSelectedFormation] = useState<Formation | null>(null);
   const [action, setAction] = useState<'edit' | 'delete' | 'quiz' | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -414,11 +418,54 @@ const AdminFormationsPage: React.FC = () => {
     setShowQuizModal(true);
   };
 
-  const handleFormationClick = (formation: Formation) => {
+  const handleFormationClick = async (formation: Formation) => {
     setSelectedFormation(formation);
-    setShowFormationDetail(true);
-    // Réduire automatiquement la sidebar quand on ouvre le détail
-    setIsCollapsed(true);
+    
+    // Si c'est une formation d'opportunités commerciales, ouvrir directement le viewer vidéo
+    if (formation.isOpportunity || formation.universeId === 'opportunites-commerciales') {
+      console.log('🎥 Ouverture du viewer vidéo pour formation opportunité:', formation.id);
+      
+      try {
+        setIsLoadingLessons(true);
+        
+        // Charger les leçons de la formation
+        const response = await formationContentApi.getByFormation(formation.id);
+        
+        // Filtrer seulement les leçons (pas les sections) et trier par ordre
+        const lessonsOnly = response.data
+          .filter((content: any) => content.contentType === 'LESSON')
+          .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+        
+        setLessons(lessonsOnly);
+        
+        console.log('📚 Leçons chargées:', lessonsOnly.length);
+        
+        // Ouvrir le viewer avec la première leçon
+        if (lessonsOnly.length > 0) {
+          setShowLessonPlayer(true);
+          setIsCollapsed(true);
+        } else {
+          toast({
+            title: "Aucune leçon",
+            description: "Cette formation ne contient pas encore de leçons.",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors du chargement des leçons:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les leçons de cette formation.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingLessons(false);
+      }
+    } else {
+      // Comportement normal pour les formations d'univers
+      setShowFormationDetail(true);
+      setIsCollapsed(true);
+    }
   };
 
   const handleLessonsClick = (formation: Formation, e: React.MouseEvent) => {
@@ -918,11 +965,35 @@ const AdminFormationsPage: React.FC = () => {
     return diffDays.toString();
   }, []);
 
-  if (isLoading) {
+  if (isLoading || isLoadingLessons) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
+    );
+  }
+
+  // Si on affiche le viewer de leçons (pour les opportunités)
+  if (showLessonPlayer && selectedFormation && lessons.length > 0) {
+    return (
+      <LessonPlayer
+        formation={{
+          id: selectedFormation.id,
+          title: selectedFormation.title,
+          description: selectedFormation.description || ''
+        }}
+        lessons={lessons}
+        initialSelectedLesson={lessons[0]} // Commencer par la première leçon
+        onClose={() => {
+          setShowLessonPlayer(false);
+          setSelectedFormation(null);
+          setLessons([]);
+          setIsCollapsed(false);
+        }}
+        onProgressUpdate={(lessonId, progress) => {
+          console.log('📊 Progression mise à jour:', lessonId, progress);
+        }}
+      />
     );
   }
 

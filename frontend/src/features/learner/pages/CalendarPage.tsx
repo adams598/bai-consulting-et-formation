@@ -23,7 +23,8 @@ import {
 import { StatsCard } from '../components';
 import Calendar, { CalendarEvent } from '../components/Calendar';
 import { LearnerFormationAssignment } from '../types';
-import { formationsApi, calendarApi } from '../../../api/learnerApi';
+import { formationsApi } from '../../../api/learnerApi';
+import calendarApi from '../../../api/calendarApi';
 import { formationsApi as adminFormationsApi } from '../../../api/adminApi';
 import { useToast } from '../../../components/ui/use-toast';
 
@@ -108,7 +109,7 @@ const CalendarPage: React.FC = () => {
       
       // Charger les événements du calendrier depuis la base de données
       try {
-        const eventsResponse = await calendarApi.getUserEvents();
+        const eventsResponse = await calendarApi.getEvents();
         if (eventsResponse.success && eventsResponse.data) {
           // Transformer les événements de BDD en événements de calendrier
           const calendarEvents: CalendarEvent[] = eventsResponse.data.map((event: any) => ({

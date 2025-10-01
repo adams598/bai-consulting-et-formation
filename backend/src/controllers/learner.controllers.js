@@ -376,6 +376,7 @@ export const formationsController = {
           createdAt: assignment.formation.createdAt,
           updatedAt: assignment.formation.updatedAt,
           universeId: assignment.formation.universeId,
+          isOpportunity: assignment.formation.isOpportunity,
           universe: assignment.formation.universe,
           hasQuiz: !!assignment.formation.quiz,
         },

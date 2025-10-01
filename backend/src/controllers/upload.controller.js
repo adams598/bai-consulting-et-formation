@@ -5,16 +5,16 @@ import path from "path";
 const prisma = new PrismaClient();
 
 // Fonction utilitaire pour sanitizer les titres
-// Version améliorée qui préserve mieux la lisibilité en utilisant des tirets
+// Version améliorée qui préserve mieux la lisibilité en utilisant des tirets et underscores
 function sanitizeTitle(title) {
   return title
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") // Retirer les accents
-    .replace(/[^a-zA-Z0-9\s\-]/g, "") // Supprimer seulement les caractères vraiment problématiques
-    .replace(/\s+/g, "-") // Remplacer les espaces par des tirets
-    .replace(/-+/g, "-") // Remplacer les tirets multiples par un seul
-    .replace(/^-|-$/g, ""); // Retirer les tirets en début/fin
+    .replace(/[^a-zA-Z0-9\s\-_]/g, "") // Préserver les underscores en plus des tirets
+    .replace(/\s+/g, "_") // Remplacer les espaces par des underscores pour cohérence
+    .replace(/[_-]+/g, (match) => match[0]) // Remplacer les underscores/tirets multiples par un seul
+    .replace(/^[_-]|[_-]$/g, ""); // Retirer les underscores/tirets en début/fin
 }
 
 // Fonction helper pour déterminer le type de contenu basé sur le MIME type
@@ -468,11 +468,32 @@ export const uploadController = {
         sanitizedLessonTitle
       );
 
-      // console.log("🔍 getLessonFile - Dossier de la leçon:", lessonDir);
+      console.log("🔍 getLessonFile - formationTitle reçu:", formationTitle);
+      console.log("🔍 getLessonFile - lessonTitle reçu:", lessonTitle);
+      console.log(
+        "🔍 getLessonFile - sanitizedFormationTitle:",
+        sanitizedFormationTitle
+      );
+      console.log(
+        "🔍 getLessonFile - sanitizedLessonTitle:",
+        sanitizedLessonTitle
+      );
+      console.log("🔍 getLessonFile - Dossier de la leçon:", lessonDir);
 
       // Vérifier si le dossier existe
       if (!fs.existsSync(lessonDir)) {
         console.log("❌ Dossier de leçon non trouvé:", lessonDir);
+
+        // Essayer de lister les dossiers disponibles pour debugging
+        const formationsDir = path.join(process.cwd(), "uploads", "formations");
+        if (fs.existsSync(formationsDir)) {
+          const availableFormations = fs.readdirSync(formationsDir);
+          console.log(
+            "📁 Dossiers de formations disponibles:",
+            availableFormations
+          );
+        }
+
         return res.status(404).json({
           success: false,
           message: "Dossier de leçon non trouvé",
