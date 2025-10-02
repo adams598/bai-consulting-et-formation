@@ -163,7 +163,7 @@ export const AdminSidebarSimple: React.FC = () => {
             className={`w-full flex items-center ${isSidebarCollapsed ? 'px-2 py-3 justify-center' : 'px-3 py-2'} text-sm font-medium text-blue-900 rounded-lg hover:bg-blue-200 transition-colors`}
             title={isSidebarCollapsed ? `${currentUser?.firstName} ${currentUser?.lastName}` : ''}
           >
-            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+            <div className="w-8 h-8 bg-blue-900 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
               {currentUser?.avatar ? (
                 <img
                   src={currentUser.avatar}
@@ -177,14 +177,14 @@ export const AdminSidebarSimple: React.FC = () => {
             {!isSidebarCollapsed && (
               <>
                 <div className="flex-1 text-left ml-3">
-                  <div className="font-medium text-blue-900">
+                  <div className="font-medium">
                     {currentUser?.firstName} {currentUser?.lastName}
                   </div>
-                  <div className="text-xs text-blue-700">
+                  <div className="text-xs">
                     {currentUser?.email}
                   </div>
                 </div>
-                <ChevronDown className={`w-4 h-4 text-blue-600 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 text-brand-blue transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
               </>
             )}
           </button>

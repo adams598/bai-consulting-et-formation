@@ -408,6 +408,166 @@ export const formationsController = {
     }
   },
 
+  // Obtenir toutes les formations avec indication d'assignation pour les COLLABORATOR
+  getAllFormationsWithAssignment: async (req, res) => {
+    try {
+      const userId = req.user.id;
+      console.log(
+        "🔄 [LEARNER API] getAllFormationsWithAssignment appelé pour userId:",
+        userId
+      );
+
+      // Récupérer toutes les formations actives
+      const allFormations = await prisma.formation.findMany({
+        where: {
+          isActive: true,
+        },
+        include: {
+          content: true,
+          universe: true,
+          quiz: true,
+        },
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+
+      console.log(
+        "📊 [LEARNER API] Nombre total de formations trouvées:",
+        allFormations.length
+      );
+
+      // Debug: Afficher les données des formations
+      allFormations.forEach((formation) => {
+        console.log(`🔍 [LEARNER API] Formation "${formation.title}":`, {
+          id: formation.id,
+          universeId: formation.universeId,
+          universe: formation.universe,
+          isOpportunity: formation.isOpportunity,
+        });
+      });
+
+      // Récupérer les formations assignées à l'utilisateur
+      const assignments = await prisma.formationAssignment.findMany({
+        where: { userId },
+        select: {
+          formationId: true,
+          status: true,
+          assignedAt: true,
+          dueDate: true,
+        },
+      });
+
+      // Créer un Set des IDs des formations assignées pour une recherche rapide
+      const assignedFormationIds = new Set(
+        assignments.map((a) => a.formationId)
+      );
+      const assignmentMap = new Map(assignments.map((a) => [a.formationId, a]));
+
+      console.log(
+        "📊 [LEARNER API] Nombre de formations assignées:",
+        assignedFormationIds.size
+      );
+
+      // Récupérer la progression pour chaque formation assignée
+      const userProgress = await prisma.userProgress.findMany({
+        where: {
+          userId,
+        },
+        select: {
+          formationId: true,
+          isCompleted: true,
+        },
+      });
+
+      // Calculer la progression par formation
+      const progressMap = new Map();
+      userProgress.forEach((progress) => {
+        if (!progressMap.has(progress.formationId)) {
+          progressMap.set(progress.formationId, { completed: 0, total: 0 });
+        }
+        const current = progressMap.get(progress.formationId);
+        current.total++;
+        if (progress.isCompleted) {
+          current.completed++;
+        }
+      });
+
+      // Transformer les formations avec indication d'assignation
+      const formationsWithAssignment = allFormations.map((formation) => {
+        const isAssigned = assignedFormationIds.has(formation.id);
+        const assignment = assignmentMap.get(formation.id);
+        const progress = progressMap.get(formation.id);
+
+        // Calculer le nombre de leçons
+        const lessonCount =
+          formation.content?.filter((c) => c.contentType === "LESSON").length ||
+          0;
+
+        // Calculer la progression
+        const progressPercentage =
+          progress && progress.total > 0
+            ? Math.round((progress.completed / progress.total) * 100)
+            : 0;
+
+        return {
+          id: formation.id,
+          title: formation.title,
+          description: formation.description,
+          duration: formation.duration,
+          totalDuration: formation.duration, // Utiliser duration comme totalDuration
+          coverImage: formation.coverImage,
+          code: formation.code,
+          isActive: formation.isActive,
+          lessonCount,
+          createdAt: formation.createdAt,
+          updatedAt: formation.updatedAt,
+          universeId: formation.universeId,
+          isOpportunity: formation.isOpportunity,
+          universe: formation.universe,
+          hasQuiz: !!formation.quiz,
+
+          // Informations d'assignation
+          isAssigned,
+          assignment: isAssigned
+            ? {
+                id: assignment.formationId,
+                status: assignment.status,
+                progress: progressPercentage,
+                assignedAt: assignment.assignedAt,
+                dueDate: assignment.dueDate,
+                isMandatory: false, // Par défaut, pas de champ isMandatory dans le schéma
+                timeSpent: 0, // Par défaut, pas de champ timeSpent dans le schéma
+                completedLessons: progress?.completed || 0,
+              }
+            : null,
+
+          // Progression globale
+          globalProgress: isAssigned ? progressPercentage : 0,
+          quizPassed: false, // TODO: Implémenter la vérification des quiz
+          certificateEarned: false, // TODO: Implémenter la vérification des certificats
+        };
+      });
+
+      console.log(
+        "✅ [LEARNER API] Retour de",
+        formationsWithAssignment.length,
+        "formations avec indication d'assignation"
+      );
+
+      res.json({
+        success: true,
+        data: formationsWithAssignment,
+      });
+    } catch (error) {
+      console.error("Erreur getAllFormationsWithAssignment:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
   // Obtenir les statistiques détaillées pour le dashboard
   getDashboardStats: async (req, res) => {
     try {

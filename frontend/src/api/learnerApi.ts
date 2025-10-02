@@ -125,6 +125,9 @@ export const formationsApi = {
   // Récupérer toutes les formations assignées
   getMyFormations: () => api.get<ApiResponse<LearnerFormationAssignment[]>>('/formations'),
   
+  // Récupérer toutes les formations avec indication d'assignation
+  getAllFormationsWithAssignment: () => api.get<ApiResponse<any[]>>('/formations/all'),
+  
   // Récupérer une formation par ID
   getFormationById: (id: string) => 
     api.get<ApiResponse<LearnerFormationAssignment>>(`/formations/${id}`),

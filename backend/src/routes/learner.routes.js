@@ -74,6 +74,12 @@ router.get(
   formationsController.getMyFormations
 );
 router.get(
+  "/formations/all",
+  authMiddleware,
+  learnerMiddleware,
+  formationsController.getAllFormationsWithAssignment
+);
+router.get(
   "/formations/scheduled",
   authMiddleware,
   learnerMiddleware,

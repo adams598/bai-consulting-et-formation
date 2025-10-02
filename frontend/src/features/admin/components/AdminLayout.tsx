@@ -441,7 +441,7 @@ const AdminLayoutContent: React.FC = () => {
                       <div className="font-medium text-blue-900">
                         {currentUser?.firstName} {currentUser?.lastName}
                       </div>
-                      <div className="text-xs text-blue-700">
+                      <div className="text-xs text-brand-blue">
                         {currentUser?.email}
                       </div>
                     </div>

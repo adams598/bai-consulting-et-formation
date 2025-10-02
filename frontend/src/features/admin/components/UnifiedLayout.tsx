@@ -709,7 +709,7 @@ const UnifiedLayoutContent: React.FC = () => {
                       className={`flex items-center ${isSidebarCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-2'} mt-2 text-blue-900 rounded-lg transition-colors ${
                         isActive
                           ? 'bg-brand-blue text-white shadow-md'
-                          : 'hover:bg-gray-100 hover:text-brand-blue hover:shadow-md'
+                          : 'hover:bg-stone-300 hover:text-brand-blue hover:shadow-md'
                       }`}
                       title={isSidebarCollapsed ? item.label : ''}
                     >
@@ -732,15 +732,15 @@ const UnifiedLayoutContent: React.FC = () => {
           </div>
 
           {/* Section Profil Utilisateur */}
-          <div className={`p-4 border-t border-blue-50 bg-blue-50 ${isSidebarCollapsed ? 'px-2' : ''}`}>
+          <div className={`p-8 border-t border-blue-50 bg-white ${isSidebarCollapsed ? 'px-2' : ''}`}>
             <div className="relative profile-menu">
               {/* Bouton profil */}
               <button
                 onClick={handleProfile}
-                className={`w-full flex items-center ${isSidebarCollapsed ? 'px-2 py-3 justify-center' : 'px-3 py-2'} text-sm font-medium text-blue-900 rounded-lg hover:bg-blue-200 transition-colors`}
+                className={`w-full flex items-center ${isSidebarCollapsed ? 'px-2 py-3 justify-center' : 'px-3 py-2'} text-sm font-medium text-blue-900 rounded-lg hover:bg-stone-300 transition-colors`}
                 title={isSidebarCollapsed ? `${currentUser?.firstName} ${currentUser?.lastName}` : ''}
               >
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="w-8 h-8 bg-brand-beige rounded-full flex items-center justify-center overflow-hidden flex-shrink-0">
                   {currentUser?.avatar ? (
                     <img
                       src={currentUser.avatar}
@@ -758,13 +758,10 @@ const UnifiedLayoutContent: React.FC = () => {
                         {currentUser?.firstName} {currentUser?.lastName}
                       </div>
                       <div className="text-xs text-blue-700">
-                        {currentUser?.email}
-                      </div>
-                      <div className="text-xs text-blue-600 font-medium">
-                        {isAdmin() ? 'Administrateur' : 'Apprenant'}
+                        {/* {currentUser?.email} */}
                       </div>
                     </div>
-                    <ChevronDown className={`w-4 h-4 text-blue-600 transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`w-4 h-4 text-brand-blue transition-transform ${showProfileMenu ? 'rotate-180' : ''}`} />
                   </>
                 )}
               </button>
@@ -775,14 +772,14 @@ const UnifiedLayoutContent: React.FC = () => {
                   <div className="py-1">
                     <button
                       onClick={handleEditProfile}
-                      className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-stone-300 transition-colors"
                     >
                       <User className="w-4 h-4 mr-3 text-gray-500 flex-shrink-0" />
                       Modifier le profil
                     </button>
                     <button
                       onClick={handleChangePassword}
-                      className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-stone-300 transition-colors"
                     >
                       <Key className="w-4 h-4 mr-3 text-gray-500 flex-shrink-0" />
                       Changer le mot de passe

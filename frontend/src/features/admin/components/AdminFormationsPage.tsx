@@ -23,6 +23,7 @@ import { useConfirmation } from '../../../hooks/useConfirmation';
 import { useSidebar } from '../../../contexts/SidebarContext';
 import { useToast } from '../../../components/ui/use-toast';
 import LessonPlayer from './LessonPlayer';
+import SearchSuggestions from '../../../components/SearchSuggestions';
 
 const AdminFormationsPage: React.FC = () => {
   // Hook optimisé pour le cache des données (pour les admins)
@@ -64,6 +65,10 @@ const AdminFormationsPage: React.FC = () => {
   const [selectedFormation, setSelectedFormation] = useState<Formation | null>(null);
   const [action, setAction] = useState<'edit' | 'delete' | 'quiz' | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  
+  // États pour les suggestions de recherche
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const [searchInputRef, setSearchInputRef] = useState<HTMLInputElement | null>(null);
 
   // États pour le système d'univers
   const [viewMode, setViewMode] = useState<'formations' | 'universes'>('formations');
@@ -279,13 +284,17 @@ const AdminFormationsPage: React.FC = () => {
       if (activeUniverseDropdown && !target.closest('.universe-menu') && !target.closest('.universe-menu-trigger')) {
         setActiveUniverseDropdown(null);
       }
+      // Fermer les suggestions de recherche si on clique ailleurs
+      if (showSearchSuggestions && !target.closest('.search-suggestions-container')) {
+        setShowSearchSuggestions(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [activeDropdown, activeUniverseDropdown]);
+  }, [activeDropdown, activeUniverseDropdown, showSearchSuggestions]);
 
   // Gérer l'affichage des actions en lot
   useEffect(() => {
@@ -840,6 +849,26 @@ const AdminFormationsPage: React.FC = () => {
     }
   };
 
+  // Gestionnaires pour les suggestions de recherche
+  const handleSearchInputFocus = () => {
+    setShowSearchSuggestions(true);
+  };
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setShowSearchSuggestions(true);
+  };
+
+  const handleSuggestionClick = (formation: Formation) => {
+    handleFormationClick(formation);
+    setSearchTerm('');
+    setShowSearchSuggestions(false);
+  };
+
+  const handleSearchSuggestionsClose = () => {
+    setShowSearchSuggestions(false);
+  };
+
 
   // Grouper les formations par univers pour l'affichage (utilise les données mémorisées)
   const getFormationsByUniverse = useCallback(() => {
@@ -1086,13 +1115,25 @@ const AdminFormationsPage: React.FC = () => {
       {/* Contrôles de vue et recherche */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
       {/* Barre de recherche */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 search-suggestions-container">
         <input
+          ref={setSearchInputRef}
           type="text"
             placeholder={viewMode === 'formations' ? "Rechercher une formation..." : "Rechercher un univers..."}
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={handleSearchInputChange}
+          onFocus={handleSearchInputFocus}
           className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+        
+        {/* Suggestions de recherche */}
+        <SearchSuggestions
+          searchTerm={searchTerm}
+          formations={formations}
+          universes={universes}
+          onSuggestionClick={handleSuggestionClick}
+          onClose={handleSearchSuggestionsClose}
+          isVisible={showSearchSuggestions}
         />
       </div>
 

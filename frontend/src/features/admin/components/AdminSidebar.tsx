@@ -321,7 +321,7 @@ export const AdminSidebar: React.FC = () => {
         </div>
 
         {/* Section Profil Utilisateur */}
-        <div className={`p-4 border-t border-blue-50 bg-blue-50 ${isSidebarCollapsed ? 'px-2' : ''}`}>
+        <div className={`p-4 border-t bg-white ${isSidebarCollapsed ? 'px-2' : ''}`}>
           <div className="relative profile-menu">
             {/* Bouton profil */}
             <button
@@ -329,7 +329,7 @@ export const AdminSidebar: React.FC = () => {
               className={`w-full flex items-center ${isSidebarCollapsed ? 'px-2 py-3 justify-center' : 'px-3 py-2'} text-sm font-medium text-blue-900 rounded-lg hover:bg-blue-200 transition-colors`}
               title={isSidebarCollapsed ? `${currentUser?.firstName} ${currentUser?.lastName}` : ''}
             >
-              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center overflow-hidden">
+              <div className="w-8 h-8 bg-brand-blue rounded-full flex items-center justify-center overflow-hidden">
                 {currentUser?.avatar ? (
                   <img
                     src={currentUser.avatar}
@@ -342,10 +342,10 @@ export const AdminSidebar: React.FC = () => {
               </div>
               {!isSidebarCollapsed && (
                 <div className="flex-1 text-left ml-3">
-                  <div className="font-medium text-blue-900">
+                  <div className="font-medium">
                     {currentUser?.firstName} {currentUser?.lastName}
                   </div>
-                  <div className="text-xs text-blue-700">
+                  <div className="text-x">
                     {currentUser?.email}
                   </div>
                 </div>

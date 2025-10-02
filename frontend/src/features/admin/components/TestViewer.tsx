@@ -65,6 +65,13 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     }
     const serviceUserId = progressService.getCurrentUserId();
     console.log('🔍 getCurrentUserId - Utilisation du service:', serviceUserId);
+    
+    // Vérifier le localStorage pour debug
+    const userInfo = localStorage.getItem('userInfo');
+    const accessToken = localStorage.getItem('accessToken');
+    console.log('🔍 getCurrentUserId - userInfo dans localStorage:', userInfo);
+    console.log('🔍 getCurrentUserId - accessToken dans localStorage:', accessToken ? 'présent' : 'absent');
+    
     return serviceUserId;
   };
   
@@ -512,8 +519,8 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
        // Vérifier si on doit sauvegarder
        if (isTrackingProgress) {
          console.log(`🎬 useEffect sauvegarde - Sauvegarde autorisée, appel de updateProgress`);
-         // Utiliser updateProgress pour bénéficier de la logique non-régressive
-         updateProgress();
+       // Utiliser updateProgress pour bénéficier de la logique non-régressive
+       updateProgress();
        } else {
          console.log(`🎬 useEffect sauvegarde - Sauvegarde bloquée, isTrackingProgress=false`);
        }

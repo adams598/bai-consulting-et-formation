@@ -18,7 +18,8 @@ import {
   CalendarPlus,
   MoreVertical,
   Folder,
-  Play
+  Play,
+  Lock
 } from 'lucide-react';
 import '../styles/admin-typography.css';
 import { authService } from '../../../services/authService';
@@ -31,6 +32,7 @@ import { useLearnerFormationsCache } from '../../../hooks/useLearnerFormationsCa
 import calendarApi from '../../../api/calendarApi';
 import { formationContentApi } from '../../../api/adminApi';
 import LessonPlayer from './LessonPlayer';
+import SearchSuggestions from '../../../components/SearchSuggestions';
 
 interface LearnerFormation {
   id: string;
@@ -96,6 +98,8 @@ const LearnerFormationsPage: React.FC = () => {
   } = useLearnerFormationsCache();
 
   const [filteredFormations, setFilteredFormations] = useState<LearnerFormation[]>([]);
+  const [allFormations, setAllFormations] = useState<LearnerFormation[]>([]);
+  const [assignedFormationIds, setAssignedFormationIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('all');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
@@ -106,25 +110,75 @@ const LearnerFormationsPage: React.FC = () => {
   const [lessons, setLessons] = useState<any[]>([]);
   const [isLoadingLessons, setIsLoadingLessons] = useState(false);
   
+  // États pour les suggestions de recherche
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+  const [searchInputRef, setSearchInputRef] = useState<HTMLInputElement | null>(null);
+  
   const { toast } = useToast();
 
   // Variables dérivées du cache
   const formations = cacheData?.formations || [];
   const universes = cacheData?.universes || [];
   const isLoading = adminLoading;
+  
+  // États pour les univers récupérés via l'API
+  const [apiUniverses, setApiUniverses] = useState<any[]>([]);
 
   useEffect(() => {
-    // Charger les données via le cache (même que pour les admins)
-    loadData();
-  }, [loadData]);
+    // Charger les données via la nouvelle API pour les COLLABORATOR
+    loadAllFormationsWithAssignment();
+  }, []);
 
-  useEffect(() => {
-    // Transformer les formations du cache en LearnerFormation
-    if (formations.length > 0) {
-      const transformedFormations: LearnerFormation[] = formations.map((formation: any) => ({
-        ...formation,
-        // Ajouter les propriétés spécifiques aux apprenants si nécessaire
-        assignment: {
+  // Fonction pour charger toutes les formations avec indication d'assignation
+  const loadAllFormationsWithAssignment = async () => {
+    try {
+      const response = await formationsApi.getAllFormationsWithAssignment();
+      const formationsData = response.data;
+      
+      console.log('📊 Formations chargées avec assignation:', formationsData.length);
+      
+      // Debug: Afficher les données brutes de l'API
+      console.log('🔍 Données brutes de l\'API:', formationsData);
+      
+      // Extraire les univers uniques des formations
+      const uniqueUniverses = new Map();
+      formationsData.forEach((formation: any) => {
+        console.log(`🔍 Formation "${formation.title}":`, {
+          id: formation.id,
+          universeId: formation.universeId,
+          universe: formation.universe,
+          isOpportunity: formation.isOpportunity
+        });
+        
+        if (formation.universe && formation.universeId) {
+          uniqueUniverses.set(formation.universeId, formation.universe);
+        }
+      });
+      
+      // Stocker les univers récupérés via l'API
+      setApiUniverses(Array.from(uniqueUniverses.values()));
+      
+      console.log('🌍 Univers récupérés via l\'API:', Array.from(uniqueUniverses.values()));
+
+      // Transformer les données de l'API
+      const transformedFormations: LearnerFormation[] = formationsData.map((formation: any) => ({
+        id: formation.id,
+        title: formation.title,
+        description: formation.description,
+        duration: formation.duration,
+        totalDuration: formation.totalDuration,
+        coverImage: formation.coverImage,
+        code: formation.code,
+        isActive: formation.isActive,
+        lessonCount: formation.lessonCount,
+        createdAt: formation.createdAt,
+        updatedAt: formation.updatedAt,
+        universeId: formation.universeId,
+        isOpportunity: formation.isOpportunity,
+        hasQuiz: formation.hasQuiz,
+        
+        // Informations d'assignation
+        assignment: formation.assignment || {
           id: 'default',
           status: 'PENDING' as const,
           progress: 0,
@@ -132,13 +186,36 @@ const LearnerFormationsPage: React.FC = () => {
           isMandatory: false,
           timeSpent: 0
         },
-        globalProgress: 0,
-        quizPassed: false,
-        certificateEarned: false
+        globalProgress: formation.globalProgress || 0,
+        quizPassed: formation.quizPassed || false,
+        certificateEarned: formation.certificateEarned || false
       }));
+      
+      // Stocker toutes les formations
+      setAllFormations(transformedFormations);
+      
+      // Extraire les IDs des formations assignées
+      const assignedIds = new Set(
+        formationsData
+          .filter((f: any) => f.isAssigned)
+          .map((f: any) => f.id)
+      );
+      setAssignedFormationIds(assignedIds);
+      
       setFilteredFormations(transformedFormations);
+      
+      console.log('✅ Formations transformées:', transformedFormations.length);
+      console.log('🔒 Formations assignées:', assignedIds.size);
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des formations:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger les formations. Veuillez réessayer.",
+        variant: "destructive",
+      });
     }
-  }, [formations]);
+  };
 
   useEffect(() => {
     filterFormations();
@@ -151,13 +228,17 @@ const LearnerFormationsPage: React.FC = () => {
       if (activeDropdown && !target.closest('.dropdown-menu') && !target.closest('.dropdown-trigger')) {
         setActiveDropdown(null);
       }
+      // Fermer les suggestions de recherche si on clique ailleurs
+      if (showSearchSuggestions && !target.closest('.search-suggestions-container')) {
+        setShowSearchSuggestions(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [activeDropdown]);
+  }, [activeDropdown, showSearchSuggestions]);
 
   // loadUniverses supprimée - utilise le hook useLearnerFormationsCache
 
@@ -256,8 +337,23 @@ const LearnerFormationsPage: React.FC = () => {
     }
   };
 
+  // Fonction pour vérifier si une formation est assignée
+  const isFormationAssigned = (formationId: string): boolean => {
+    return assignedFormationIds.has(formationId);
+  };
+
   // Gestionnaires d'événements
   const handleFormationClick = async (formation: LearnerFormation) => {
+    // Vérifier si la formation est assignée
+    if (!isFormationAssigned(formation.id)) {
+      toast({
+        title: "Formation verrouillée",
+        description: "Cette formation ne vous a pas été assignée. Contactez votre administrateur pour y avoir accès.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSelectedFormation(formation);
     
     // Si c'est une formation d'opportunités commerciales, ouvrir directement le viewer vidéo
@@ -306,6 +402,16 @@ const LearnerFormationsPage: React.FC = () => {
   };
 
   const handleScheduleFormation = (formation: LearnerFormation) => {
+    // Vérifier si la formation est assignée
+    if (!isFormationAssigned(formation.id)) {
+      toast({
+        title: "Formation verrouillée",
+        description: "Cette formation ne vous a pas été assignée. Contactez votre administrateur pour y avoir accès.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSelectedFormation(formation);
     setShowScheduleModal(true);
     setActiveDropdown(null);
@@ -332,6 +438,26 @@ const LearnerFormationsPage: React.FC = () => {
       title: "Téléchargement",
       description: `Téléchargement du certificat pour "${formation.title}"`,
     });
+  };
+
+  // Gestionnaires pour les suggestions de recherche
+  const handleSearchInputFocus = () => {
+    setShowSearchSuggestions(true);
+  };
+
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setShowSearchSuggestions(true);
+  };
+
+  const handleSuggestionClick = (formation: LearnerFormation) => {
+    handleFormationClick(formation);
+    setSearchTerm('');
+    setShowSearchSuggestions(false);
+  };
+
+  const handleSearchSuggestionsClose = () => {
+    setShowSearchSuggestions(false);
   };
 
   if (isLoading || isLoadingLessons) {
@@ -398,13 +524,51 @@ const LearnerFormationsPage: React.FC = () => {
       {/* Contrôles de vue et recherche */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         {/* Barre de recherche */}
-        <div className="relative flex-1">
+        <div className="relative flex-1 search-suggestions-container">
           <input
+            ref={setSearchInputRef}
             type="text"
             placeholder="Rechercher une formation..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchInputChange}
+            onFocus={handleSearchInputFocus}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          
+          {/* Suggestions de recherche */}
+          <SearchSuggestions
+            searchTerm={searchTerm}
+            formations={allFormations.map(f => ({
+              id: f.id,
+              title: f.title,
+              description: f.description || '',
+              duration: f.duration || 0,
+              isActive: f.isActive,
+              hasQuiz: f.hasQuiz || false,
+              quizRequired: false,
+              createdBy: '',
+              createdAt: f.createdAt || new Date().toISOString(),
+              updatedAt: f.updatedAt || new Date().toISOString(),
+              universeId: f.universeId,
+              isOpportunity: f.isOpportunity
+            }))}
+            universes={apiUniverses.map(u => ({
+              id: u.id,
+              name: u.name,
+              description: u.description,
+              color: u.color || '#6B7280',
+              isActive: u.isActive,
+              createdAt: u.createdAt,
+              updatedAt: u.updatedAt
+            }))}
+            onSuggestionClick={(formation) => {
+              const learnerFormation = allFormations.find(f => f.id === formation.id);
+              if (learnerFormation) {
+                handleSuggestionClick(learnerFormation);
+              }
+            }}
+            onClose={handleSearchSuggestionsClose}
+            isVisible={showSearchSuggestions}
           />
         </div>
 
@@ -430,128 +594,29 @@ const LearnerFormationsPage: React.FC = () => {
       <div className="bg-white shadow-md p-6">
         
 
-        {filteredFormations.length === 0 ? (
+        {allFormations.length === 0 ? (
           <div className="text-center py-12">
             <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">Aucune formation trouvée</p>
             <p className="text-gray-400">
-              {searchTerm ? 'Essayez de modifier votre recherche' : 'Aucune formation ne vous a été assignée'}
+              {searchTerm ? 'Essayez de modifier votre recherche' : 'Aucune formation disponible'}
             </p>
           </div>
         ) : (
           <div className="space-y-8">
-            {/* Section opportunités commerciales */}
-            {filteredFormations.filter(f => f.isOpportunity).length > 0 && (
-              <div className="space-y-4">
-                {/* Barre de séparation grise et discrète */}
-                <div className="flex items-center gap-4">
-                  <div className="flex-1 h-px bg-gray-300"></div>
-                  <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
-                    <div 
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: '#F59E0B' }}
-                    ></div>
-                    <span className="text-sm font-medium text-gray-700">
-                      Traitement des opportunités commerciales
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      ({filteredFormations.filter(f => f.isOpportunity).length} formation{filteredFormations.filter(f => f.isOpportunity).length > 1 ? 's' : ''})
-                    </span>
-                  </div>
-                  <div className="flex-1 h-px bg-gray-300"></div>
-                </div>
-                
-                {/* Grille de formations pour les opportunités */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {filteredFormations.filter(f => f.isOpportunity).map((formation, index) => (
-                    <div
-                      key={formation.id}
-                      className="group bg-slate-700 rounded-lg overflow-hidden hover:bg-slate-600 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer"
-                      onClick={() => handleFormationClick(formation)}
-                    >
-                      {/* Section supérieure bleue foncée avec logo */}
-                      <div 
-                        className="h-32 bg-slate-700 group-hover:bg-slate-600 relative flex items-center justify-center transition-colors duration-300"
-                      >
-                        {/* Logo BAI en haut à gauche */}
-                        <div className="absolute top-3 left-3">
-                          <div className="w-8 h-8">
-                            <img 
-                              src="/images/BAI 2-modified.png" 
-                              alt="BAI Logo" 
-                              className="w-full h-full object-contain"
-                              onError={(e) => {
-                                // Fallback si l'image n'est pas trouvée
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                              }}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Icône agenda au survol */}
-                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleScheduleFormation(formation);
-                            }}
-                            className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-600 flex items-center justify-center transition-all duration-200"
-                            title="Planifier dans l'agenda"
-                          >
-                            <Calendar className="h-4 w-4 text-white" />
-                          </button>
-                        </div>
-
-                        {/* Titre de la formation centré */}
-                        <div className="text-center px-6">
-                          <h3 className="text-amber-50 font-bold text-sm leading-tight mb-1">
-                            {formation.title}
-                          </h3>
-                          <div className="w-full h-px bg-amber-50 opacity-50"></div>
-                        </div>
-                      </div>
-                      
-                      {/* Section inférieure bleue foncée */}
-                      <div className="p-4 bg-slate-700 group-hover:bg-slate-600 transition-colors duration-300">
-                        <div className="flex items-center justify-between">
-                          {/* Numéro de cours */}
-                          <div>
-                            <div className="text-amber-50 font-bold text-sm">
-                              cours n°{index + 1}
-                            </div>
-                          </div>
-                          
-                          {/* Date de modification centrée */}
-                          <div className="flex items-center">
-                            <div className="w-3 h-3 bg-amber-50 rounded-full mr-2 flex items-center justify-center">
-                              <div className="w-1.5 h-1.5 bg-slate-900 rounded-full"></div>
-                            </div>
-                            <span className="text-amber-50 text-xs">
-                              • Modifié il y a {formatModificationDate(formation.updatedAt)} jours
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Section formations d'univers - groupées par univers */}
+            {/* Section formations groupées par univers - toutes les formations */}
             {(() => {
-              // Grouper les formations par univers (utilise les formations du cache)
+              // Grouper TOUTES les formations par univers (pas de filtrage artificiel)
               const formationsByUniverse: { [key: string]: any[] } = {};
+              const formationsWithoutUniverse: any[] = [];
               
-              const formationsUniverse = filteredFormations.filter(f => !f.isOpportunity);
-              
-              formationsUniverse.forEach(formation => {
+              allFormations.forEach(formation => {
                 const universeId = formation.universeId;
                 
-                // Si la formation n'a pas d'universeId, l'ignorer pour l'instant
+                // Si la formation n'a pas d'universeId, la mettre dans une section spéciale
                 if (!universeId) {
-                  console.warn(`⚠️ Formation "${formation.title}" sans universeId, ignorée`);
+                  console.warn(`⚠️ Formation "${formation.title}" sans universeId, ajoutée à la section "Autres formations"`);
+                  formationsWithoutUniverse.push(formation);
                   return;
                 }
                 
@@ -561,10 +626,11 @@ const LearnerFormationsPage: React.FC = () => {
                 formationsByUniverse[universeId].push(formation);
               });
 
-              return Object.entries(formationsByUniverse)
+              // Rendu des univers
+              const universeSections = Object.entries(formationsByUniverse)
                 .map(([universeId, formations]) => {
-                  // Trouver l'univers correspondant
-                  const universe = universes.find((u: any) => u.id === universeId);
+                  // Trouver l'univers correspondant dans les univers de l'API
+                  const universe = apiUniverses.find((u: any) => u.id === universeId);
                   
                   // Si l'univers n'est pas trouvé, ignorer ces formations ou les grouper différemment
                   if (!universe) {
@@ -593,15 +659,25 @@ const LearnerFormationsPage: React.FC = () => {
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                      {formations.map((formation, index) => (
+                      {formations.map((formation, index) => {
+                        const isAssigned = isFormationAssigned(formation.id);
+                        return (
                         <div
                           key={formation.id}
-                          className="group bg-slate-700 rounded-lg overflow-hidden hover:bg-slate-600 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer"
+                          className={`group rounded-lg overflow-hidden transition-all duration-300 ease-in-out ${
+                            isAssigned 
+                              ? 'bg-slate-700 hover:bg-slate-600 hover:shadow-xl hover:scale-105 cursor-pointer' 
+                              : 'bg-gray-400 cursor-not-allowed opacity-60'
+                          }`}
                           onClick={() => handleFormationClick(formation)}
                         >
-                          {/* Section supérieure bleue foncée avec logo */}
+                          {/* Section supérieure avec logo */}
                           <div 
-                            className="h-32 bg-slate-700 group-hover:bg-slate-600 relative flex items-center justify-center transition-colors duration-300"
+                            className={`h-32 relative flex items-center justify-center transition-colors duration-300 ${
+                              isAssigned 
+                                ? 'bg-slate-700 group-hover:bg-slate-600' 
+                                : 'bg-gray-400'
+                            }`}
                           >
                             {/* Logo BAI en haut à gauche */}
                             <div className="absolute top-3 left-3">
@@ -619,7 +695,155 @@ const LearnerFormationsPage: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Icône agenda au survol */}
+                            {/* Icône cadenas pour les formations non assignées */}
+                            {!isAssigned && (
+                              <div className="absolute top-3 right-3">
+                                <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                                  <Lock className="h-4 w-4 text-white" />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Icône agenda au survol pour les formations assignées */}
+                            {isAssigned && (
+                              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleScheduleFormation(formation);
+                                  }}
+                                  className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-600 flex items-center justify-center transition-all duration-200"
+                                  title="Planifier dans l'agenda"
+                                >
+                                  <Calendar className="h-4 w-4 text-white" />
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Titre de la formation centré */}
+                            <div className="text-center px-6">
+                              <h3 className={`font-bold text-sm leading-tight mb-1 ${
+                                isAssigned ? 'text-amber-50' : 'text-gray-200'
+                              }`}>
+                                {formation.title}
+                              </h3>
+                              <div className={`w-full h-px opacity-50 ${
+                                isAssigned ? 'bg-amber-50' : 'bg-gray-200'
+                              }`}></div>
+                            </div>
+                          </div>
+                          
+                          {/* Section inférieure */}
+                          <div className={`p-4 transition-colors duration-300 ${
+                            isAssigned 
+                              ? 'bg-slate-700 group-hover:bg-slate-600' 
+                              : 'bg-gray-400'
+                          }`}>
+                            <div className="flex items-center justify-between">
+                              {/* Numéro de cours */}
+                              <div>
+                                <div className={`font-bold text-sm ${
+                                  isAssigned ? 'text-amber-50' : 'text-gray-200'
+                                }`}>
+                                  cours n°{index + 1}
+                                </div>
+                              </div>
+                              
+                              {/* Date de modification centrée */}
+                              <div className="flex items-center">
+                                <div className={`w-3 h-3 rounded-full mr-2 flex items-center justify-center ${
+                                  isAssigned ? 'bg-amber-50' : 'bg-gray-200'
+                                }`}>
+                                  <div className={`w-1.5 h-1.5 rounded-full ${
+                                    isAssigned ? 'bg-slate-900' : 'bg-gray-400'
+                                  }`}></div>
+                                </div>
+                                <span className={`text-xs ${
+                                  isAssigned ? 'text-amber-50' : 'text-gray-200'
+                                }`}>
+                                  • Modifié il y a {formatModificationDate(formation.updatedAt)} jours
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  );
+                })
+                .filter(Boolean);
+
+              // Section pour les formations sans univers
+              const otherFormationsSection = formationsWithoutUniverse.length > 0 ? (
+                <div key="other-formations" className="space-y-4">
+                  {/* Barre de séparation grise et discrète */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 h-px bg-gray-300"></div>
+                    <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
+                      <div 
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: '#6B7280' }}
+                      ></div>
+                      <span className="text-sm font-medium text-gray-700">
+                        Autres formations
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        ({formationsWithoutUniverse.length} formation{formationsWithoutUniverse.length > 1 ? 's' : ''})
+                      </span>
+                    </div>
+                    <div className="flex-1 h-px bg-gray-300"></div>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {formationsWithoutUniverse.map((formation, index) => {
+                      const isAssigned = isFormationAssigned(formation.id);
+                      return (
+                      <div
+                        key={formation.id}
+                        className={`group rounded-lg overflow-hidden transition-all duration-300 ease-in-out ${
+                          isAssigned 
+                            ? 'bg-slate-700 hover:bg-slate-600 hover:shadow-xl hover:scale-105 cursor-pointer' 
+                            : 'bg-gray-400 cursor-not-allowed opacity-60'
+                        }`}
+                        onClick={() => handleFormationClick(formation)}
+                      >
+                        {/* Section supérieure avec logo */}
+                        <div 
+                          className={`h-32 relative flex items-center justify-center transition-colors duration-300 ${
+                            isAssigned 
+                              ? 'bg-slate-700 group-hover:bg-slate-600' 
+                              : 'bg-gray-400'
+                          }`}
+                        >
+                          {/* Logo BAI en haut à gauche */}
+                          <div className="absolute top-3 left-3">
+                            <div className="w-8 h-8">
+                              <img 
+                                src="/images/BAI 2-modified.png" 
+                                alt="BAI Logo" 
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  // Fallback si l'image n'est pas trouvée
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Icône cadenas pour les formations non assignées */}
+                          {!isAssigned && (
+                            <div className="absolute top-3 right-3">
+                              <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center">
+                                <Lock className="h-4 w-4 text-white" />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Icône agenda au survol pour les formations assignées */}
+                          {isAssigned && (
                             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                               <button
                                 onClick={(e) => {
@@ -632,44 +856,63 @@ const LearnerFormationsPage: React.FC = () => {
                                 <Calendar className="h-4 w-4 text-white" />
                               </button>
                             </div>
+                          )}
 
-                            {/* Titre de la formation centré */}
-                            <div className="text-center px-6">
-                              <h3 className="text-amber-50 font-bold text-sm leading-tight mb-1">
-                                {formation.title}
-                              </h3>
-                              <div className="w-full h-px bg-amber-50 opacity-50"></div>
-                            </div>
+                          {/* Titre de la formation centré */}
+                          <div className="text-center px-6">
+                            <h3 className={`font-bold text-sm leading-tight mb-1 ${
+                              isAssigned ? 'text-amber-50' : 'text-gray-200'
+                            }`}>
+                              {formation.title}
+                            </h3>
+                            <div className={`w-full h-px opacity-50 ${
+                              isAssigned ? 'bg-amber-50' : 'bg-gray-200'
+                            }`}></div>
                           </div>
-                          
-                          {/* Section inférieure bleue foncée */}
-                          <div className="p-4 bg-slate-700 group-hover:bg-slate-600 transition-colors duration-300">
-                            <div className="flex items-center justify-between">
-                              {/* Numéro de cours */}
-                              <div>
-                                <div className="text-amber-50 font-bold text-sm">
-                                  cours n°{index + 1}
-                                </div>
+                        </div>
+                        
+                        {/* Section inférieure */}
+                        <div className={`p-4 transition-colors duration-300 ${
+                          isAssigned 
+                            ? 'bg-slate-700 group-hover:bg-slate-600' 
+                            : 'bg-gray-400'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            {/* Numéro de cours */}
+                            <div>
+                              <div className={`font-bold text-sm ${
+                                isAssigned ? 'text-amber-50' : 'text-gray-200'
+                              }`}>
+                                cours n°{index + 1}
                               </div>
-                              
-                              {/* Date de modification centrée */}
-                              <div className="flex items-center">
-                                <div className="w-3 h-3 bg-amber-50 rounded-full mr-2 flex items-center justify-center">
-                                  <div className="w-1.5 h-1.5 bg-slate-900 rounded-full"></div>
-                                </div>
-                                <span className="text-amber-50 text-xs">
-                                  • Modifié il y a {formatModificationDate(formation.updatedAt)} jours
-                                </span>
+                            </div>
+                            
+                            {/* Date de modification centrée */}
+                            <div className="flex items-center">
+                              <div className={`w-3 h-3 rounded-full mr-2 flex items-center justify-center ${
+                                isAssigned ? 'bg-amber-50' : 'bg-gray-200'
+                              }`}>
+                                <div className={`w-1.5 h-1.5 rounded-full ${
+                                  isAssigned ? 'bg-slate-900' : 'bg-gray-400'
+                                }`}></div>
                               </div>
+                              <span className={`text-xs ${
+                                isAssigned ? 'text-amber-50' : 'text-gray-200'
+                              }`}>
+                                • Modifié il y a {formatModificationDate(formation.updatedAt)} jours
+                              </span>
                             </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
+                      </div>
+                      );
+                    })}
                   </div>
-                  );
-                })
-                .filter(Boolean);
+                </div>
+              ) : null;
+
+              // Retourner toutes les sections
+              return [...universeSections, otherFormationsSection].filter(Boolean);
             })()}
           </div>
         )}
