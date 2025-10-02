@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useProgress } from '../../../contexts/ProgressContext';
+import progressService from '../../../services/progressService';
 
 interface LessonProgressBarProps {
   lessonId: string;
@@ -18,19 +18,19 @@ const LessonProgressBar: React.FC<LessonProgressBarProps> = ({
   onProgressUpdate,
   className = ""
 }) => {
-  const { getProgress, globalProgress } = useProgress();
   const [progress, setProgress] = useState<any>(null);
 
   useEffect(() => {
-    // Récupérer la progression depuis le contexte global
-    const currentProgress = getProgress(lessonId, formationId, userId);
+    // Récupérer la progression depuis le service
+    const currentProgress = progressService.getProgress(formationId, userId, [])[lessonId];
     if (currentProgress) {
       setProgress(currentProgress);
       onProgressUpdate?.(currentProgress.progress);
     } else {
       setProgress(null);
+      onProgressUpdate?.(0);
     }
-  }, [lessonId, formationId, userId, globalProgress, getProgress, onProgressUpdate]);
+  }, [lessonId, formationId, userId, onProgressUpdate]);
 
   // Si pas de progression, afficher une barre vide
   if (!progress) {

@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './providers/auth-provider';
-import { ProgressProvider } from './contexts/ProgressContext';
 import App from './App';
 import './index.css';
 
@@ -14,9 +13,7 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <ThemeProvider>
         <AuthProvider>
-          <ProgressProvider>
-            <App />
-          </ProgressProvider>
+          <App />
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

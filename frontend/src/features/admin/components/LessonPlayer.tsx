@@ -6,7 +6,7 @@ import { getLessonImageUrl, getImageUrl, getLessonFileUrl } from '../../../utils
 import TestViewer from './TestViewer';
 import '../../../components/LessonPlayer.css';
 import { useAuth } from '../../../providers/auth-provider';
-import { useProgress } from '../../../contexts/ProgressContext';
+import progressService from '../../../services/progressService';
 
 interface LessonPlayerProps {
   formation: {
@@ -33,10 +33,59 @@ interface LessonProgress {
 
 export default function LessonPlayer({ formation, lessons, initialSelectedLesson, onClose, onProgressUpdate }: LessonPlayerProps) {
   const { user } = useAuth();
-  const { lessonProgress, updateProgress } = useProgress();
   const [selectedLesson, setSelectedLesson] = useState<FormationContent | null>(null);
+  const [lessonProgress, setLessonProgress] = useState<{[key: string]: LessonProgress}>({});
 
-  // Les progressions sont maintenant gérées par le contexte
+  // Fonction pour récupérer l'ID utilisateur
+  const getCurrentUserId = () => {
+    if (user && user.id) {
+      return user.id;
+    }
+    
+    // Fallback : essayer de récupérer depuis le localStorage
+    const userInfo = localStorage.getItem('userInfo');
+    if (userInfo) {
+      try {
+        const userData = JSON.parse(userInfo);
+        return userData.id || 'default-user-id';
+      } catch (error) {
+        console.error('Erreur parsing userInfo:', error);
+      }
+    }
+    
+    // Essayer de récupérer depuis le token JWT
+    const accessToken = localStorage.getItem('accessToken');
+    if (accessToken) {
+      try {
+        const payload = JSON.parse(atob(accessToken.split('.')[1]));
+        if (payload.userId || payload.sub) {
+          return payload.userId || payload.sub;
+        }
+      } catch (error) {
+        console.error('Erreur décodage token JWT:', error);
+      }
+    }
+    
+    return 'default-user-id';
+  };
+
+  // Charger les progressions au montage du composant
+  useEffect(() => {
+    const loadProgressions = () => {
+      try {
+        const userId = getCurrentUserId();
+        const progress = progressService.getProgress(formation.id, userId, lessons);
+        setLessonProgress(progress);
+        console.log('📊 Progressions chargées dans LessonPlayer:', progress);
+      } catch (error) {
+        console.error('❌ Erreur lors du chargement des progressions:', error);
+      }
+    };
+
+    if (lessons.length > 0) {
+      loadProgressions();
+    }
+  }, [formation.id, lessons]);
 
   // Sélectionner automatiquement la première leçon ou la leçon initiale
   useEffect(() => {
@@ -92,8 +141,24 @@ export default function LessonPlayer({ formation, lessons, initialSelectedLesson
       return;
     }
 
-    // Mettre à jour via le contexte
-    updateProgress(lessonId, progress);
+    // Mettre à jour via le service de progression
+    const userId = getCurrentUserId();
+    progressService.updateProgress(formation.id, userId, lessonId, {
+      timeSpent: progress.timeSpent || 0,
+      progress: progress.progress || 0,
+      completed: progress.completed || false
+    });
+    
+    // Mettre à jour l'état local
+    setLessonProgress(prev => ({
+      ...prev,
+      [lessonId]: {
+        ...prev[lessonId],
+        ...progress,
+        lessonId,
+        lastUpdated: new Date().toISOString()
+      }
+    }));
     
     // Appeler la fonction parent si elle existe
     if (onProgressUpdate) {
@@ -128,51 +193,6 @@ export default function LessonPlayer({ formation, lessons, initialSelectedLesson
     return url;
   };
 
-  // Fonction pour récupérer l'ID de l'utilisateur connecté
-  const getCurrentUserId = (): string => {
-    console.log('🔍 User depuis AuthContext:', user);
-    
-    // Utiliser l'utilisateur du contexte d'authentification
-    if (user && user.id) {
-      console.log('🔍 ID utilisateur trouvé dans AuthContext:', user.id);
-      return user.id;
-    }
-    
-    // Fallback : essayer de récupérer depuis le localStorage
-    const userInfo = localStorage.getItem('userInfo');
-    console.log('🔍 userInfo dans localStorage:', userInfo);
-    
-    if (userInfo) {
-      try {
-        const userData = JSON.parse(userInfo);
-        console.log('🔍 User parsé:', userData);
-        return userData.id || 'default-user-id';
-      } catch (error) {
-        console.error('Erreur parsing userInfo:', error);
-      }
-    }
-    
-    // Essayer de récupérer depuis le token JWT
-    const accessToken = localStorage.getItem('accessToken');
-    console.log('🔍 accessToken dans localStorage:', accessToken);
-    
-    if (accessToken) {
-      try {
-        // Décoder le token JWT pour extraire l'ID utilisateur
-        const payload = JSON.parse(atob(accessToken.split('.')[1]));
-        console.log('🔍 Payload du token JWT:', payload);
-        if (payload.userId || payload.sub) {
-          return payload.userId || payload.sub;
-        }
-      } catch (error) {
-        console.error('Erreur décodage token JWT:', error);
-      }
-    }
-    
-    // Fallback : utiliser un ID par défaut pour les tests
-    console.log('⚠️ Aucun ID utilisateur trouvé, utilisation de default-user-id');
-    return 'default-user-id';
-  };
 
 
 

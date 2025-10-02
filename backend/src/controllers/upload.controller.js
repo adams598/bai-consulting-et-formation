@@ -551,14 +551,31 @@ export const uploadController = {
       const stats = fs.statSync(filePath);
       const mimeType = getMimeType(targetFilename);
 
-      // Définir les headers appropriés
+      // Définir les headers appropriés avec protection contre le téléchargement
       res.setHeader("Content-Type", mimeType);
       res.setHeader("Content-Length", stats.size);
+      res.setHeader("Content-Disposition", "inline"); // Afficher dans le navigateur plutôt que télécharger
+      res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+      res.setHeader("Pragma", "no-cache");
+      res.setHeader("Expires", "0");
+
+      // Ajouter des headers de sécurité pour empêcher le téléchargement
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      res.setHeader("X-Frame-Options", "DENY");
+      res.setHeader("X-XSS-Protection", "1; mode=block");
+      res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+
+      // Headers supplémentaires pour empêcher les captures et téléchargements
+      res.setHeader("X-Permitted-Cross-Domain-Policies", "none");
+      res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+      res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+      res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+
+      // Empêcher le téléchargement direct
       res.setHeader(
-        "Content-Disposition",
-        `inline; filename="${targetFilename}"`
+        "Content-Security-Policy",
+        "default-src 'none'; media-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
       );
-      res.setHeader("Cache-Control", "public, max-age=3600"); // Cache 1 heure
 
       // Envoyer le fichier
       const fileStream = fs.createReadStream(filePath);
