@@ -56,6 +56,37 @@ const calendarApi = {
     const response = await api.get('/api/calendar/upcoming');
     return response.data;
   },
+
+  // Intégrations calendrier
+  getIntegrations: async () => {
+    const response = await api.get('/api/calendar/integrations');
+    return response.data;
+  },
+
+  initiateGoogleOAuth: async () => {
+    const response = await api.get('/api/calendar/oauth/google/init');
+    return response.data;
+  },
+
+  initiateOutlookOAuth: async () => {
+    const response = await api.get('/api/calendar/oauth/outlook/init');
+    return response.data;
+  },
+
+  disconnectIntegration: async (integrationId: string) => {
+    const response = await api.delete(`/api/calendar/integrations/${integrationId}`);
+    return response.data;
+  },
+
+  syncGoogleCalendar: async () => {
+    const response = await api.post('/api/calendar/sync/google');
+    return response.data;
+  },
+
+  syncOutlookCalendar: async () => {
+    const response = await api.post('/api/calendar/sync/outlook');
+    return response.data;
+  },
 };
 
 export default calendarApi;

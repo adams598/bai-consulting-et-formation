@@ -923,7 +923,7 @@ const LearnerSettingsPage: React.FC = () => {
             <Shield className="h-4 w-4 inline mr-2" />
             Sécurité
           </button>
-          <button
+          {/* <button
             onClick={() => setActiveTab('notifications')}
             className={`py-2 px-1 border-b-2 font-medium text-sm ${
               activeTab === 'notifications'
@@ -944,7 +944,7 @@ const LearnerSettingsPage: React.FC = () => {
           >
             <Palette className="h-4 w-4 inline mr-2" />
             Préférences
-          </button>
+          </button> */}
         </nav>
       </div>
 
@@ -952,8 +952,8 @@ const LearnerSettingsPage: React.FC = () => {
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         {activeTab === 'profile' && renderProfileTab()}
         {activeTab === 'security' && renderSecurityTab()}
-        {activeTab === 'notifications' && renderNotificationsTab()}
-        {activeTab === 'preferences' && renderPreferencesTab()}
+        {/* {activeTab === 'notifications' && renderNotificationsTab()} */}
+        {/* {activeTab === 'preferences' && renderPreferencesTab()} */}
       </div>
     </div>
   );

@@ -160,3 +160,5 @@ describe('SearchSuggestions', () => {
     expect(highlightedElements.length).toBeGreaterThan(0);
   });
 });
+
+

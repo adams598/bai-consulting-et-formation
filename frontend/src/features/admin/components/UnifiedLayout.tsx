@@ -50,6 +50,7 @@ import LearnerSettingsPage from './LearnerSettingsPage';
 
 // Import des nouvelles pages apprenant
 import CalendarPage from '../../learner/pages/CalendarPage';
+import CalendarSettingsPage from '../../../pages/CalendarSettingsPage';
 
 // Import des modales
 import { ProfileModal } from './ProfileModal';
@@ -148,6 +149,7 @@ const UnifiedLayoutContent: React.FC = () => {
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const { isCollapsed: isSidebarCollapsed, setIsCollapsed: setIsSidebarCollapsed, toggleSidebar } = useSidebar();
   
   // États spécifiques aux apprenants
@@ -221,6 +223,21 @@ const UnifiedLayoutContent: React.FC = () => {
 
     initializeUser();
   }, []); // Exécuter seulement au montage du composant
+
+  // Fermer le menu utilisateur quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      if (showUserMenu && !target.closest('.user-menu-container')) {
+        setShowUserMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserMenu]);
 
   // Mettre à jour activeView quand l'URL change
   useEffect(() => {
@@ -334,6 +351,8 @@ const UnifiedLayoutContent: React.FC = () => {
           return <LearnerCertificatesPage />;
         case 'calendar':
           return <CalendarPage />;
+        case 'calendar-settings':
+          return <CalendarSettingsPage onBack={() => setActiveView('calendar')} />;
         case 'settings':
           return <LearnerSettingsPage />;
         default:
@@ -377,7 +396,7 @@ const UnifiedLayoutContent: React.FC = () => {
     } else if (isLearner()) {
       switch (activeView) {
         case 'dashboard': return 'Vue d\'ensemble de vos formations et progression';
-        case 'formations': return 'Consultez vos formations assignées';
+        case 'formations': return 'Consultez vos formations';
         // case 'progress': return 'Suivez votre progression dans les formations';
         // case 'certificates': return 'Consultez vos certificats obtenus';
         // case 'calendar': return '';
@@ -484,7 +503,7 @@ const UnifiedLayoutContent: React.FC = () => {
   if (isLearner()) {
     // Interface apprenant avec navigation horizontale
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-gray-200">
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
           <div className="px-4 sm:px-6 lg:px-8">
@@ -521,26 +540,58 @@ const UnifiedLayoutContent: React.FC = () => {
                 </div>
 
                 {/* Profil utilisateur */}
-                <div className="flex items-center space-x-3">
-                  <div className="hidden sm:block text-right">
-                    <p className="text-sm font-medium text-gray-900">
-                      {currentUser?.firstName} {currentUser?.lastName}
-                    </p>
-                    <p className="text-xs text-gray-500">
-                      {currentUser?.department || 'Apprenant'}
-                    </p>
-                  </div>
-                  <div className="h-8 w-8 bg-[#C7B299] rounded-full flex items-center justify-center">
-                    {currentUser?.avatar ? (
-                      <img
-                        src={currentUser.avatar}
-                        alt={`${currentUser.firstName} ${currentUser.lastName}`}
-                        className="h-8 w-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <User className="h-4 w-4 text-white" />
-                    )}
-                  </div>
+                <div className="relative user-menu-container">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+                  >
+                    <div className="hidden sm:block text-right">
+                      <p className="text-sm font-medium text-gray-900">
+                        {currentUser?.firstName} {currentUser?.lastName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {currentUser?.department || 'Apprenant'}
+                      </p>
+                    </div>
+                    <div className="h-8 w-8 bg-[#C7B299] rounded-full flex items-center justify-center">
+                      {currentUser?.avatar ? (
+                        <img
+                          src={currentUser.avatar}
+                          alt={`${currentUser.firstName} ${currentUser.lastName}`}
+                          className="h-8 w-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <User className="h-4 w-4 text-white" />
+                      )}
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  </button>
+
+                  {/* Menu déroulant */}
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          navigate('/admin/settings');
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <User className="h-4 w-4 mr-3" />
+                        Profil
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          handleLogout();
+                        }}
+                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                      >
+                        <LogOut className="h-4 w-4 mr-3" />
+                        Déconnexion
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -634,7 +685,7 @@ const UnifiedLayoutContent: React.FC = () => {
         )}
 
         {/* Contenu principal */}
-        <main className="flex-1">
+        <main className="flex-1 bg-bla">
           <div className="p-6 lg:p-8">
             <div className="mb-6">
               <h1 className="text-2xl font-bold text-gray-900">{getActiveViewTitle()}</h1>

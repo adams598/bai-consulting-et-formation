@@ -71,7 +71,33 @@ const CalendarPage: React.FC = () => {
 
   useEffect(() => {
     loadRealCalendarData();
+    loadIntegrations();
   }, []);
+
+  // Gérer les paramètres de retour OAuth
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const integrationStatus = params.get('integration');
+    const integrationType = params.get('type');
+
+    if (integrationStatus === 'success' && integrationType) {
+      toast({
+        title: "Connexion réussie",
+        description: `Votre calendrier ${integrationType === 'google' ? 'Google' : 'Outlook'} a été connecté avec succès`,
+      });
+      loadIntegrations();
+      // Nettoyer l'URL
+      window.history.replaceState({}, '', location.pathname);
+    } else if (integrationStatus === 'error' && integrationType) {
+      toast({
+        title: "Erreur de connexion",
+        description: `Impossible de connecter votre calendrier ${integrationType === 'google' ? 'Google' : 'Outlook'}`,
+        variant: "destructive"
+      });
+      // Nettoyer l'URL
+      window.history.replaceState({}, '', location.pathname);
+    }
+  }, [location.search]);
 
   const loadRealCalendarData = async () => {
     try {
@@ -139,13 +165,70 @@ const CalendarPage: React.FC = () => {
         setEvents([]);
       }
       
-      // Charger les intégrations (pour l'instant vide)
-      setIntegrations([]);
-      
     } catch (error) {
       console.error('Erreur lors du chargement des données du calendrier:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadIntegrations = async () => {
+    try {
+      const response = await calendarApi.getIntegrations();
+      if (response.success && response.data) {
+        // Transformer les données pour correspondre à l'interface CalendarIntegration
+        const transformedIntegrations: CalendarIntegration[] = response.data.map((integration: any) => ({
+          id: integration.id,
+          type: integration.type as 'GOOGLE' | 'OUTLOOK' | 'APPLE',
+          name: integration.type === 'GOOGLE' ? 'Google Calendar' : 'Outlook',
+          email: integration.email || '',
+          isConnected: integration.isConnected,
+          lastSync: integration.lastSync,
+          syncEnabled: integration.syncEnabled,
+        }));
+        setIntegrations(transformedIntegrations);
+      } else {
+        // Créer des intégrations par défaut non connectées
+        setIntegrations([
+          {
+            id: 'google-default',
+            type: 'GOOGLE',
+            name: 'Google Calendar',
+            email: '',
+            isConnected: false,
+            syncEnabled: false
+          },
+          {
+            id: 'outlook-default',
+            type: 'OUTLOOK',
+            name: 'Outlook',
+            email: '',
+            isConnected: false,
+            syncEnabled: false
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des intégrations:', error);
+      // Créer des intégrations par défaut en cas d'erreur
+      setIntegrations([
+        {
+          id: 'google-default',
+          type: 'GOOGLE',
+          name: 'Google Calendar',
+          email: '',
+          isConnected: false,
+          syncEnabled: false
+        },
+        {
+          id: 'outlook-default',
+          type: 'OUTLOOK',
+          name: 'Outlook',
+          email: '',
+          isConnected: false,
+          syncEnabled: false
+        }
+      ]);
     }
   };
 
@@ -424,26 +507,27 @@ const CalendarPage: React.FC = () => {
 
   const handleConnectCalendar = async (integrationType: 'GOOGLE' | 'OUTLOOK' | 'APPLE') => {
     try {
-      // Simuler la connexion au calendrier externe
+      let response;
+      
       if (integrationType === 'GOOGLE') {
-        // En réalité, cela ouvrirait le flow OAuth de Google
-        window.open('https://accounts.google.com/oauth/authorize?...', '_blank');
+        response = await calendarApi.initiateGoogleOAuth();
       } else if (integrationType === 'OUTLOOK') {
-        // En réalité, cela ouvrirait le flow OAuth de Microsoft
-        window.open('https://login.microsoftonline.com/oauth2/v2.0/authorize?...', '_blank');
+        response = await calendarApi.initiateOutlookOAuth();
+      } else {
+        toast({
+          title: "Non disponible",
+          description: "L'intégration Apple Calendar n'est pas encore disponible",
+          variant: "destructive"
+        });
+        return;
       }
-      
-      // Simuler la connexion réussie
-      setIntegrations(prev => prev.map(integration => 
-        integration.type === integrationType 
-          ? { ...integration, isConnected: true, syncEnabled: true, lastSync: new Date().toISOString() }
-          : integration
-      ));
-      
-      toast({
-        title: "Calendrier connecté",
-        description: `Votre calendrier ${integrationType === 'GOOGLE' ? 'Google' : 'Outlook'} a été connecté avec succès`
-      });
+
+      if (response.success && response.authUrl) {
+        // Rediriger vers la page d'authentification OAuth
+        window.location.href = response.authUrl;
+      } else {
+        throw new Error('URL OAuth non disponible');
+      }
       
     } catch (error) {
       console.error('Erreur lors de la connexion du calendrier:', error);
@@ -457,23 +541,61 @@ const CalendarPage: React.FC = () => {
 
   const handleSyncCalendar = async (integrationId: string) => {
     try {
-      // Simuler la synchronisation
-      setIntegrations(prev => prev.map(integration => 
-        integration.id === integrationId 
-          ? { ...integration, lastSync: new Date().toISOString() }
-          : integration
-      ));
+      const integration = integrations.find(i => i.id === integrationId);
       
-      toast({
-        title: "Synchronisation réussie",
-        description: "Votre calendrier a été synchronisé"
-      });
+      if (!integration) {
+        throw new Error('Intégration non trouvée');
+      }
+
+      let response;
+      if (integration.type === 'GOOGLE') {
+        response = await calendarApi.syncGoogleCalendar();
+      } else if (integration.type === 'OUTLOOK') {
+        response = await calendarApi.syncOutlookCalendar();
+      } else {
+        throw new Error('Type d\'intégration non supporté');
+      }
+
+      if (response.success) {
+        // Recharger les événements et les intégrations
+        await Promise.all([loadRealCalendarData(), loadIntegrations()]);
+        
+        toast({
+          title: "Synchronisation réussie",
+          description: response.message || "Votre calendrier a été synchronisé"
+        });
+      } else {
+        throw new Error(response.message || 'Échec de la synchronisation');
+      }
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erreur lors de la synchronisation:', error);
       toast({
         title: "Erreur",
-        description: "Impossible de synchroniser le calendrier",
+        description: error.message || "Impossible de synchroniser le calendrier",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDisconnectCalendar = async (integrationId: string) => {
+    try {
+      const response = await calendarApi.disconnectIntegration(integrationId);
+      
+      if (response.success) {
+        await loadIntegrations();
+        toast({
+          title: "Déconnexion réussie",
+          description: "Le calendrier a été déconnecté"
+        });
+      } else {
+        throw new Error(response.message || 'Échec de la déconnexion');
+      }
+    } catch (error: any) {
+      console.error('Erreur lors de la déconnexion:', error);
+      toast({
+        title: "Erreur",
+        description: error.message || "Impossible de déconnecter le calendrier",
         variant: "destructive"
       });
     }
@@ -875,49 +997,79 @@ const CalendarPage: React.FC = () => {
                     </button>
                   </div>
                   
-                  <div className="space-y-4">
-                    {integrations.map((integration) => (
-                      <div key={integration.id} className="border border-gray-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center space-x-3">
-                            <div className={`w-3 h-3 rounded-full ${
-                              integration.isConnected ? 'bg-green-500' : 'bg-gray-300'
-                            }`} />
-                            <div>
-                              <h4 className="font-medium text-gray-900">{integration.name}</h4>
-                              {integration.isConnected && (
-                                <p className="text-sm text-gray-500">{integration.email}</p>
-                              )}
+                  <div className="space-y-6">
+                    {/* Boutons de connexion avec icônes */}
+                    <div className="flex justify-center space-x-4">
+                      {/* Bouton Google Calendar */}
+                      <button
+                        onClick={() => handleConnectCalendar('GOOGLE')}
+                        className="flex items-center justify-center w-16 h-16 bg-white border-2 border-gray-200 rounded-lg hover:border-red-300 hover:bg-red-50 transition-all duration-200 group"
+                        title="Connecter Google Calendar"
+                      >
+                        <svg className="w-8 h-8 text-red-500 group-hover:text-red-600" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                        </svg>
+                      </button>
+
+                      {/* Bouton Outlook */}
+                      <button
+                        onClick={() => handleConnectCalendar('OUTLOOK')}
+                        className="flex items-center justify-center w-16 h-16 bg-white border-2 border-gray-200 rounded-lg hover:border-blue-300 hover:bg-blue-50 transition-all duration-200 group"
+                        title="Connecter Outlook"
+                      >
+                        <svg className="w-8 h-8 text-blue-500 group-hover:text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M3 3h18v18H3V3zm2 2v14h14V5H5zm2 2h10v2H7V7zm0 4h10v2H7v-2zm0 4h7v2H7v-2z"/>
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Liste des intégrations existantes */}
+                    {integrations.filter(integration => integration.isConnected).length > 0 && (
+                      <div className="space-y-3">
+                        <h4 className="text-sm font-medium text-gray-700">Calendriers connectés</h4>
+                        {integrations.filter(integration => integration.isConnected).map((integration) => (
+                          <div key={integration.id} className="border border-gray-200 rounded-lg p-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-3">
+                                <div className="w-3 h-3 rounded-full bg-green-500" />
+                                <div>
+                                  <h4 className="font-medium text-gray-900">{integration.name}</h4>
+                                  {integration.email && (
+                                    <p className="text-sm text-gray-500">{integration.email}</p>
+                                  )}
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => handleSyncCalendar(integration.id)}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Synchroniser"
+                                >
+                                  <RefreshCw className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDisconnectCalendar(integration.id)}
+                                  className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Déconnecter"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
                             </div>
-                          </div>
-                          
-                          <div className="flex items-center space-x-2">
-                            {integration.isConnected ? (
-                              <button
-                                onClick={() => handleSyncCalendar(integration.id)}
-                                className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                                title="Synchroniser"
-                              >
-                                <RefreshCw className="h-4 w-4" />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={() => handleConnectCalendar(integration.type)}
-                                className="px-3 py-1 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
-                              >
-                                Connecter
-                              </button>
+                            
+                            {integration.lastSync && (
+                              <p className="text-xs text-gray-500 mt-2">
+                                Dernière synchronisation: {new Date(integration.lastSync).toLocaleString('fr-FR')}
+                              </p>
                             )}
                           </div>
-                        </div>
-                        
-                        {integration.isConnected && integration.lastSync && (
-                          <p className="text-xs text-gray-500">
-                            Dernière synchronisation: {new Date(integration.lastSync).toLocaleString('fr-FR')}
-                          </p>
-                        )}
+                        ))}
                       </div>
-                    ))}
+                    )}
                     
                     <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                       <div className="flex items-start space-x-3">

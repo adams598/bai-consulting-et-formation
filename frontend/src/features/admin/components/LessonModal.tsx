@@ -105,7 +105,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
   const checkExistingFiles = async () => {
     try {
       const response = await fetch(
-        `http://localhost:3000/api/admin/upload/check-lesson-files/${encodeURIComponent(formationTitle)}/${encodeURIComponent(formData.title)}`,
+        `http://localhost:3000/api/admin/upload/check-lesson-files/${encodeURIComponent(formationTitle)}/lessons/${encodeURIComponent(formData.title)}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
@@ -268,7 +268,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
     try {
       // Supprimer les fichiers existants
       const response = await fetch(
-        `http://localhost:3000/api/admin/upload/delete-lesson-files/${encodeURIComponent(formationTitle)}/${encodeURIComponent(formData.title)}`,
+        `http://localhost:3000/api/admin/upload/delete-lesson-files/${encodeURIComponent(formationTitle)}/lessons/${encodeURIComponent(formData.title)}`,
         {
           method: 'DELETE',
           headers: {

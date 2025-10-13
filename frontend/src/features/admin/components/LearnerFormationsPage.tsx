@@ -19,7 +19,8 @@ import {
   MoreVertical,
   Folder,
   Play,
-  Lock
+  Lock,
+  X
 } from 'lucide-react';
 import '../styles/admin-typography.css';
 import { authService } from '../../../services/authService';
@@ -109,6 +110,24 @@ const LearnerFormationsPage: React.FC = () => {
   const [showLessonPlayer, setShowLessonPlayer] = useState(false);
   const [lessons, setLessons] = useState<any[]>([]);
   const [isLoadingLessons, setIsLoadingLessons] = useState(false);
+  
+  // États pour le formulaire d'événement (comme dans CalendarPage)
+  const [eventForm, setEventForm] = useState({
+    title: '',
+    description: '',
+    startDate: '',
+    startTime: '',
+    endDate: '',
+    endTime: '',
+    type: 'FORMATION' as 'FORMATION' | 'MEETING' | 'CALL' | 'PERSONAL',
+    location: '',
+    attendees: '',
+    isAllDay: false,
+    formationId: '',
+    reminders: [15, 60], // 15 min et 1h avant
+    isRecurring: false,
+    recurrenceRule: ''
+  });
   
   // États pour les suggestions de recherche
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
@@ -412,6 +431,28 @@ const LearnerFormationsPage: React.FC = () => {
       return;
     }
 
+    // Préparer la date pour demain (comme dans CalendarPage)
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    // Initialiser le formulaire d'événement (comme planFormationSession dans CalendarPage)
+    setEventForm({
+      title: `Formation: ${formation.title}`,
+      description: formation.description || '',
+      startDate: tomorrow.toISOString().split('T')[0],
+      endDate: tomorrow.toISOString().split('T')[0],
+      startTime: '09:00',
+      endTime: '11:00',
+      type: 'FORMATION',
+      location: 'En ligne',
+      attendees: '',
+      isAllDay: false,
+      formationId: formation.id,
+      reminders: [15, 60], // 15 min et 1h avant
+      isRecurring: false,
+      recurrenceRule: ''
+    });
+
     setSelectedFormation(formation);
     setShowScheduleModal(true);
     setActiveDropdown(null);
@@ -458,6 +499,65 @@ const LearnerFormationsPage: React.FC = () => {
 
   const handleSearchSuggestionsClose = () => {
     setShowSearchSuggestions(false);
+  };
+
+  // Fonction pour créer un événement dans le calendrier (comme dans CalendarPage)
+  const handleEventCreate = async () => {
+    try {
+      // Préparer les données pour l'API
+      const eventApiData = {
+        title: eventForm.title,
+        description: eventForm.description,
+        startDate: new Date(`${eventForm.startDate}T${eventForm.startTime}`).toISOString(),
+        endDate: new Date(`${eventForm.endDate}T${eventForm.endTime}`).toISOString(),
+        type: eventForm.type,
+        location: eventForm.location,
+        attendees: eventForm.attendees ? eventForm.attendees.split(',').map(a => a.trim()) : undefined,
+        isAllDay: eventForm.isAllDay,
+        reminders: eventForm.reminders,
+        formationId: eventForm.formationId || undefined,
+        eventType: eventForm.formationId ? 'formation' : 'personal'
+      };
+
+      // Créer l'événement via l'API de calendrier
+      const response = await calendarApi.createEvent(eventApiData);
+      
+      if (response.success && response.data) {
+        setShowScheduleModal(false);
+        resetEventForm();
+        
+        toast({
+          title: "Événement créé",
+          description: `L'événement "${eventForm.title}" a été ajouté à votre agenda`
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors de la création de l\'événement:', error);
+      toast({
+        title: "Erreur",
+        description: "Impossible de créer l'événement",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const resetEventForm = () => {
+    setEventForm({
+      title: '',
+      description: '',
+      startDate: '',
+      startTime: '',
+      endDate: '',
+      endTime: '',
+      type: 'FORMATION',
+      location: '',
+      attendees: '',
+      isAllDay: false,
+      formationId: '',
+      reminders: [15, 60],
+      isRecurring: false,
+      recurrenceRule: ''
+    });
   };
 
   if (isLoading || isLoadingLessons) {
@@ -572,26 +672,12 @@ const LearnerFormationsPage: React.FC = () => {
           />
         </div>
 
-        {/* Filtres et contrôles */}
-        <div className="flex items-center gap-3">
-          {/* Filtre par statut */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="all">Tous les statuts</option>
-            <option value="pending">En attente</option>
-            <option value="in_progress">En cours</option>
-            <option value="completed">Terminées</option>
-          </select>
-
-        </div>
+        
       </div>
 
 
       {/* Contenu principal */}
-      <div className="bg-white shadow-md p-6">
+      <div className="bg-gray-200 shadow-md p-6">
         
 
         {allFormations.length === 0 ? (
@@ -658,7 +744,7 @@ const LearnerFormationsPage: React.FC = () => {
                       <div className="flex-1 h-px bg-gray-300"></div>
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-20">
                       {formations.map((formation, index) => {
                         const isAssigned = isFormationAssigned(formation.id);
                         return (
@@ -666,26 +752,26 @@ const LearnerFormationsPage: React.FC = () => {
                           key={formation.id}
                           className={`group rounded-lg overflow-hidden transition-all duration-300 ease-in-out ${
                             isAssigned 
-                              ? 'bg-slate-700 hover:bg-slate-600 hover:shadow-xl hover:scale-105 cursor-pointer' 
+                              ? 'bg-white hover:shadow-xl hover:scale-105 cursor-pointer border border-gray-200' 
                               : 'bg-gray-400 cursor-not-allowed opacity-60'
                           }`}
                           onClick={() => handleFormationClick(formation)}
                         >
-                          {/* Section supérieure avec logo */}
+                          {/* Section supérieure avec logo BAI centré */}
                           <div 
-                            className={`h-32 relative flex items-center justify-center transition-colors duration-300 ${
+                            className={`h-36 m-2 relative flex items-center justify-center transition-colors duration-300 ${
                               isAssigned 
-                                ? 'bg-slate-700 group-hover:bg-slate-600' 
+                                ? 'bg-brand-blue group-hover:bg-brand-blue/90' 
                                 : 'bg-gray-400'
                             }`}
                           >
-                            {/* Logo BAI en haut à gauche */}
-                            <div className="absolute top-3 left-3">
-                              <div className="w-8 h-8">
+                            {/* Logo BAI centré */}
+                            <div className="flex items-center justify-center">
+                              <div className="w-16 h-16 flex items-center justify-center border border-brand-beige rounded-full hover:bg-brand-beige/85 transition-all duration-600">
                                 <img 
                                   src="/images/BAI 2-modified.png" 
                                   alt="BAI Logo" 
-                                  className="w-full h-full object-contain"
+                                  className="w-12 h-12 object-contain"
                                   onError={(e) => {
                                     // Fallback si l'image n'est pas trouvée
                                     const target = e.target as HTMLImageElement;
@@ -712,7 +798,7 @@ const LearnerFormationsPage: React.FC = () => {
                                     e.stopPropagation();
                                     handleScheduleFormation(formation);
                                   }}
-                                  className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-600 flex items-center justify-center transition-all duration-200"
+                                  className="w-8 h-8 rounded-full bg-brand-beige hover:bg-brand-beige/80 flex items-center justify-center transition-all duration-200"
                                   title="Planifier dans l'agenda"
                                 >
                                   <Calendar className="h-4 w-4 text-white" />
@@ -720,49 +806,47 @@ const LearnerFormationsPage: React.FC = () => {
                               </div>
                             )}
 
-                            {/* Titre de la formation centré */}
-                            <div className="text-center px-6">
-                              <h3 className={`font-bold text-sm leading-tight mb-1 ${
-                                isAssigned ? 'text-amber-50' : 'text-gray-200'
-                              }`}>
-                                {formation.title}
-                              </h3>
-                              <div className={`w-full h-px opacity-50 ${
-                                isAssigned ? 'bg-amber-50' : 'bg-gray-200'
-                              }`}></div>
-                            </div>
+                            {/* Code de formation en bas à gauche */}
+                            {/* <div className="absolute bottom-3 left-3">
+                              <div className="bg-white border border-gray-300 rounded px-2 py-1">
+                                <span className="text-xs font-mono text-gray-700">
+                                  {formation.code || `NC${String(index + 1).padStart(6, '0')}`}
+                                </span>
+                              </div>
+                            </div> */}
                           </div>
                           
                           {/* Section inférieure */}
                           <div className={`p-4 transition-colors duration-300 ${
                             isAssigned 
-                              ? 'bg-slate-700 group-hover:bg-slate-600' 
+                              ? 'bg-gray-50' 
                               : 'bg-gray-400'
                           }`}>
-                            <div className="flex items-center justify-between">
-                              {/* Numéro de cours */}
-                              <div>
-                                <div className={`font-bold text-sm ${
-                                  isAssigned ? 'text-amber-50' : 'text-gray-200'
-                                }`}>
-                                  cours n°{index + 1}
-                                </div>
-                              </div>
+                            <div className="space-y-3">
+                              {/* Titre de la formation */}
+                              <h3 className={`font-bold text-sm leading-tight ${
+                                isAssigned ? 'text-gray-900' : 'text-gray-200'
+                              }`}>
+                                {formatFormationTitle(formation.title)}
+                              </h3>
                               
-                              {/* Date de modification centrée */}
-                              <div className="flex items-center">
-                                <div className={`w-3 h-3 rounded-full mr-2 flex items-center justify-center ${
-                                  isAssigned ? 'bg-amber-50' : 'bg-gray-200'
-                                }`}>
-                                  <div className={`w-1.5 h-1.5 rounded-full ${
-                                    isAssigned ? 'bg-slate-900' : 'bg-gray-400'
-                                  }`}></div>
-                                </div>
+                              {/* Type de formation et durée */}
+                              <div className="flex items-center justify-between">
                                 <span className={`text-xs ${
-                                  isAssigned ? 'text-amber-50' : 'text-gray-200'
+                                  isAssigned ? 'text-gray-600' : 'text-gray-200'
                                 }`}>
-                                  • Modifié il y a {formatModificationDate(formation.updatedAt)} jours
+                                  {formation.pedagogicalModality || 'E-learning'}
                                 </span>
+                                <div className="flex items-center gap-1">
+                                  <Clock className={`w-3 h-3 ${
+                                    isAssigned ? 'text-gray-500' : 'text-gray-300'
+                                  }`} />
+                                  <span className={`text-xs ${
+                                    isAssigned ? 'text-gray-600' : 'text-gray-200'
+                                  }`}>
+                                    {formatDuration(formation.duration)}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -804,26 +888,26 @@ const LearnerFormationsPage: React.FC = () => {
                         key={formation.id}
                         className={`group rounded-lg overflow-hidden transition-all duration-300 ease-in-out ${
                           isAssigned 
-                            ? 'bg-slate-700 hover:bg-slate-600 hover:shadow-xl hover:scale-105 cursor-pointer' 
+                            ? 'bg-white hover:shadow-xl hover:scale-105 cursor-pointer border border-gray-200' 
                             : 'bg-gray-400 cursor-not-allowed opacity-60'
                         }`}
                         onClick={() => handleFormationClick(formation)}
                       >
-                        {/* Section supérieure avec logo */}
+                        {/* Section supérieure avec logo BAI centré */}
                         <div 
                           className={`h-32 relative flex items-center justify-center transition-colors duration-300 ${
                             isAssigned 
-                              ? 'bg-slate-700 group-hover:bg-slate-600' 
+                              ? 'bg-brand-blue group-hover:bg-brand-blue/90' 
                               : 'bg-gray-400'
                           }`}
                         >
-                          {/* Logo BAI en haut à gauche */}
-                          <div className="absolute top-3 left-3">
-                            <div className="w-8 h-8">
+                          {/* Logo BAI centré */}
+                          <div className="flex items-center justify-center">
+                            <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center shadow-lg">
                               <img 
                                 src="/images/BAI 2-modified.png" 
                                 alt="BAI Logo" 
-                                className="w-full h-full object-contain"
+                                className="w-10 h-10 object-contain"
                                 onError={(e) => {
                                   // Fallback si l'image n'est pas trouvée
                                   const target = e.target as HTMLImageElement;
@@ -850,7 +934,7 @@ const LearnerFormationsPage: React.FC = () => {
                                   e.stopPropagation();
                                   handleScheduleFormation(formation);
                                 }}
-                                className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-600 flex items-center justify-center transition-all duration-200"
+                                className="w-8 h-8 rounded-full bg-brand-beige hover:bg-brand-beige/80 flex items-center justify-center transition-all duration-200"
                                 title="Planifier dans l'agenda"
                               >
                                 <Calendar className="h-4 w-4 text-white" />
@@ -858,49 +942,47 @@ const LearnerFormationsPage: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Titre de la formation centré */}
-                          <div className="text-center px-6">
-                            <h3 className={`font-bold text-sm leading-tight mb-1 ${
-                              isAssigned ? 'text-amber-50' : 'text-gray-200'
-                            }`}>
-                              {formation.title}
-                            </h3>
-                            <div className={`w-full h-px opacity-50 ${
-                              isAssigned ? 'bg-amber-50' : 'bg-gray-200'
-                            }`}></div>
+                          {/* Code de formation en bas à gauche */}
+                          <div className="absolute bottom-3 left-3">
+                            <div className="bg-white border border-gray-300 rounded px-2 py-1">
+                              <span className="text-xs font-mono text-gray-700">
+                                {formation.code || `NC${String(index + 1).padStart(6, '0')}`}
+                              </span>
+                            </div>
                           </div>
                         </div>
                         
                         {/* Section inférieure */}
                         <div className={`p-4 transition-colors duration-300 ${
                           isAssigned 
-                            ? 'bg-slate-700 group-hover:bg-slate-600' 
+                            ? 'bg-white' 
                             : 'bg-gray-400'
                         }`}>
-                          <div className="flex items-center justify-between">
-                            {/* Numéro de cours */}
-                            <div>
-                              <div className={`font-bold text-sm ${
-                                isAssigned ? 'text-amber-50' : 'text-gray-200'
-                              }`}>
-                                cours n°{index + 1}
-                              </div>
-                            </div>
+                          <div className="space-y-3">
+                            {/* Titre de la formation */}
+                            <h3 className={`font-bold text-sm leading-tight ${
+                              isAssigned ? 'text-gray-900' : 'text-gray-200'
+                            }`}>
+                              {formatFormationTitle(formation.title)}
+                            </h3>
                             
-                            {/* Date de modification centrée */}
-                            <div className="flex items-center">
-                              <div className={`w-3 h-3 rounded-full mr-2 flex items-center justify-center ${
-                                isAssigned ? 'bg-amber-50' : 'bg-gray-200'
-                              }`}>
-                                <div className={`w-1.5 h-1.5 rounded-full ${
-                                  isAssigned ? 'bg-slate-900' : 'bg-gray-400'
-                                }`}></div>
-                              </div>
+                            {/* Type de formation et durée */}
+                            <div className="flex items-center justify-between">
                               <span className={`text-xs ${
-                                isAssigned ? 'text-amber-50' : 'text-gray-200'
+                                isAssigned ? 'text-gray-600' : 'text-gray-200'
                               }`}>
-                                • Modifié il y a {formatModificationDate(formation.updatedAt)} jours
+                                {formation.pedagogicalModality || 'E-learning'}
                               </span>
+                              <div className="flex items-center gap-1">
+                                <Clock className={`w-3 h-3 ${
+                                  isAssigned ? 'text-gray-500' : 'text-gray-300'
+                                }`} />
+                                <span className={`text-xs ${
+                                  isAssigned ? 'text-gray-600' : 'text-gray-200'
+                                }`}>
+                                  {formatDuration(formation.duration)}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -918,97 +1000,196 @@ const LearnerFormationsPage: React.FC = () => {
         )}
       </div>
 
-      {/* Modal de planification */}
+      {/* Modal de planification - identique à CalendarPage */}
       {showScheduleModal && selectedFormation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Planifier dans l'agenda
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Formation : <strong>{selectedFormation.title}</strong>
-              </p>
-              
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target as HTMLFormElement);
-                const date = formData.get('date') as string;
-                const time = formData.get('time') as string;
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"></div>
+            
+            <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl sm:w-full">
+              <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                <div className="flex justify-between items-start mb-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Nouvel événement
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowScheduleModal(false);
+                      resetEventForm();
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
                 
-                try {
-                  // Calculer les dates de début et de fin
-                  const startDateTime = new Date(`${date}T${time}`);
-                  const endDateTime = new Date(startDateTime.getTime() + (selectedFormation.duration || 60) * 60000); // Durée en minutes
-                  
-                  // Créer l'événement via l'API
-                  await calendarApi.createEvent({
-                    title: selectedFormation.title,
-                    description: selectedFormation.description || `Formation: ${selectedFormation.title}`,
-                    startDate: startDateTime.toISOString(),
-                    endDate: endDateTime.toISOString(),
-                    type: "FORMATION",
-                    formationId: selectedFormation.id,
-                    eventType: "formation",
-                    color: "#3B82F6", // Bleu pour les formations
-                    reminders: [15, 60] // Rappels 15 min et 1h avant
-                  });
-                  
-                  toast({
-                    title: "Formation planifiée",
-                    description: `"${selectedFormation.title}" a été ajoutée à votre agenda le ${new Date(date).toLocaleDateString('fr-FR')} à ${time}`,
-                  });
-                  
-                  setShowScheduleModal(false);
-                } catch (error) {
-                  console.error('Erreur lors de la planification:', error);
-                  toast({
-                    title: "Erreur",
-                    description: "Impossible de planifier la formation. Veuillez réessayer.",
-                    variant: "destructive",
-                  });
-                }
-              }}>
-                <div className="space-y-4">
+                <form onSubmit={(e) => { e.preventDefault(); handleEventCreate(); }} className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Date
+                      Titre *
                     </label>
                     <input
-                      type="date"
-                      name="date"
+                      type="text"
                       required
+                      value={eventForm.title}
+                      onChange={(e) => setEventForm(prev => ({ ...prev, title: e.target.value }))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Titre de l'événement"
                     />
                   </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Heure
+                      Description
                     </label>
-                    <input
-                      type="time"
-                      name="time"
-                      required
+                    <textarea
+                      value={eventForm.description}
+                      onChange={(e) => setEventForm(prev => ({ ...prev, description: e.target.value }))}
+                      rows={3}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Description de l'événement"
                     />
                   </div>
-                </div>
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowScheduleModal(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Planifier
-                  </button>
-                </div>
-              </form>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Type
+                      </label>
+                      <select
+                        value={eventForm.type}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, type: e.target.value as any }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="PERSONAL">Personnel</option>
+                        <option value="FORMATION">Formation</option>
+                        <option value="MEETING">Réunion</option>
+                        <option value="CALL">Appel</option>
+                      </select>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Lieu
+                      </label>
+                      <input
+                        type="text"
+                        value={eventForm.location}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, location: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Lieu de l'événement"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Date de début *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={eventForm.startDate}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, startDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Heure de début
+                      </label>
+                      <input
+                        type="time"
+                        value={eventForm.startTime}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, startTime: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={eventForm.isAllDay}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Date de fin *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={eventForm.endDate}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, endDate: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Heure de fin
+                      </label>
+                      <input
+                        type="time"
+                        value={eventForm.endTime}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, endTime: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        disabled={eventForm.isAllDay}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center space-x-4">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={eventForm.isAllDay}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, isAllDay: e.target.checked }))}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">Toute la journée</span>
+                    </label>
+                  </div>
+                  
+                  {eventForm.type === 'FORMATION' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Formation liée
+                      </label>
+                      <select
+                        value={eventForm.formationId}
+                        onChange={(e) => setEventForm(prev => ({ ...prev, formationId: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Sélectionner une formation</option>
+                        {allFormations.map((formation) => (
+                          <option key={formation.id} value={formation.id}>
+                            {formation.title}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  
+                  <div className="flex justify-end space-x-3 pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowScheduleModal(false);
+                        resetEventForm();
+                      }}
+                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Créer l'événement
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
         </div>

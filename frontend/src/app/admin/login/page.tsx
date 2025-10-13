@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Building2, Lock, Mail } from 'lucide-react';
+import { Eye, EyeOff, Lock, Mail } from 'lucide-react';
 import { authService } from '../../../services/authService';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
@@ -54,14 +54,23 @@ export default function AdminLoginPage() {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <div className="mx-auto h-16 w-16 bg-blue-600 rounded-full flex items-center justify-center">
-            <Building2 className="h-8 w-8 text-white" />
+          <div className="mx-auto h-16 w-16 flex items-center justify-center">
+            <img 
+              src="/images/BAI 2-modified.png" 
+              alt="BAI Consulting Logo" 
+              className="h-48 w-48 object-contain"
+              onError={(e) => {
+                // Fallback si l'image n'est pas trouvée
+                const target = e.target as HTMLImageElement;
+                target.style.display = 'none';
+              }}
+            />
           </div>
           <h2 className="mt-6 text-3xl font-bold text-gray-900">
-            Administration
+            BAI Formation
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Connectez-vous à votre espace d'administration
+            Connectez-vous à votre espace
           </p>
         </div>
 
@@ -119,26 +128,6 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-900">
-                  Se souvenir de moi
-                </label>
-              </div>
-
-              <div className="text-sm">
-                <a href="#" className="font-medium text-blue-600 hover:text-blue-500">
-                  Mot de passe oublié ?
-                </a>
-              </div>
-            </div>
-
             <div>
               <Button
                 type="submit"
@@ -166,23 +155,12 @@ export default function AdminLoginPage() {
             </div>
           </div>
 
-          {/* Lien vers l'espace formation */}
-          <div className="mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => navigate('/formation/login')}
-            >
-              Accéder à l'espace formation
-            </Button>
-          </div>
         </div>
 
         {/* Footer */}
         <div className="text-center">
           <p className="text-xs text-gray-500">
-            © 2024 BAI Consulting. Tous droits réservés.
+            © 2025 BAI Consulting. Tous droits réservés.
           </p>
         </div>
       </div>

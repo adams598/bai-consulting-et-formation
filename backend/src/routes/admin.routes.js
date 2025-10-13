@@ -7,6 +7,7 @@ import {
 import {
   uploadSingleImage,
   uploadSingleVideo,
+  uploadFormationVideo,
   uploadSingleFile,
   uploadOpportunitiesFile,
   uploadProfileImage,
@@ -895,6 +896,19 @@ router.post(
 );
 
 router.post(
+  "/upload/formation-video",
+  authMiddleware,
+  adminMiddleware,
+  (req, res, next) => {
+    req.uploadType = "formation-video";
+    next();
+  },
+  uploadFormationVideo,
+  handleMulterError,
+  uploadController.uploadVideo
+);
+
+router.post(
   "/upload/file",
   authMiddleware,
   adminMiddleware,
@@ -904,7 +918,7 @@ router.post(
 );
 
 router.post(
-  "/upload/lesson-file/:formationTitle/:lessonTitle",
+  "/upload/lesson-file/:formationTitle/lessons/:lessonTitle",
   authMiddleware,
   adminMiddleware,
   createLessonFileUploadMiddleware(),
@@ -915,14 +929,14 @@ router.post(
 
 // Route pour récupérer les fichiers des leçons
 router.get(
-  "/lesson-file/:formationTitle/:lessonTitle/:filename",
+  "/lesson-file/:formationTitle/lessons/:lessonTitle/:filename",
   authMiddleware,
   uploadController.getLessonFile
 );
 
 // Route pour récupérer le fichier le plus récent d'une leçon
 router.get(
-  "/lesson-file/:formationTitle/:lessonTitle",
+  "/lesson-file/:formationTitle/lessons/:lessonTitle",
   authMiddleware,
   uploadController.getLessonFile
 );
@@ -937,7 +951,7 @@ router.get(
 
 // Route pour vérifier les fichiers existants d'une leçon
 router.get(
-  "/upload/check-lesson-files/:formationTitle/:lessonTitle",
+  "/upload/check-lesson-files/:formationTitle/lessons/:lessonTitle",
   authMiddleware,
   adminMiddleware,
   uploadController.checkLessonFiles
@@ -945,7 +959,7 @@ router.get(
 
 // Route pour supprimer les fichiers existants d'une leçon
 router.delete(
-  "/upload/delete-lesson-files/:formationTitle/:lessonTitle",
+  "/upload/delete-lesson-files/:formationTitle/lessons/:lessonTitle",
   authMiddleware,
   adminMiddleware,
   uploadController.deleteLessonFiles

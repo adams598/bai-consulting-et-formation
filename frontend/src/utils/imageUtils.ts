@@ -105,7 +105,7 @@ export const getImageUrl = (imagePath: string | null | undefined): string => {
         .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
       
       // Utiliser la route admin qui récupère le fichier le plus récent
-      const apiUrl = `http://localhost:3000/api/admin/lesson-file/${sanitizedFormationTitle}/${sanitizedLessonTitle}`;
+      const apiUrl = `http://localhost:3000/api/admin/lesson-file/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}`;
       //console.log('🔍 getImageUrl - URL API dossier leçon générée:', apiUrl);
       return apiUrl;
     }
@@ -178,7 +178,7 @@ export const getLessonFileUrl = (
     .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
   
   // URL directe vers l'API qui récupère le fichier de la leçon
-  const apiUrl = `http://localhost:3000/api/admin/lesson-file/${sanitizedFormationTitle}/${sanitizedLessonTitle}`;
+  const apiUrl = `http://localhost:3000/api/admin/lesson-file/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}`;
   
   // console.log('🔍 getLessonFileUrl - URL API générée:', apiUrl);
   return apiUrl;

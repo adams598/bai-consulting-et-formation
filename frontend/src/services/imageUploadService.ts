@@ -144,6 +144,31 @@ class UploadService {
     }
   }
 
+  // Upload de vidéo pour les formations
+  async uploadFormationVideo(file: File, formationTitle: string): Promise<string> {
+    try {
+      const formData = new FormData();
+      formData.append('video', file);
+      formData.append('formationTitle', formationTitle);
+
+      const response = await api.post<UploadResponse>('/api/admin/upload/formation-video', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      if (response.data.success && response.data.data.videoUrl) {
+        console.log('✅ Vidéo de formation uploadée avec succès:', response.data.data);
+        return response.data.data.videoUrl;
+      } else {
+        throw new Error(response.data.message || 'Erreur lors de l\'upload');
+      }
+    } catch (error) {
+      console.error('❌ Erreur uploadFormationVideo:', error);
+      throw error;
+    }
+  }
+
   // Upload de fichier générique
   async uploadFile(file: File): Promise<string> {
     try {
@@ -180,7 +205,7 @@ class UploadService {
       formData.append('file', file);
       // formationTitle et lessonTitle sont maintenant dans l'URL
 
-      const response = await api.post<UploadResponse>(`/api/admin/upload/lesson-file/${encodeURIComponent(formationTitle)}/${encodeURIComponent(lessonTitle)}`, formData, {
+      const response = await api.post<UploadResponse>(`/api/admin/upload/lesson-file/${encodeURIComponent(formationTitle)}/lessons/${encodeURIComponent(lessonTitle)}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

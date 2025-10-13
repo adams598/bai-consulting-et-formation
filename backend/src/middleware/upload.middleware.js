@@ -256,6 +256,37 @@ const storage = multer.diskStorage({
 
       uploadPath = path.join("uploads", "formations", sanitizedFormationTitle);
       console.log("🔍 Middleware formation - uploadPath final:", uploadPath);
+    } else if (req.uploadType === "formation-video") {
+      // Vidéos de formation : uploads/formations/{formation}/
+      console.log("🔍 Middleware formation-video - req.body:", req.body);
+      console.log(
+        "🔍 Middleware formation-video - formationTitle reçu:",
+        req.body.formationTitle
+      );
+
+      if (!req.body.formationTitle) {
+        console.error("❌ ERREUR: formationTitle manquant dans req.body");
+        return cb(
+          new Error(
+            "Le titre de la formation est requis pour l'upload de vidéo"
+          ),
+          null
+        );
+      }
+
+      const formationTitle = req.body.formationTitle;
+      const sanitizedFormationTitle = sanitizeTitle(formationTitle);
+
+      console.log(
+        "🔍 Middleware formation-video - Titre sanitizé:",
+        sanitizedFormationTitle
+      );
+
+      uploadPath = path.join("uploads", "formations", sanitizedFormationTitle);
+      console.log(
+        "🔍 Middleware formation-video - uploadPath final:",
+        uploadPath
+      );
     } else if (req.uploadType === "opportunities") {
       // Fichiers d'opportunités : uploads/OC/
       uploadPath = path.join("uploads", "OC");
@@ -322,14 +353,23 @@ const storage = multer.diskStorage({
         filename = `image-${userFolderName}-${timestamp}${extension}`;
       }
     } else if (isVideo) {
-      // Pour les vidéos, utiliser le format vidéo-{nom de l'user}
-      const userFolderName = `${user.firstName}_${user.lastName}`.replace(
-        /[^a-zA-Z0-9_-]/g,
-        "_"
-      );
+      // Pour les vidéos, utiliser le format selon le type d'upload
       const timestamp = Date.now();
       const extension = path.extname(file.originalname);
-      filename = `video-${userFolderName}-${timestamp}${extension}`;
+
+      if (req.uploadType === "formation-video") {
+        // Vidéos de formation : video-{titre-formation}.mp4
+        const formationTitle = req.body.formationTitle || "formation";
+        const sanitizedFormationTitle = sanitizeTitle(formationTitle);
+        filename = `video-${sanitizedFormationTitle}.mp4`;
+      } else {
+        // Vidéos génériques : video-{nom de l'user}-{timestamp}.{ext}
+        const userFolderName = `${user.firstName}_${user.lastName}`.replace(
+          /[^a-zA-Z0-9_-]/g,
+          "_"
+        );
+        filename = `video-${userFolderName}-${timestamp}${extension}`;
+      }
     } else if (req.uploadType === "lesson-file") {
       // Fichiers joints des leçons (non-images) : file-{type}-{titre-leçon}-{timestamp}.{ext}
       const fileType = getFileType(file.originalname);
@@ -597,6 +637,14 @@ export const uploadSingleImage = multer({
 }).single("image");
 
 export const uploadSingleVideo = multer({
+  storage: storage,
+  fileFilter: lessonFileFilter, // Utiliser le filtre spécial pour lesson-file
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB pour les vidéos
+  },
+}).single("video");
+
+export const uploadFormationVideo = multer({
   storage: storage,
   fileFilter: lessonFileFilter, // Utiliser le filtre spécial pour lesson-file
   limits: {

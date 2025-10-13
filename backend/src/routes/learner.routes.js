@@ -13,6 +13,7 @@ import {
 } from "../controllers/learner.controllers.js";
 import { quizController as learnerQuizController } from "../controllers/quiz.controller.js";
 import { calendarController } from "../controllers/calendar.controller.js";
+import { calendarIntegrationController } from "../controllers/calendar-integration.controller.js";
 import { opportunitiesController } from "../controllers/opportunities.controller.js";
 
 const router = express.Router();
@@ -259,6 +260,52 @@ router.get(
   authMiddleware,
   learnerMiddleware,
   calendarController.getUpcomingDeadlines
+);
+
+// Routes d'intégration calendrier
+router.get(
+  "/calendar/integrations",
+  authMiddleware,
+  learnerMiddleware,
+  calendarIntegrationController.getUserIntegrations
+);
+router.get(
+  "/calendar/oauth/google/init",
+  authMiddleware,
+  learnerMiddleware,
+  calendarIntegrationController.initiateGoogleOAuth
+);
+router.get(
+  "/calendar/oauth/google/callback",
+  calendarIntegrationController.handleGoogleOAuthCallback
+);
+router.get(
+  "/calendar/oauth/outlook/init",
+  authMiddleware,
+  learnerMiddleware,
+  calendarIntegrationController.initiateOutlookOAuth
+);
+router.get(
+  "/calendar/oauth/outlook/callback",
+  calendarIntegrationController.handleOutlookOAuthCallback
+);
+router.delete(
+  "/calendar/integrations/:id",
+  authMiddleware,
+  learnerMiddleware,
+  calendarIntegrationController.disconnectIntegration
+);
+router.post(
+  "/calendar/sync/google",
+  authMiddleware,
+  learnerMiddleware,
+  calendarIntegrationController.syncGoogleCalendar
+);
+router.post(
+  "/calendar/sync/outlook",
+  authMiddleware,
+  learnerMiddleware,
+  calendarIntegrationController.syncOutlookCalendar
 );
 
 // Route temporaire pour les certificats

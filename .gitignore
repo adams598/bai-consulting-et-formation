@@ -221,3 +221,7 @@ backend/env.test
 frontend/.env.test
 test-data/
 test-logs/
+
+.env
+/prisma/dev.db
+/prisma/generated/

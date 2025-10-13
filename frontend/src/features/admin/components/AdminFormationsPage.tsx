@@ -416,6 +416,76 @@ const AdminFormationsPage: React.FC = () => {
     }
   };
 
+  // Fonctions spécifiques pour FormationDetailView
+  const handleFormationDetailEdit = async (updatedFormation: Formation) => {
+    try {
+      // Mise à jour optimiste : modifier immédiatement la formation dans l'interface
+      updateFormationOptimistically(updatedFormation);
+      
+      // Appel API en arrière-plan
+      await formationsApi.updateFormation(updatedFormation.id, {
+        title: updatedFormation.title,
+        description: updatedFormation.description,
+        isActive: updatedFormation.isActive,
+        hasQuiz: updatedFormation.hasQuiz,
+        quizRequired: updatedFormation.quizRequired,
+        coverImage: updatedFormation.coverImage,
+        code: updatedFormation.code,
+        pedagogicalModality: updatedFormation.pedagogicalModality,
+        organization: updatedFormation.organization,
+        prerequisites: updatedFormation.prerequisites,
+        objectives: updatedFormation.objectives,
+        detailedProgram: updatedFormation.detailedProgram,
+        targetAudience: updatedFormation.targetAudience,
+        universeId: updatedFormation.universeId,
+        isOpportunity: updatedFormation.isOpportunity
+      });
+      
+      toast({
+        title: "Succès",
+        description: "Formation mise à jour avec succès",
+      });
+    } catch (error) {
+      console.error('Erreur lors de la mise à jour:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la mise à jour de la formation",
+        variant: "destructive",
+      });
+      // En cas d'erreur, recharger les données pour restaurer l'état correct
+      await refreshData();
+    }
+  };
+
+  const handleFormationDetailDelete = async (formationToDelete: Formation) => {
+    try {
+      // Mise à jour optimiste : supprimer immédiatement de l'interface
+      const formationId = formationToDelete.id;
+      removeFormationOptimistically(formationId);
+      
+      // Retourner à la liste des formations
+      setShowFormationDetail(false);
+      setIsCollapsed(false);
+      
+      // Appel API en arrière-plan
+      await formationsApi.deleteFormation(formationId);
+      
+      toast({
+        title: "Succès",
+        description: "Formation supprimée avec succès",
+      });
+    } catch (error) {
+      console.error('Erreur lors de la suppression:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la suppression de la formation",
+        variant: "destructive",
+      });
+      // En cas d'erreur, recharger les données pour restaurer l'état correct
+      await refreshData();
+    }
+  };
+
   const handleManageContent = (formation: Formation) => {
     setSelectedFormation(formation);
     setShowContentManager(true);
@@ -428,53 +498,16 @@ const AdminFormationsPage: React.FC = () => {
   };
 
   const handleFormationClick = async (formation: Formation) => {
+    console.log('🖱️ Clic sur formation:', formation.title);
+    console.log('🖱️ isOpportunity:', formation.isOpportunity);
+    console.log('🖱️ universeId:', formation.universeId);
+    console.log('🖱️ Formation complète:', formation);
     setSelectedFormation(formation);
     
-    // Si c'est une formation d'opportunités commerciales, ouvrir directement le viewer vidéo
-    if (formation.isOpportunity || formation.universeId === 'opportunites-commerciales') {
-      console.log('🎥 Ouverture du viewer vidéo pour formation opportunité:', formation.id);
-      
-      try {
-        setIsLoadingLessons(true);
-        
-        // Charger les leçons de la formation
-        const response = await formationContentApi.getByFormation(formation.id);
-        
-        // Filtrer seulement les leçons (pas les sections) et trier par ordre
-        const lessonsOnly = response.data
-          .filter((content: any) => content.contentType === 'LESSON')
-          .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
-        
-        setLessons(lessonsOnly);
-        
-        console.log('📚 Leçons chargées:', lessonsOnly.length);
-        
-        // Ouvrir le viewer avec la première leçon
-        if (lessonsOnly.length > 0) {
-          setShowLessonPlayer(true);
-          setIsCollapsed(true);
-        } else {
-          toast({
-            title: "Aucune leçon",
-            description: "Cette formation ne contient pas encore de leçons.",
-            variant: "destructive",
-          });
-        }
-      } catch (error) {
-        console.error('❌ Erreur lors du chargement des leçons:', error);
-        toast({
-          title: "Erreur",
-          description: "Impossible de charger les leçons de cette formation.",
-          variant: "destructive",
-        });
-      } finally {
-        setIsLoadingLessons(false);
-      }
-    } else {
-      // Comportement normal pour les formations d'univers
-      setShowFormationDetail(true);
-      setIsCollapsed(true);
-    }
+    // En tant qu'admin, toujours ouvrir le FormationDetailView
+    console.log('📋 Ouverture FormationDetailView pour admin:', formation.title);
+    setShowFormationDetail(true);
+    setIsCollapsed(true);
   };
 
   const handleLessonsClick = (formation: Formation, e: React.MouseEvent) => {
@@ -1028,6 +1061,9 @@ const AdminFormationsPage: React.FC = () => {
 
   // Afficher la vue détaillée de la formation
   if (showFormationDetail && selectedFormation) {
+    console.log('📋 Affichage FormationDetailView pour:', selectedFormation.title);
+    console.log('📋 showFormationDetail:', showFormationDetail);
+    console.log('📋 selectedFormation:', selectedFormation);
     return (
       <FormationDetailView
         formation={selectedFormation}
@@ -1037,8 +1073,8 @@ const AdminFormationsPage: React.FC = () => {
           // Rétablir la sidebar quand on revient à la liste
           setIsCollapsed(false);
         }}
-        onEdit={handleEditFormation}
-        onDelete={handleDeleteFormation}
+        onEdit={handleFormationDetailEdit}
+        onDelete={handleFormationDetailDelete}
       />
     );
   }
@@ -1152,7 +1188,7 @@ const AdminFormationsPage: React.FC = () => {
 
           {/* Sélecteur de vue principale - Visible uniquement pour les admins */}
           {isAdmin() && (
-            <div className="flex bg-gray-100 rounded-lg p-1">
+            <div className="flex bg-slate-100 rounded-lg p-1">
               <button
                 onClick={() => {
                   setViewMode('formations');
@@ -1160,8 +1196,8 @@ const AdminFormationsPage: React.FC = () => {
                 }}
                 className={`px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${
                   viewMode === 'formations' 
-                    ? 'bg-white text-blue-600 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-slate-700 text-amber-50 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <BookOpen className="h-4 w-4" />
@@ -1171,8 +1207,8 @@ const AdminFormationsPage: React.FC = () => {
                 onClick={() => setViewMode('universes')}
                 className={`px-3 py-2 rounded-md transition-colors flex items-center gap-2 ${
                   viewMode === 'universes' 
-                    ? 'bg-white text-blue-600 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-slate-700 text-amber-50 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Folder className="h-4 w-4" />
@@ -1183,13 +1219,13 @@ const AdminFormationsPage: React.FC = () => {
 
           {/* Sélecteur de vue univers (si on est en mode univers) */}
           {viewMode === 'universes' && (
-            <div className="flex bg-gray-100 rounded-lg p-1">
+            <div className="flex bg-slate-100 rounded-lg p-1">
               <button
                 onClick={() => setUniverseViewMode('cards')}
                 className={`p-2 rounded-md transition-colors ${
                   universeViewMode === 'cards' 
-                    ? 'bg-white text-blue-600 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-slate-700 text-amber-50 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
                 title="Vue cartes"
               >
@@ -1199,8 +1235,8 @@ const AdminFormationsPage: React.FC = () => {
                 onClick={() => setUniverseViewMode('list')}
                 className={`p-2 rounded-md transition-colors ${
                   universeViewMode === 'list' 
-                    ? 'bg-white text-blue-600 shadow-sm' 
-                    : 'text-gray-600 hover:text-gray-900'
+                    ? 'bg-slate-700 text-amber-50 shadow-sm' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
                 title="Vue liste"
               >
@@ -1636,6 +1672,7 @@ const AdminFormationsPage: React.FC = () => {
           onSave={handleSaveFormation}
           formation={selectedFormation}
           universes={cacheData?.universes || []}
+          universeId={selectedUniverse?.id} // Passer l'univers sélectionné
         />
       )}
 

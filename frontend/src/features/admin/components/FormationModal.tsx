@@ -123,9 +123,10 @@ export const FormationModal: React.FC<FormationModalProps> = ({
         isOpportunity: false
       });
       setCoverImageFile(null);
-      setSelectedUniverseId('');
+      // Initialiser avec l'univers passé en props si disponible
+      setSelectedUniverseId(universeId || '');
     }
-  }, [formation]);
+  }, [formation, universeId]);
 
   // Mettre à jour isOpportunity quand l'univers change
   useEffect(() => {

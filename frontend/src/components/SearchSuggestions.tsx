@@ -59,8 +59,45 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
 
   // Générer les suggestions
   useEffect(() => {
-    if (!searchTerm.trim() || !isVisible) {
+    if (!isVisible) {
       setSuggestions([]);
+      return;
+    }
+
+    // Si pas de terme de recherche, afficher toutes les formations et univers
+    if (!searchTerm.trim()) {
+      const allSuggestions: SearchSuggestion[] = [];
+
+      // Ajouter toutes les formations
+      formations.forEach(formation => {
+        const universe = universes.find(u => u.id === formation.universeId);
+        const universeName = universe?.name || (formation.isOpportunity ? 'Opportunités commerciales' : 'Sans univers');
+        
+        allSuggestions.push({
+          id: `formation-${formation.id}`,
+          type: 'formation',
+          title: formation.title,
+          subtitle: `${universeName}/${formation.title}`,
+          formation,
+          score: 50 // Score par défaut
+        });
+      });
+
+      // Ajouter tous les univers
+      universes.forEach(universe => {
+        allSuggestions.push({
+          id: `universe-${universe.id}`,
+          type: 'universe',
+          title: universe.name,
+          subtitle: `${universe.name}`,
+          universe,
+          score: 50 // Score par défaut
+        });
+      });
+
+      // Limiter à 10 suggestions par défaut
+      setSuggestions(allSuggestions.slice(0, 10));
+      setSelectedIndex(0);
       return;
     }
 
@@ -106,7 +143,7 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
           id: `universe-${universe.id}`,
           type: 'universe',
           title: universe.name,
-          subtitle: `Univers: ${universe.name}`,
+          subtitle: `${universe.name}`,
           universe,
           score
         });
@@ -173,7 +210,7 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
     
     return parts.map((part, index) => 
       regex.test(part) ? (
-        <mark key={index} className="bg-brand-beige px-1 rounded">
+        <mark key={index} className="bg-transparent">
           {part}
         </mark>
       ) : part
@@ -191,7 +228,10 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
     >
       <div className="p-2">
         <div className="text-xs text-gray-500 mb-2 px-2">
-          {suggestions.length} suggestion{suggestions.length > 1 ? 's' : ''} trouvée{suggestions.length > 1 ? 's' : ''}
+          {searchTerm.trim() ? 
+            `${suggestions.length} suggestion${suggestions.length > 1 ? 's' : ''} trouvée${suggestions.length > 1 ? 's' : ''}` :
+            `${suggestions.length} élément${suggestions.length > 1 ? 's' : ''} disponible${suggestions.length > 1 ? 's' : ''}`
+          }
         </div>
         
         {suggestions.map((suggestion, index) => (

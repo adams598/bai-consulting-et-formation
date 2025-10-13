@@ -308,6 +308,7 @@ export const uploadController = {
 
       const { filename, path: filePath, mimetype, size } = req.file;
       const user = req.user;
+      const { formationTitle } = req.body;
 
       // Validation du type de fichier
       const allowedTypes = [
@@ -334,12 +335,23 @@ export const uploadController = {
         });
       }
 
-      // Générer une URL publique pour la vidéo
-      const userFolderName = `${user.firstName}_${user.lastName}`.replace(
-        /[^a-zA-Z0-9_-]/g,
-        "_"
-      );
-      const videoUrl = `/uploads/videos/${userFolderName}/${filename}`;
+      // Déterminer le dossier de destination
+      let folderName, videoUrl;
+
+      if (formationTitle) {
+        // Si un titre de formation est fourni, utiliser la structure formations
+        const sanitizedTitle = sanitizeTitle(formationTitle);
+        folderName = `formations/${sanitizedTitle}`;
+        videoUrl = `/uploads/${folderName}/video-${sanitizedTitle}.mp4`;
+      } else {
+        // Sinon, utiliser la structure utilisateur classique
+        const userFolderName = `${user.firstName}_${user.lastName}`.replace(
+          /[^a-zA-Z0-9_-]/g,
+          "_"
+        );
+        folderName = `videos/${userFolderName}`;
+        videoUrl = `/uploads/${folderName}/${filename}`;
+      }
 
       console.log("🎥 Vidéo uploadée avec succès:", {
         filename,
@@ -347,8 +359,9 @@ export const uploadController = {
         mimetype,
         size,
         videoUrl,
+        formationTitle,
         user: `${user.firstName} ${user.lastName}`,
-        userFolder: userFolderName,
+        folder: folderName,
       });
 
       res.json({
@@ -359,7 +372,7 @@ export const uploadController = {
           filename,
           size,
           mimetype,
-          userFolder: userFolderName,
+          folder: folderName,
         },
         message: "Vidéo uploadée avec succès",
       });
