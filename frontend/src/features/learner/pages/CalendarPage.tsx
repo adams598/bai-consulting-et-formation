@@ -69,10 +69,47 @@ const CalendarPage: React.FC = () => {
 
   const { toast } = useToast();
 
+  // Charger les données au montage et quand on revient sur la page
   useEffect(() => {
     loadRealCalendarData();
     loadIntegrations();
-  }, []);
+  }, [location.pathname]); // Recharger quand l'URL change (navigation vers cette page)
+
+  // Gérer la pré-sélection d'une formation depuis une autre page
+  useEffect(() => {
+    const preSelectedFormation = location.state?.selectedFormation;
+    const action = location.state?.action;
+    
+    if (preSelectedFormation && action === 'schedule') {
+      // Pré-remplir le formulaire avec les données de la formation
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      setEventForm({
+        title: `Formation: ${preSelectedFormation.title}`,
+        description: preSelectedFormation.description || `Formation: ${preSelectedFormation.title}`,
+        startDate: tomorrow.toISOString().split('T')[0],
+        endDate: tomorrow.toISOString().split('T')[0],
+        startTime: '09:00',
+        endTime: new Date(new Date(`1970-01-01T09:00:00`).getTime() + (preSelectedFormation.duration || 60) * 60000)
+          .toTimeString().substring(0, 5),
+        type: 'FORMATION',
+        location: 'En ligne',
+        attendees: '',
+        isAllDay: false,
+        formationId: preSelectedFormation.id,
+        reminders: [15, 60],
+        isRecurring: false,
+        recurrenceRule: ''
+      });
+      
+      // Ouvrir automatiquement le formulaire d'événement
+      setShowEventForm(true);
+      
+      // Nettoyer le state pour éviter de rouvrir le formulaire à chaque navigation
+      window.history.replaceState({}, '', location.pathname);
+    }
+  }, [location.state]);
 
   // Gérer les paramètres de retour OAuth
   useEffect(() => {
@@ -368,15 +405,19 @@ const CalendarPage: React.FC = () => {
         eventType: eventForm.formationId ? 'formation' : 'personal'
       };
 
+      console.log('📅 Création événement depuis CalendarPage:', eventApiData);
+
       // Créer l'événement via l'API de calendrier
       const response = await calendarApi.createEvent(eventApiData);
+      
+      console.log('✅ Réponse création événement:', response);
       
       if (response.success && response.data) {
         // Recharger les événements depuis la BDD
         await loadRealCalendarData();
         
         setShowEventForm(false);
-        // resetEventForm(); // Appelé après la définition de la fonction
+        resetEventForm();
         
         toast({
           title: "Événement créé",
@@ -384,7 +425,7 @@ const CalendarPage: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('Erreur lors de la création de l\'événement:', error);
+      console.error('❌ Erreur lors de la création de l\'événement:', error);
       toast({
         title: "Erreur",
         description: "Impossible de créer l'événement",

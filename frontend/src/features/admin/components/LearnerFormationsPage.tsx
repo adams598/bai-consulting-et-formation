@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { 
   BookOpen, 
   Clock, 
@@ -87,6 +87,7 @@ interface Universe {
 
 const LearnerFormationsPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   
   // Hook optimisé pour le cache des données (spécialisé pour les learners)
   const {
@@ -100,12 +101,12 @@ const LearnerFormationsPage: React.FC = () => {
   const [filteredFormations, setFilteredFormations] = useState<LearnerFormation[]>([]);
   const [allFormations, setAllFormations] = useState<LearnerFormation[]>([]);
   const [assignedFormationIds, setAssignedFormationIds] = useState<Set<string>>(new Set());
+  const [plannedFormationIds, setPlannedFormationIds] = useState<Set<string>>(new Set());
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'PENDING' | 'IN_PROGRESS' | 'COMPLETED'>('all');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [selectedFormation, setSelectedFormation] = useState<LearnerFormation | null>(null);
   const [showFormationDetail, setShowFormationDetail] = useState(false);
-  const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [showLessonPlayer, setShowLessonPlayer] = useState(false);
   const [lessons, setLessons] = useState<any[]>([]);
   const [isLoadingLessons, setIsLoadingLessons] = useState(false);
@@ -127,7 +128,29 @@ const LearnerFormationsPage: React.FC = () => {
   useEffect(() => {
     // Charger les données via la nouvelle API pour les COLLABORATOR
     loadAllFormationsWithAssignment();
-  }, []);
+    // Charger les événements du calendrier pour savoir quelles formations sont planifiées
+    loadCalendarEvents();
+  }, [location.pathname]); // Recharger quand on revient sur cette page
+
+  // Fonction pour charger les événements du calendrier
+  const loadCalendarEvents = async () => {
+    try {
+      const eventsResponse = await calendarApi.getEvents();
+      if (eventsResponse.success && eventsResponse.data) {
+        // Récupérer les IDs des formations déjà planifiées
+        const formationIds: string[] = eventsResponse.data
+          .filter((event: any) => event.type === 'FORMATION' && event.formationId)
+          .map((event: any) => event.formationId as string);
+        
+        const plannedIds = new Set<string>(formationIds);
+        setPlannedFormationIds(plannedIds);
+        console.log('📅 Formations déjà planifiées:', plannedIds.size);
+      }
+    } catch (error) {
+      console.warn('Aucun événement trouvé, calendrier vide');
+      setPlannedFormationIds(new Set<string>());
+    }
+  };
 
   // Fonction pour charger toutes les formations avec indication d'assignation
   const loadAllFormationsWithAssignment = async () => {
@@ -342,6 +365,11 @@ const LearnerFormationsPage: React.FC = () => {
     return assignedFormationIds.has(formationId);
   };
 
+  // Fonction pour vérifier si une formation est déjà planifiée
+  const isFormationPlanned = (formationId: string): boolean => {
+    return plannedFormationIds.has(formationId);
+  };
+
   // Gestionnaires d'événements
   const handleFormationClick = async (formation: LearnerFormation) => {
     // Vérifier si la formation est assignée
@@ -412,9 +440,18 @@ const LearnerFormationsPage: React.FC = () => {
       return;
     }
 
-    setSelectedFormation(formation);
-    setShowScheduleModal(true);
-    setActiveDropdown(null);
+    // Rediriger vers la page calendrier avec la formation pré-sélectionnée
+    navigate('/admin/calendar', {
+      state: {
+        selectedFormation: {
+          id: formation.id,
+          title: formation.title,
+          description: formation.description,
+          duration: formation.duration
+        },
+        action: 'schedule'
+      }
+    });
   };
 
   const handleStartFormation = (formation: LearnerFormation) => {
@@ -640,7 +677,7 @@ const LearnerFormationsPage: React.FC = () => {
                           className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: universe.color || '#6B7280' }}
                         ></div>
-                        <span className="text-sm font-medium text-gray-700 uppercase">
+                        <span className="text-2xl font-medium text-gray-700 uppercase mb-2">
                           {universe.name}
                         </span>
                         
@@ -691,8 +728,8 @@ const LearnerFormationsPage: React.FC = () => {
                               </div>
                             )}
 
-                            {/* Icône agenda au survol pour les formations assignées */}
-                            {isAssigned && (
+                            {/* Icône agenda au survol pour les formations assignées ET non planifiées */}
+                            {isAssigned && !isFormationPlanned(formation.id) && (
                               <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                 <button
                                   onClick={(e) => {
@@ -704,6 +741,16 @@ const LearnerFormationsPage: React.FC = () => {
                                 >
                                   <Calendar className="h-3 w-3 text-brand-blue" />
                                 </button>
+                              </div>
+                            )}
+                            
+                            {/* Badge "Planifiée" pour les formations déjà planifiées */}
+                            {isAssigned && isFormationPlanned(formation.id) && (
+                              <div className="absolute top-3 right-3">
+                                <div className="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  Planifiée
+                                </div>
                               </div>
                             )}
                           </div>
@@ -793,8 +840,8 @@ const LearnerFormationsPage: React.FC = () => {
                             </div>
                           )}
 
-                          {/* Icône agenda au survol pour les formations assignées */}
-                          {isAssigned && (
+                          {/* Icône agenda au survol pour les formations assignées ET non planifiées */}
+                          {isAssigned && !isFormationPlanned(formation.id) && (
                             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                               <button
                                 onClick={(e) => {
@@ -806,6 +853,16 @@ const LearnerFormationsPage: React.FC = () => {
                               >
                                 <Calendar className="h-3 w-3 text-brand-blue" />
                               </button>
+                            </div>
+                          )}
+                          
+                          {/* Badge "Planifiée" pour les formations déjà planifiées */}
+                          {isAssigned && isFormationPlanned(formation.id) && (
+                            <div className="absolute top-3 right-3">
+                              <div className="px-2 py-1 rounded-full bg-green-100 text-green-700 text-xs font-medium flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                Planifiée
+                              </div>
                             </div>
                           )}
                         </div>
@@ -841,102 +898,6 @@ const LearnerFormationsPage: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Modal de planification */}
-      {showScheduleModal && selectedFormation && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Planifier dans l'agenda
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Formation : <strong>{selectedFormation.title}</strong>
-              </p>
-              
-              <form onSubmit={async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target as HTMLFormElement);
-                const date = formData.get('date') as string;
-                const time = formData.get('time') as string;
-                
-                try {
-                  // Calculer les dates de début et de fin
-                  const startDateTime = new Date(`${date}T${time}`);
-                  const endDateTime = new Date(startDateTime.getTime() + (selectedFormation.duration || 60) * 60000); // Durée en minutes
-                  
-                  // Créer l'événement via l'API
-                  await calendarApi.createEvent({
-                    title: selectedFormation.title,
-                    description: selectedFormation.description || `Formation: ${selectedFormation.title}`,
-                    startDate: startDateTime.toISOString(),
-                    endDate: endDateTime.toISOString(),
-                    type: "FORMATION",
-                    formationId: selectedFormation.id,
-                    eventType: "formation",
-                    color: "#3B82F6", // Bleu pour les formations
-                    reminders: [15, 60] // Rappels 15 min et 1h avant
-                  });
-                  
-                  toast({
-                    title: "Formation planifiée",
-                    description: `"${selectedFormation.title}" a été ajoutée à votre agenda le ${new Date(date).toLocaleDateString('fr-FR')} à ${time}`,
-                  });
-                  
-                  setShowScheduleModal(false);
-                } catch (error) {
-                  console.error('Erreur lors de la planification:', error);
-                  toast({
-                    title: "Erreur",
-                    description: "Impossible de planifier la formation. Veuillez réessayer.",
-                    variant: "destructive",
-                  });
-                }
-              }}>
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Date
-                    </label>
-                    <input
-                      type="date"
-                      name="date"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Heure
-                    </label>
-                    <input
-                      type="time"
-                      name="time"
-                      required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-3 mt-6">
-                  <button
-                    type="button"
-                    onClick={() => setShowScheduleModal(false)}
-                    className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Planifier
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
