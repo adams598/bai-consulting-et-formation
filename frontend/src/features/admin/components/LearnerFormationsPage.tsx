@@ -614,6 +614,12 @@ const LearnerFormationsPage: React.FC = () => {
 
               // Rendu des univers
               const universeSections = Object.entries(formationsByUniverse)
+                .sort(([a], [b]) => {
+                  // Mettre 'opportunites-commerciales' en premier
+                  if (a === 'opportunites-commerciales') return -1;
+                  if (b === 'opportunites-commerciales') return 1;
+                  return 0;
+                })
                 .map(([universeId, formations]) => {
                   // Trouver l'univers correspondant dans les univers de l'API
                   const universe = apiUniverses.find((u: any) => u.id === universeId);
@@ -634,12 +640,10 @@ const LearnerFormationsPage: React.FC = () => {
                           className="w-3 h-3 rounded-full"
                           style={{ backgroundColor: universe.color || '#6B7280' }}
                         ></div>
-                        <span className="text-sm font-medium text-gray-700">
+                        <span className="text-sm font-medium text-gray-700 uppercase">
                           {universe.name}
                         </span>
-                        <span className="text-xs text-gray-500">
-                          ({formations.length} formation{formations.length > 1 ? 's' : ''})
-                        </span>
+                        
                       </div>
                       <div className="flex-1 h-px bg-gray-300"></div>
                     </div>
@@ -745,9 +749,7 @@ const LearnerFormationsPage: React.FC = () => {
                       <span className="text-sm font-medium text-gray-700">
                         Autres formations
                       </span>
-                      <span className="text-xs text-gray-500">
-                        ({formationsWithoutUniverse.length} formation{formationsWithoutUniverse.length > 1 ? 's' : ''})
-                      </span>
+                      
                     </div>
                     <div className="flex-1 h-px bg-gray-300"></div>
                   </div>

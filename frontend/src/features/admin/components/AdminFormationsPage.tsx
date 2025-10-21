@@ -1077,11 +1077,11 @@ const AdminFormationsPage: React.FC = () => {
       }
     });
     
-    // 3. Trier les groupes pour que 'opportunites-commerciales' soit en premier
+    // 3. Trier les groupes pour que 'opportunites-commerciales' soit en premier, puis par ordre alphabétique
     grouped.sort((a, b) => {
       if (a.universe.id === 'opportunites-commerciales') return -1;
       if (b.universe.id === 'opportunites-commerciales') return 1;
-      return 0;
+      return a.universe.name.localeCompare(b.universe.name);
     });
     
     console.log('🔍 getFormationsGroupedByUniverse - Groupes finaux:', grouped.length);
