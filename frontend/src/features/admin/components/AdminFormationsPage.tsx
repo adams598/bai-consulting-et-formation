@@ -9,6 +9,7 @@ import { formationsApi, quizApi, bankFormationApi, universesApi, assignmentsApi,
 import { formationsApi as learnerFormationsApi } from '../../../api/learnerApi';
 import { Formation, Universe, UniverseFormation } from '../types';
 import { getFormationCoverImageUrl } from '../../../utils/imageUtils';
+import { formatDuration } from '../../../utils/formatDuration';
 import { authService } from '../../../services/authService';
 import { useFormationsCache } from '../../../hooks/useFormationsCache';
 import { FormationModal } from './FormationModal';
@@ -19,6 +20,7 @@ import FormationContentManager from './FormationContentManager';
 import FormationDetailView from './FormationDetailView';
 import BanksListView from './BanksListView';
 import FormationAssignmentModal from './FormationAssignmentModal';
+import UniverseModal from './UniverseModal';
 import { useConfirmation } from '../../../hooks/useConfirmation';
 import { useSidebar } from '../../../contexts/SidebarContext';
 import { useToast } from '../../../components/ui/use-toast';
@@ -497,6 +499,27 @@ const AdminFormationsPage: React.FC = () => {
     setShowQuizModal(true);
   };
 
+  // Fonction pour recharger les leçons d'une formation
+  const loadLessonsForFormation = async (formation: Formation) => {
+    try {
+      console.log('🔄 Rechargement des leçons pour:', formation.title);
+      
+      // Charger les leçons de la formation
+      const response = await formationContentApi.getByFormation(formation.id);
+      
+      // Filtrer seulement les leçons (pas les sections) et trier par ordre
+      const lessonsOnly = response.data
+        .filter((content: any) => content.contentType === 'LESSON')
+        .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+      
+      setLessons(lessonsOnly);
+      
+      console.log('📚 Leçons rechargées:', lessonsOnly.length);
+    } catch (error) {
+      console.error('❌ Erreur lors du rechargement des leçons:', error);
+    }
+  };
+
   const handleFormationClick = async (formation: Formation) => {
     console.log('🖱️ Clic sur formation:', formation.title);
     console.log('🖱️ isOpportunity:', formation.isOpportunity);
@@ -504,10 +527,43 @@ const AdminFormationsPage: React.FC = () => {
     console.log('🖱️ Formation complète:', formation);
     setSelectedFormation(formation);
     
-    // En tant qu'admin, toujours ouvrir le FormationDetailView
-    console.log('📋 Ouverture FormationDetailView pour admin:', formation.title);
-    setShowFormationDetail(true);
-    setIsCollapsed(true);
+    // Si c'est une formation d'opportunités commerciales, ouvrir directement le viewer vidéo
+    if (formation.isOpportunity || formation.universeId === 'opportunites-commerciales') {
+      console.log('🎥 Ouverture du viewer vidéo pour formation opportunité:', formation.id);
+      
+      try {
+        setIsLoadingLessons(true);
+        
+        // Charger les leçons de la formation
+        const response = await formationContentApi.getByFormation(formation.id);
+        
+        // Filtrer seulement les leçons (pas les sections) et trier par ordre
+        const lessonsOnly = response.data
+          .filter((content: any) => content.contentType === 'LESSON')
+          .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+        
+        setLessons(lessonsOnly);
+        
+        console.log('📚 Leçons chargées:', lessonsOnly.length);
+        
+        // Ouvrir le viewer (même si pas de leçons)
+        setShowLessonPlayer(true);
+      } catch (error) {
+        console.error('❌ Erreur lors du chargement des leçons:', error);
+        toast({
+          title: "Erreur",
+          description: "Impossible de charger les leçons de cette formation.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingLessons(false);
+      }
+    } else {
+      // Comportement normal pour les formations d'univers
+      console.log('📋 Ouverture FormationDetailView pour admin:', formation.title);
+      setShowFormationDetail(true);
+      setIsCollapsed(true);
+    }
   };
 
   const handleLessonsClick = (formation: Formation, e: React.MouseEvent) => {
@@ -813,6 +869,36 @@ const AdminFormationsPage: React.FC = () => {
     });
   };
 
+  const handleSaveUniverse = async (universeData: Partial<Universe>) => {
+    try {
+      console.log('💾 Création de l\'univers:', universeData);
+      
+      // Fermer le modal immédiatement pour une meilleure UX
+      setShowUniverseModal(false);
+      
+      // Appel API pour créer l'univers
+      const response = await universesApi.create(universeData as Omit<Universe, 'id' | 'createdAt' | 'updatedAt' | 'formationCount'>);
+      
+      console.log('✅ Univers créé:', response.data);
+      
+      toast({
+        title: "Succès",
+        description: "Univers créé avec succès",
+      });
+      
+      // Recharger les données pour afficher le nouvel univers
+      await refreshData();
+      
+    } catch (error: any) {
+      console.error('❌ Erreur lors de la création de l\'univers:', error);
+      toast({
+        title: "Erreur",
+        description: error.response?.data?.message || "Erreur lors de la création de l'univers",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleUpdateUniverse = async (universeData: Partial<Universe>) => {
     if (!universeToEdit) return;
     
@@ -826,8 +912,21 @@ const AdminFormationsPage: React.FC = () => {
       
       // Appel API en arrière-plan
       await universesApi.update(universeToEdit.id, universeData);
+      
+      toast({
+        title: "Succès",
+        description: "Univers mis à jour avec succès",
+      });
+      
+      // Recharger les données
+      await refreshData();
     } catch (error) {
       console.error('Erreur lors de la mise à jour de l\'univers:', error);
+      toast({
+        title: "Erreur",
+        description: "Erreur lors de la mise à jour de l'univers",
+        variant: "destructive",
+      });
       // En cas d'erreur, recharger les données pour restaurer l'état correct
       await refreshData();
     }
@@ -1002,18 +1101,6 @@ const AdminFormationsPage: React.FC = () => {
     );
   };
 
-  // Fonction pour formater la durée
-  const formatDuration = useCallback((minutes: number) => {
-    if (minutes < 60) {
-      return `${minutes} min`;
-    }
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    if (remainingMinutes === 0) {
-      return `${hours}h`;
-    }
-    return `${hours}h ${remainingMinutes}min`;
-  }, []);
 
   // Fonction pour formater la date de modification
   const formatModificationDate = useCallback((updatedAt: string | Date) => {
@@ -1036,16 +1123,19 @@ const AdminFormationsPage: React.FC = () => {
   }
 
   // Si on affiche le viewer de leçons (pour les opportunités)
-  if (showLessonPlayer && selectedFormation && lessons.length > 0) {
+  if (showLessonPlayer && selectedFormation) {
     return (
       <LessonPlayer
         formation={{
           id: selectedFormation.id,
           title: selectedFormation.title,
-          description: selectedFormation.description || ''
+          description: selectedFormation.description || '',
+          universeId: selectedFormation.universeId,
+          isOpportunity: selectedFormation.isOpportunity,
+          hasQuiz: selectedFormation.hasQuiz
         }}
         lessons={lessons}
-        initialSelectedLesson={lessons[0]} // Commencer par la première leçon
+        initialSelectedLesson={lessons.length > 0 ? lessons[0] : null} // Commencer par la première leçon si disponible
         onClose={() => {
           setShowLessonPlayer(false);
           setSelectedFormation(null);
@@ -1054,6 +1144,11 @@ const AdminFormationsPage: React.FC = () => {
         }}
         onProgressUpdate={(lessonId, progress) => {
           console.log('📊 Progression mise à jour:', lessonId, progress);
+        }}
+        onLessonAdded={(newLesson) => {
+          console.log('📚 Nouvelle leçon ajoutée:', newLesson);
+          // Recharger les leçons de la formation
+          loadLessonsForFormation(selectedFormation);
         }}
       />
     );
@@ -1095,7 +1190,7 @@ const AdminFormationsPage: React.FC = () => {
 
       {/* Barre d'actions en lot - Visible uniquement pour les admins */}
       {showBulkActions && isAdmin() && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-gray-200 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-blue-900">
@@ -1248,7 +1343,7 @@ const AdminFormationsPage: React.FC = () => {
       </div>
 
       {/* Contenu principal */}
-      <div className="bg-white p-6">
+      <div className="bg-gray-200 p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
           <h2 className="admin-title-md admin-title-spacing">
@@ -1569,7 +1664,7 @@ const AdminFormationsPage: React.FC = () => {
                         className="w-3 h-3 rounded-full"
                         style={{ backgroundColor: group.universe?.color || '#6B7280' }}
                       ></div>
-                      <span className="text-sm font-medium text-gray-700">
+                      <span className="text-lg font-medium text-gray-700 uppercase">
                         {group.universe?.name || 'Sans univers'}
                       </span>
                       <span className="text-xs text-gray-500">
@@ -1584,20 +1679,20 @@ const AdminFormationsPage: React.FC = () => {
                     {group.formations.map((formation, index) => (
                       <div
                         key={formation.id}
-                        className="group bg-slate-700 rounded-lg overflow-hidden hover:bg-slate-600 hover:shadow-xl hover:scale-105 transition-all duration-300 ease-in-out cursor-pointer"
+                        className="group rounded-lg overflow-hidden transition-all duration-300 ease-in-out bg-white hover:shadow-xl hover:scale-105 cursor-pointer border border-gray-200"
                         onClick={() => handleFormationClick(formation)}
                       >
-                        {/* Section supérieure bleue foncée avec logo */}
+                        {/* Section supérieure avec logo BAI centré */}
                         <div 
-                          className="h-32 bg-slate-700 group-hover:bg-slate-600 relative flex items-center justify-center transition-colors duration-300"
+                          className="h-36 m-2 relative flex items-center justify-center transition-colors duration-300 bg-brand-blue group-hover:bg-brand-blue/90"
                         >
-                          {/* Logo BAI en haut à gauche */}
-                          <div className="absolute top-3 left-3">
-                            <div className="w-8 h-8">
+                          {/* Logo BAI centré */}
+                          <div className="flex items-center justify-center">
+                            <div className="w-16 h-16 flex items-center justify-center border border-brand-beige rounded-full hover:bg-brand-beige/85 transition-all duration-600">
                               <img 
                                 src="/images/BAI 2-modified.png" 
                                 alt="BAI Logo" 
-                                className="w-full h-full object-contain"
+                                className="w-12 h-12 object-contain"
                                 onError={(e) => {
                                   // Fallback si l'image n'est pas trouvée
                                   const target = e.target as HTMLImageElement;
@@ -1607,51 +1702,42 @@ const AdminFormationsPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Icône Quiz en haut à droite */}
+                          {/* Point quiz discret en haut à droite */}
                           <div className="absolute top-3 right-3">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleConfigureQuiz(formation);
                               }}
-                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 ${
+                              className={`w-3 h-3 rounded-full transition-all duration-200 ${
                                 formation.hasQuiz 
                                   ? 'bg-green-500 hover:bg-green-600' 
-                                  : 'bg-orange-500 hover:bg-orange-600'
+                                  : 'bg-gray-400 hover:bg-gray-500'
                               }`}
                               title={formation.hasQuiz ? 'Quiz configuré' : 'Configurer le quiz'}
-                            >
-                              <HelpCircle className="h-4 w-4 text-white" />
-                            </button>
-                          </div>
-                          
-                          {/* Titre de la formation centré */}
-                          <div className="text-center px-6">
-                            <h3 className="text-amber-50 font-bold text-sm leading-tight mb-1">
-                              {formation.title}
-                            </h3>
-                            <div className="w-full h-px bg-amber-50 opacity-50"></div>
+                            />
                           </div>
                         </div>
                         
-                        {/* Section inférieure bleue foncée */}
-                        <div className="p-4 bg-slate-700 group-hover:bg-slate-600 transition-colors duration-300">
-                          <div className="flex items-center justify-between">
-                            {/* Numéro de cours */}
-                            <div>
-                              <div className="text-amber-50 font-bold text-sm">
-                                cours n°{index + 1}
-                              </div>
-                            </div>
+                        {/* Section inférieure */}
+                        <div className="p-4 transition-colors duration-300 bg-gray-50">
+                          <div className="space-y-3">
+                            {/* Titre de la formation */}
+                            <h3 className="font-bold text-md leading-tight text-gray-900">
+                              {formatFormationTitle(formation.title)}
+                            </h3>
                             
-                            {/* Date de modification centrée */}
-                            <div className="flex items-center">
-                              <div className="w-3 h-3 bg-amber-50 rounded-full mr-2 flex items-center justify-center">
-                                <div className="w-1.5 h-1.5 bg-slate-900 rounded-full"></div>
-                              </div>
-                              <span className="text-amber-50 text-xs">
-                                • Modifié il y a {formatModificationDate(formation.updatedAt)} jours
+                            {/* Type de formation et durée */}
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-gray-600">
+                                {formation.pedagogicalModality || 'E-learning'}
                               </span>
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3 h-3 text-gray-500" />
+                                <span className="text-xs text-gray-600">
+                                  {formatDuration(formation.duration || 0)}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1682,6 +1768,139 @@ const AdminFormationsPage: React.FC = () => {
           formationId={selectedFormation.id}
           onClose={() => setShowQuizModal(false)}
           onSave={handleSaveQuiz}
+        />
+      )}
+
+      {/* Modal de création d'univers */}
+      {showUniverseModal && (
+        <UniverseModal
+          onClose={() => setShowUniverseModal(false)}
+          onSave={handleSaveUniverse}
+        />
+      )}
+
+      {/* Modal d'édition d'univers */}
+      {showUniverseEditModal && universeToEdit && (
+        <UniverseModal
+          universe={universeToEdit}
+          onClose={() => {
+            setShowUniverseEditModal(false);
+            setUniverseToEdit(null);
+          }}
+          onSave={handleUpdateUniverse}
+        />
+      )}
+
+      {/* Modals de déplacement et d'assignation en lot */}
+      {showMoveFormationModal && formationToMove && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Déplacer la formation
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Formation : <strong>{formationToMove.title}</strong>
+            </p>
+            <div className="space-y-2 mb-6">
+              <label className="block text-sm font-medium text-gray-700">
+                Sélectionner un univers
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onChange={(e) => {
+                  handleSaveMoveFormation(e.target.value);
+                }}
+                defaultValue=""
+              >
+                <option value="" disabled>-- Choisir un univers --</option>
+                {universes.map(universe => (
+                  <option key={universe.id} value={universe.id}>
+                    {universe.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowMoveFormationModal(false);
+                  setFormationToMove(null);
+                }}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkMoveModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Déplacer {selectedFormations.length} formation{selectedFormations.length > 1 ? 's' : ''}
+            </h3>
+            <div className="space-y-2 mb-6">
+              <label className="block text-sm font-medium text-gray-700">
+                Sélectionner un univers
+              </label>
+              <select
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onChange={(e) => {
+                  handleBulkMove(e.target.value);
+                }}
+                defaultValue=""
+              >
+                <option value="" disabled>-- Choisir un univers --</option>
+                {universes.map(universe => (
+                  <option key={universe.id} value={universe.id}>
+                    {universe.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowBulkMoveModal(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBulkDeleteModal && (
+        <ConfirmationModal
+          isOpen={showBulkDeleteModal}
+          title="Supprimer les formations"
+          message={`Êtes-vous sûr de vouloir supprimer ${selectedFormations.length} formation${selectedFormations.length > 1 ? 's' : ''} ? Cette action est irréversible.`}
+          confirmText="Supprimer"
+          cancelText="Annuler"
+          onConfirm={handleBulkDelete}
+          onCancel={() => setShowBulkDeleteModal(false)}
+          variant="danger"
+        />
+      )}
+
+      {showBulkAssignModal && (
+        <FormationAssignmentModal
+          isOpen={showBulkAssignModal}
+          formationIds={selectedFormations}
+          onClose={() => setShowBulkAssignModal(false)}
+          onSave={handleBulkAssign}
+        />
+      )}
+
+      {showConfirmModal && selectedFormation && (
+        <ConfirmModal
+          isOpen={showConfirmModal}
+          title="Supprimer la formation"
+          message={`Êtes-vous sûr de vouloir supprimer la formation "${selectedFormation.title}" ? Cette action est irréversible.`}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setShowConfirmModal(false)}
         />
       )}
     </div>
