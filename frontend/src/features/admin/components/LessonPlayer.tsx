@@ -31,10 +31,32 @@ interface LessonProgress {
   completed: boolean;
 }
 
-export default function LessonPlayer({ formation, lessons, initialSelectedLesson, onClose, onProgressUpdate }: LessonPlayerProps) {
+export default function LessonPlayer({ formation, lessons: rawLessons, initialSelectedLesson, onClose, onProgressUpdate }: LessonPlayerProps) {
   const { user } = useAuth();
   const [selectedLesson, setSelectedLesson] = useState<FormationContent | null>(null);
   const [lessonProgress, setLessonProgress] = useState<{[key: string]: LessonProgress}>({});
+
+  // Transformer les données des leçons pour s'assurer que toutes les propriétés sont bien définies
+  // Principe similaire à la transformation des formations dans LearnerFormationsPage
+  const lessons = React.useMemo(() => {
+    return rawLessons.map((lesson: any) => ({
+      id: lesson.id,
+      formationId: lesson.formationId,
+      title: lesson.title,
+      description: lesson.description,
+      type: lesson.type,
+      contentType: lesson.contentType,
+      sectionId: lesson.sectionId,
+      order: lesson.order,
+      duration: lesson.duration || 0, // S'assurer que duration provient bien de la BDD
+      fileUrl: lesson.fileUrl,
+      fileSize: lesson.fileSize,
+      coverImage: lesson.coverImage,
+      metadata: lesson.metadata,
+      createdAt: lesson.createdAt,
+      updatedAt: lesson.updatedAt
+    }));
+  }, [rawLessons]);
 
   // Fonction pour récupérer l'ID utilisateur
   const getCurrentUserId = () => {
@@ -255,6 +277,21 @@ export default function LessonPlayer({ formation, lessons, initialSelectedLesson
     return `${minutes}m`;
   };
 
+  // Fonction pour formater la durée de la leçon (provenant de la BDD)
+  const formatDuration = (seconds: number) => {
+    if (!seconds || seconds === 0) return 'N/A';
+    
+    if (seconds < 60) {
+      return `${seconds}s`;
+    } else if (seconds < 3600) {
+      const minutes = Math.floor(seconds / 60);
+      return `${minutes}m`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      return `${hours}h`;
+    }
+  };
+
   return (
     <>
       {/* Overlay sombre */}
@@ -301,7 +338,6 @@ export default function LessonPlayer({ formation, lessons, initialSelectedLesson
                   const progress = lessonProgress[lesson.id];
                   const isSelected = selectedLesson?.id === lesson.id;
                   const isAccessible = isLessonAccessible(lesson, index);
-                  
                   return (
                     <div
                       key={lesson.id}
@@ -358,7 +394,7 @@ export default function LessonPlayer({ formation, lessons, initialSelectedLesson
                       {/* Description */}
                       {lesson.description && (
                         <p className="text-xs text-gray-600 mb-3 line-clamp-2">
-                          {lesson.description}
+                          {/* {lesson.description} */}
                         </p>
                       )}
 
@@ -366,7 +402,7 @@ export default function LessonPlayer({ formation, lessons, initialSelectedLesson
                       <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
                         <div className="flex items-center space-x-1">
                           <Clock className="h-3 w-3" />
-                          <span>{lesson.duration ? `${Math.floor(lesson.duration / 60)}m` : 'N/A'}</span>
+                          <span>{formatDuration(lesson.duration || 0)}</span>
                         </div>
                         {progress && progress.timeSpent > 0 && (
                           <span className="text-blue-600">

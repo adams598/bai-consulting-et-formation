@@ -145,7 +145,7 @@ model FormationContent {
   contentType String // SECTION ou LESSON
   sectionId   String? // si contentType = LESSON, référence vers la section parente
   order       Int // ordre dans la formation ou dans la section
-  duration    Int? // en minutes
+  duration    Int? // en secondes
   fileUrl     String?
   fileSize    Int? // en bytes
   coverImage  String? // URL de l'image de couverture

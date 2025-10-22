@@ -393,15 +393,29 @@ const LearnerFormationsPage: React.FC = () => {
         
         // Charger les leçons de la formation
         const response = await formationContentApi.getByFormation(formation.id);
+        console.log('📦 [COLLABORATOR] Réponse brute de l\'API:', response);
+        console.log('📦 [COLLABORATOR] Type de response.data:', typeof response.data);
+        
+        // Vérifier la structure de la réponse
+        let lessonsData = response.data;
+        
+        // Si response.data contient success/data, extraire le bon niveau
+        if (response.data && response.data.success && response.data.data) {
+          console.log('📦 [COLLABORATOR] Structure API avec success/data détectée');
+          lessonsData = response.data.data;
+        }
+        
+        console.log('📦 [COLLABORATOR] Données de leçons avant filtrage:', lessonsData);
         
         // Filtrer seulement les leçons (pas les sections) et trier par ordre
-        const lessonsOnly = response.data
+        const lessonsOnly = (Array.isArray(lessonsData) ? lessonsData : [])
           .filter((content: any) => content.contentType === 'LESSON')
           .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
         
-        setLessons(lessonsOnly);
+        console.log('📚 [COLLABORATOR] Leçons filtrées:', lessonsOnly);
+        console.log('📚 [COLLABORATOR] Nombre de leçons:', lessonsOnly.length);
         
-        console.log('📚 Leçons chargées:', lessonsOnly.length);
+        setLessons(lessonsOnly);
         
         // Ouvrir le viewer avec la première leçon
         if (lessonsOnly.length > 0) {
