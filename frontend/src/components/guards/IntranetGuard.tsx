@@ -99,7 +99,7 @@ export const IntranetGuard: React.FC<IntranetGuardProps> = ({
   };
 
   const handleLogin = () => {
-    navigate('/login');
+    navigate('/admin/login');
   };
 
   const handleLogout = () => {

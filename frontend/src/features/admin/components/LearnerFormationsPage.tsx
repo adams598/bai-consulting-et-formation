@@ -526,7 +526,8 @@ const LearnerFormationsPage: React.FC = () => {
         formation={{
           id: selectedFormation.id,
           title: selectedFormation.title,
-          description: selectedFormation.description || ''
+          description: selectedFormation.description || '',
+          duration: selectedFormation.duration // Ajouter la durée de la formation
         }}
         lessons={lessons}
         initialSelectedLesson={lessons[0]} // Commencer par la première leçon
@@ -537,6 +538,10 @@ const LearnerFormationsPage: React.FC = () => {
         }}
         onProgressUpdate={(lessonId, progress) => {
           console.log('📊 Progression mise à jour:', lessonId, progress);
+        }}
+        onLessonUpdate={() => {
+          // Les apprenants ne peuvent pas modifier les leçons
+          console.log('📚 Modification de leçon non autorisée pour les apprenants');
         }}
       />
     );
@@ -705,7 +710,7 @@ const LearnerFormationsPage: React.FC = () => {
                         return (
                         <div
                           key={formation.id}
-                          className={`group relative w-72 h-60 transition-all duration-300 ease-in-out overflow-hidden ${
+                          className={`group relative transition-all duration-300 ease-in-out overflow-hidden ${
                             isAssigned 
                               ? 'cursor-pointer hover:scale-105' 
                               : 'cursor-not-allowed opacity-60'
@@ -713,9 +718,9 @@ const LearnerFormationsPage: React.FC = () => {
                           onClick={() => handleFormationClick(formation)}
                         >
                           {/* Section supérieure - Fond brand-blue avec logo BAI */}
-                          <div className={`h-3/5 transition-all duration-300 ${
+                          <div className={`h-36 transition-all duration-300 flex items-center justify-center relative ${
                             isAssigned 
-                              ? 'bg-brand-blue group-hover:shadow-2xl' 
+                              ? 'bg-brand-blue' 
                               : 'bg-gray-500'
                           }`}>
                             {/* Logo BAI au centre dans un cercle beige */}
@@ -770,20 +775,22 @@ const LearnerFormationsPage: React.FC = () => {
                           </div>
 
                           {/* Section inférieure - Fond blanc */}
-                          <div className="h-1/3 bg-white p-4 flex flex-col justify-between">
-                            {/* Titre de la formation */}
-                            <h3 className="font-medium text-sm leading-tight text-gray-900 truncate" title={formation.title}>
-                              {formation.title.length > 30 ? `${formation.title.substring(0, 30)}...` : formation.title}
-                            </h3>
-                            
-                            {/* E-learning et durée */}
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-500">E-learning</span>
-                              <div className="flex items-center">
-                                <Clock className="w-3 h-3 mr-1 text-gray-400" />
-                                <span className="text-xs text-gray-500">
-                                  {formatDuration(formation.duration || 0)}
-                                </span>
+                          <div className="bg-gray-50 p-4 transition-colors duration-300">
+                            <div className='space-y-3'>
+                              {/* Titre de la formation */}
+                              <h3 className="font-medium text-sm leading-tight text-gray-900" title={formation.title}>
+                                {formation.title.length > 30 ? `${formation.title.substring(0, 30)}...` : formation.title}
+                              </h3>
+                              
+                              {/* E-learning et durée */}
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-gray-500">E-learning</span>
+                                <div className="flex items-center">
+                                  <Clock className="w-3 h-3 mr-1 text-gray-400" />
+                                  <span className="text-xs text-gray-500">
+                                    {formatDuration(formation.duration || 0)}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>

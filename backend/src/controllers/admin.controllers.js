@@ -43,15 +43,6 @@ export const authController = {
         });
       }
 
-      // Vérifier si le mot de passe a expiré
-      if (user.passwordExpiresAt && new Date() > user.passwordExpiresAt) {
-        return res.status(401).json({
-          success: false,
-          message:
-            "Mot de passe temporaire expiré. Veuillez contacter votre administrateur pour un nouveau mot de passe.",
-        });
-      }
-
       // Vérifier le mot de passe
       const isValidPassword = await bcrypt.compare(password, user.password);
       if (!isValidPassword) {
@@ -61,13 +52,14 @@ export const authController = {
         });
       }
 
-      // Mettre à jour la dernière connexion
+      // Mettre à jour la dernière connexion et effacer l'expiration du mot de passe
       const loginTime = new Date();
       await prisma.user.update({
         where: { id: user.id },
         data: {
           lastLogin: loginTime,
           lastLoginAt: loginTime,
+          passwordExpiresAt: null, // Effacer l'expiration du mot de passe après connexion réussie
         },
       });
 
@@ -1237,6 +1229,7 @@ export const formationsController = {
       const {
         title,
         description,
+        duration,
         isActive,
         hasQuiz,
         quizRequired,
@@ -1268,6 +1261,10 @@ export const formationsController = {
         data: {
           title,
           description: description || "",
+          duration:
+            duration !== undefined
+              ? parseInt(duration)
+              : existingFormation.duration,
           isActive:
             isActive !== undefined ? isActive : existingFormation.isActive,
 

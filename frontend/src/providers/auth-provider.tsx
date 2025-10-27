@@ -173,7 +173,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       removeSecureToken();
       setUser(null);
-      navigate("/login"); // Utiliser la page de login unifiée
+      navigate("/admin/login"); // Utiliser la page de login unifiée
     }
   };
 

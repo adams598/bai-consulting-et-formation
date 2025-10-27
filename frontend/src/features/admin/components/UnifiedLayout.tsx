@@ -709,9 +709,9 @@ const UnifiedLayoutContent: React.FC = () => {
   // Interface admin avec sidebar (existante)
   return (
     <div className="min-h-screen bg-white">
-      <div className="flex h-screen bg-white">
+      <div className="flex h-screen bg-gray-200">
         {/* Sidebar */}
-        <aside className={`hidden md:flex flex-col bg-white transition-all duration-300 ${
+        <aside className={`hidden md:flex flex-col bg-gray-200 transition-all duration-300 ${
           isSidebarCollapsed ? 'w-16' : 'w-64'
         }`}>
           <div className="flex flex-col flex-1 overflow-y-auto">
@@ -783,7 +783,7 @@ const UnifiedLayoutContent: React.FC = () => {
           </div>
 
           {/* Section Profil Utilisateur */}
-          <div className={`p-8 border-t border-blue-50 bg-white ${isSidebarCollapsed ? 'px-2' : ''}`}>
+          <div className={`p-2 border-t border-gray-50 bg-gray-200 ${isSidebarCollapsed ? 'px-1' : ''}`}>
             <div className="relative profile-menu">
               {/* Bouton profil */}
               <button
@@ -854,7 +854,7 @@ const UnifiedLayoutContent: React.FC = () => {
         <main className={`flex flex-col flex-1 overflow-y-auto transition-all duration-300 ${
           isSidebarCollapsed ? 'ml-4' : 'ml-4'
         }`}>
-          <div className="flex items-center justify-between h-12 bg-white border-b border-gray-200 rounded-lg shadow-sm">
+          <div className="flex items-center justify-between h-12 bg-gray-200 border-b border-gray-200 rounded-lg shadow-sm">
             <div className="flex items-center px-4">
               <div className="relative mx-auto text-gray-600">
                 {/* Barre de recherche - peut être adaptée selon le rôle */}

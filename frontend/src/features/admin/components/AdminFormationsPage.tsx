@@ -1130,6 +1130,7 @@ const AdminFormationsPage: React.FC = () => {
           id: selectedFormation.id,
           title: selectedFormation.title,
           description: selectedFormation.description || '',
+          duration: selectedFormation.duration, // Ajouter la durée de la formation
           universeId: selectedFormation.universeId,
           isOpportunity: selectedFormation.isOpportunity,
           hasQuiz: selectedFormation.hasQuiz
@@ -1145,10 +1146,14 @@ const AdminFormationsPage: React.FC = () => {
         onProgressUpdate={(lessonId, progress) => {
           console.log('📊 Progression mise à jour:', lessonId, progress);
         }}
-        onLessonAdded={(newLesson) => {
-          console.log('📚 Nouvelle leçon ajoutée:', newLesson);
-          // Recharger les leçons de la formation
-          loadLessonsForFormation(selectedFormation);
+        onLessonUpdate={(updatedLesson) => {
+          // Mettre à jour la leçon dans la liste locale
+          setLessons(prevLessons => 
+            prevLessons.map(lesson => 
+              lesson.id === updatedLesson.id ? updatedLesson : lesson
+            )
+          );
+          console.log('✅ Leçon mise à jour dans AdminFormationsPage:', updatedLesson);
         }}
       />
     );

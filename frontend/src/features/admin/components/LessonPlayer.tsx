@@ -1,18 +1,20 @@
 // LessonPlayer.tsx
 import React, { useState, useEffect, useContext } from 'react';
-import { X, Play, FileText, Video, Presentation, Clock, CheckCircle, BookOpen, Lock } from 'lucide-react';
+import { X, Play, FileText, Video, Presentation, Clock, CheckCircle, BookOpen, Lock, Edit, RefreshCw } from 'lucide-react';
 import { FormationContent } from '../types';
 import { getLessonImageUrl, getImageUrl, getLessonFileUrl } from '../../../utils/imageUtils';
 import TestViewer from './TestViewer';
 import '../../../components/LessonPlayer.css';
 import { useAuth } from '../../../providers/auth-provider';
 import progressService from '../../../services/progressService';
+import { authService } from '../../../services/authService';
 
 interface LessonPlayerProps {
   formation: {
     id: string;
     title: string;
     description?: string;
+    duration?: number; // Ajouter la durée de la formation
   };
   lessons: FormationContent[];
   initialSelectedLesson?: FormationContent | null;
@@ -22,6 +24,7 @@ interface LessonPlayerProps {
     progress?: number;
     completed?: boolean;
   }) => void;
+  onLessonUpdate?: (updatedLesson: FormationContent) => void;
 }
 
 interface LessonProgress {
@@ -31,10 +34,14 @@ interface LessonProgress {
   completed: boolean;
 }
 
-export default function LessonPlayer({ formation, lessons: rawLessons, initialSelectedLesson, onClose, onProgressUpdate }: LessonPlayerProps) {
+export default function LessonPlayer({ formation, lessons: rawLessons, initialSelectedLesson, onClose, onProgressUpdate, onLessonUpdate }: LessonPlayerProps) {
   const { user } = useAuth();
   const [selectedLesson, setSelectedLesson] = useState<FormationContent | null>(null);
   const [lessonProgress, setLessonProgress] = useState<{[key: string]: LessonProgress}>({});
+  const [showLessonModal, setShowLessonModal] = useState(false);
+  const [isCalculatingDuration, setIsCalculatingDuration] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
 
   // Transformer les données des leçons pour s'assurer que toutes les propriétés sont bien définies
   // Principe similaire à la transformation des formations dans LearnerFormationsPage
@@ -48,7 +55,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
       contentType: lesson.contentType,
       sectionId: lesson.sectionId,
       order: lesson.order,
-      duration: lesson.duration || 0, // S'assurer que duration provient bien de la BDD
+      duration: formation.duration || 0, // Utiliser la durée de la formation pour toutes les leçons
       fileUrl: lesson.fileUrl,
       fileSize: lesson.fileSize,
       coverImage: lesson.coverImage,
@@ -56,7 +63,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
       createdAt: lesson.createdAt,
       updatedAt: lesson.updatedAt
     }));
-  }, [rawLessons]);
+  }, [rawLessons, formation.duration]);
 
   // Fonction pour récupérer l'ID utilisateur
   const getCurrentUserId = () => {
@@ -89,6 +96,186 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     }
     
     return 'default-user-id';
+  };
+
+  // Fonction pour vérifier si l'utilisateur est admin
+  const isAdmin = () => {
+    const currentUser = authService.getCurrentUser();
+    return currentUser && (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'BANK_ADMIN');
+  };
+
+  // Fonction pour calculer la durée réelle de la vidéo
+  const calculateVideoDuration = async (lessonId: string): Promise<number> => {
+    console.log('🔄 Calcul de la durée pour la leçon:', lessonId);
+    
+    // Essayer d'abord l'API (même si elle n'existe pas encore)
+    try {
+      const response = await fetch(`http://localhost:3000/api/admin/lessons/${lessonId}/duration`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        const duration = data.duration || 0;
+        console.log('🎥 Durée calculée via l\'API:', duration, 'secondes');
+        return duration;
+      } else {
+        console.log('⚠️ API non disponible (404), passage au fallback...');
+      }
+    } catch (apiError) {
+      console.log('⚠️ Erreur API, passage au fallback:', apiError);
+    }
+    
+    // Fallback: utiliser fetch authentifié pour récupérer la vidéo
+    try {
+      console.log('🔄 Tentative avec fetch authentifié...');
+      
+      const videoUrl = buildLessonFileUrl(selectedLesson!);
+      console.log('🎥 URL de la vidéo:', videoUrl);
+      
+      // Essayer de récupérer la vidéo avec authentification
+      const videoResponse = await fetch(videoUrl, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+      
+      if (!videoResponse.ok) {
+        throw new Error(`Erreur fetch vidéo: ${videoResponse.status}`);
+      }
+      
+      // Créer un blob URL temporaire
+      const videoBlob = await videoResponse.blob();
+      const blobUrl = URL.createObjectURL(videoBlob);
+      
+      return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        
+        video.onloadedmetadata = () => {
+          const duration = Math.round(video.duration);
+          console.log('🎥 Durée calculée via blob:', duration, 'secondes');
+          URL.revokeObjectURL(blobUrl); // Nettoyer le blob URL
+          resolve(duration);
+        };
+        
+        video.onerror = (e) => {
+          console.error('❌ Erreur lors du chargement de la vidéo blob:', e);
+          URL.revokeObjectURL(blobUrl); // Nettoyer le blob URL
+          reject(new Error('Impossible de charger la vidéo blob'));
+        };
+        
+        video.src = blobUrl;
+      });
+      
+    } catch (fallbackError) {
+      console.error('❌ Erreur fallback:', fallbackError);
+      throw new Error('Impossible de calculer la durée de la vidéo');
+    }
+  };
+
+  // Fonction pour recalculer la durée de la leçon
+  const handleRecalculateDuration = async () => {
+    if (!selectedLesson || !selectedLesson.fileUrl) {
+      console.log('❌ Aucune leçon sélectionnée ou pas de fichier vidéo');
+      return;
+    }
+
+    setIsCalculatingDuration(true);
+    setSuccessMessage(null);
+    
+    try {
+      console.log('🔄 Calcul de la durée pour la leçon:', selectedLesson.title);
+      
+      // Calculer la durée via l'API ou fallback
+      const realDuration = await calculateVideoDuration(selectedLesson.id);
+      
+      console.log('✅ Durée réelle calculée:', realDuration, 'secondes');
+      console.log('📊 Durée actuelle de la formation:', formation.duration, 'secondes');
+      
+      // Mettre à jour la formation dans la base de données
+      try {
+        console.log('💾 Mise à jour de la formation dans la BDD...');
+        
+        const response = await fetch(`http://localhost:3000/api/admin/formations/${formation.id}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            title: formation.title, // Champ obligatoire
+            description: formation.description || '',
+            duration: realDuration
+          })
+        });
+        
+        if (response.ok) {
+          console.log('✅ Formation mise à jour dans la BDD avec la durée:', realDuration, 'secondes');
+          
+          // Mettre à jour la leçon avec la durée réelle
+          const updatedLesson = {
+            ...selectedLesson,
+            duration: realDuration
+          };
+          
+          setSelectedLesson(updatedLesson);
+          
+          // Appeler la fonction parent pour sauvegarder
+          if (onLessonUpdate) {
+            onLessonUpdate(updatedLesson);
+          }
+          
+          // Afficher le message de succès
+          setSuccessMessage(`✅ Durée mise à jour avec succès ! Nouvelle durée : ${realDuration} secondes`);
+          
+          // Masquer le message après 5 secondes
+          setTimeout(() => {
+            setSuccessMessage(null);
+          }, 5000);
+          
+          console.log('💾 Leçon mise à jour avec la durée réelle:', realDuration, 'secondes');
+          
+        } else {
+          throw new Error(`Erreur lors de la mise à jour de la formation: ${response.status}`);
+        }
+        
+      } catch (dbError) {
+        console.error('❌ Erreur lors de la mise à jour de la BDD:', dbError);
+        
+        // Mettre à jour quand même localement
+        const updatedLesson = {
+          ...selectedLesson,
+          duration: realDuration
+        };
+        
+        setSelectedLesson(updatedLesson);
+        
+        if (onLessonUpdate) {
+          onLessonUpdate(updatedLesson);
+        }
+        
+        setSuccessMessage(`⚠️ Durée calculée (${realDuration}s) mais erreur lors de la sauvegarde en BDD`);
+        
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 5000);
+      }
+      
+    } catch (error) {
+      console.error('❌ Erreur lors du calcul de la durée:', error);
+      setSuccessMessage('❌ Erreur lors du calcul de la durée de la vidéo');
+      
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+    } finally {
+      setIsCalculatingDuration(false);
+    }
   };
 
   // Charger les progressions au montage du composant
@@ -325,6 +512,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
               <h1 className="text-lg font-semibold text-gray-900">{formation.title}</h1>
             </div>
           </div>
+          
         </div>
 
         {/* Main Content */}
@@ -387,6 +575,25 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                           {getFileIcon(lesson)}
                           {progress?.completed && (
                             <CheckCircle className="h-4 w-4 text-green-500" />
+                          )}
+                          {/* Bouton d'édition pour les admins sur la carte */}
+                          {isAdmin() && isSelected && (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('🔍 MODIFIER - Clic détecté !');
+                                setShowLessonModal(true);
+                              }}
+                              className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+                              title="Modifier cette leçon"
+                              style={{ 
+                                zIndex: 10,
+                                position: 'relative'
+                              }}
+                            >
+                              <Edit className="h-3 w-3" />
+                            </button>
                           )}
                         </div>
                       </div>
@@ -481,6 +688,178 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
           </div>
         </div>
       </div>
+
+      {/* Modal d'édition de leçon personnalisé */}
+      {showLessonModal && selectedLesson && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[10000] flex items-center justify-center p-4">
+          <div 
+            className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header du modal */}
+            <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-semibold text-gray-900">Modifier la leçon</h2>
+              <button
+                onClick={() => setShowLessonModal(false)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Contenu du modal */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-6">
+                {/* Informations de base */}
+                <div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-4">Informations de base</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Titre de la leçon
+                      </label>
+                      <input
+                        type="text"
+                        defaultValue={selectedLesson.title}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Type de contenu
+                      </label>
+                      <select
+                        defaultValue={selectedLesson.type}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="VIDEO">Vidéo</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Description
+                  </label>
+                  <textarea
+                    defaultValue={selectedLesson.description || ''}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Description de la leçon..."
+                  />
+                </div>
+
+                {/* Durée */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Durée (en secondes)
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="number"
+                      defaultValue={formation.duration || 0}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Durée en secondes"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRecalculateDuration}
+                      disabled={isCalculatingDuration || !selectedLesson?.fileUrl}
+                      className="p-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                      title="Recalculer la durée à partir de la vidéo"
+                    >
+                      <RefreshCw className={`h-4 w-4 ${isCalculatingDuration ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                  {isCalculatingDuration && (
+                    <p className="text-sm text-blue-600 mt-1">🔄 Calcul de la durée en cours...</p>
+                  )}
+                </div>
+
+                {/* Fichier */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Fichier de la leçon
+                  </label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="file"
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {selectedLesson.fileUrl && (
+                      <span className="text-sm text-gray-500">
+                        Fichier actuel: {selectedLesson.fileUrl.split('/').pop()}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Image de couverture */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Image de couverture
+                  </label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                    />
+                    {selectedLesson.coverImage && (
+                      <div className="w-16 h-16 rounded-lg overflow-hidden">
+                        <img
+                          src={getLessonImageUrl(selectedLesson.coverImage)}
+                          alt="Couverture actuelle"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer du modal */}
+            <div className="bg-gray-50 px-6 py-4 flex items-center justify-end space-x-3">
+              <button
+                onClick={() => setShowLessonModal(false)}
+                className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={() => {
+                  console.log('💾 Sauvegarde de la leçon:', selectedLesson);
+                  setShowLessonModal(false);
+                  // TODO: Implémenter la sauvegarde
+                }}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              >
+                Sauvegarder
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Message de succès */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 z-[10001] bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 animate-in slide-in-from-right duration-300">
+          <div className="flex-shrink-0">
+            <CheckCircle className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-medium">{successMessage}</p>
+          </div>
+          <button
+            onClick={() => setSuccessMessage(null)}
+            className="flex-shrink-0 ml-4 text-green-200 hover:text-white transition-colors"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
     </>
   );
 }

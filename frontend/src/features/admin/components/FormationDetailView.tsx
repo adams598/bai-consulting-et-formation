@@ -1314,12 +1314,22 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
           formation={{
             id: localFormation.id,
             title: localFormation.title,
-            description: localFormation.description
+            description: localFormation.description,
+            duration: localFormation.duration // Ajouter la durée de la formation
           }}
           lessons={lessons}
           initialSelectedLesson={selectedLesson}
           onClose={() => setShowLessonPlayer(false)}
           onProgressUpdate={updateLessonProgressWithValidation}
+          onLessonUpdate={(updatedLesson) => {
+            // Mettre à jour la leçon dans la liste locale
+            setLessons(prevLessons => 
+              prevLessons.map(lesson => 
+                lesson.id === updatedLesson.id ? updatedLesson : lesson
+              )
+            );
+            console.log('✅ Leçon mise à jour dans FormationDetailView:', updatedLesson);
+          }}
         />
       )}
 

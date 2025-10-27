@@ -233,10 +233,10 @@ function App() {
             } />
           
           {/* Route de connexion unifiée */}
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<AdminLoginPage />} />
           
           {/* Routes Apprenant */}
-          <Route path="/apprenant/connexion" element={<LoginPage />} />
+          <Route path="/apprenant/connexion" element={<AdminLoginPage />} />
           <Route path="/apprenant/dashboard" element={
             <IntranetGuard allowedRoles={['COLLABORATOR']}>
               <DashboardPage />

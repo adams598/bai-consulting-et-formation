@@ -67,16 +67,6 @@ export const authMiddleware = async (req, res, next) => {
       });
     }
 
-    // Vérifier si le mot de passe a expiré
-    if (user.passwordExpiresAt && new Date() > user.passwordExpiresAt) {
-      return res.status(401).json({
-        success: false,
-        message:
-          "Mot de passe temporaire expiré. Veuillez contacter votre administrateur.",
-        code: "PASSWORD_EXPIRED",
-      });
-    }
-
     // Vérifier la session et gérer l'inactivité (10 minutes)
     const session = await prisma.userSession.findFirst({
       where: {
@@ -98,13 +88,13 @@ export const authMiddleware = async (req, res, next) => {
     const now = new Date();
     const lastActivity = session.lastActivity || session.createdAt;
     const inactivityTimeout = 10 * 60 * 1000; // 10 minutes en millisecondes
-    
+
     if (now.getTime() - lastActivity.getTime() > inactivityTimeout) {
       // Session expirée due à l'inactivité, supprimer la session
       await prisma.userSession.delete({
-        where: { id: session.id }
+        where: { id: session.id },
       });
-      
+
       return res.status(401).json({
         success: false,
         message: "Session expirée due à l'inactivité",
@@ -118,8 +108,8 @@ export const authMiddleware = async (req, res, next) => {
       where: { id: session.id },
       data: {
         lastActivity: now,
-        expiresAt: newExpiresAt
-      }
+        expiresAt: newExpiresAt,
+      },
     });
 
     // Ajouter l'utilisateur à la requête

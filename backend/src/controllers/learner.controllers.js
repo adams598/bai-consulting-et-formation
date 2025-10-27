@@ -69,13 +69,14 @@ export const authController = {
         { expiresIn: "24h" }
       );
 
-      // Mettre à jour la dernière connexion
+      // Mettre à jour la dernière connexion et effacer l'expiration du mot de passe
       const loginTime = new Date();
       await prisma.user.update({
         where: { id: user.id },
         data: {
           lastLogin: loginTime,
           lastLoginAt: loginTime,
+          passwordExpiresAt: null, // Effacer l'expiration du mot de passe après connexion réussie
         },
       });
 
