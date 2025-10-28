@@ -135,6 +135,22 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   // Effet pour bloquer les raccourcis clavier et captures d'écran
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Vérifier si l'événement provient d'un champ input, textarea ou élément éditable
+      const target = e.target as HTMLElement;
+      const isInputElement = target && (
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.isContentEditable ||
+        (target.closest && (target.closest('input') || target.closest('textarea') || target.closest('[contenteditable="true"]')))
+      );
+
+      // Permettre les touches de saisie normales dans les champs de formulaire
+      const editableKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Enter', 'Tab', 'Space'];
+      if (isInputElement && editableKeys.includes(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        // Laisser passer les touches d'édition normales dans les champs de saisie
+        return;
+      }
+
       // Bloquer les raccourcis de capture et développement
       if (
         (e.ctrlKey && e.key === 's') || // Ctrl+S (sauvegarder)
@@ -189,20 +205,20 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
         e.key === 'F2' || // F2
         e.key === 'F1' || // F1 (aide)
         e.key === 'Insert' || // Insert
-        e.key === 'Delete' || // Delete
-        e.key === 'Home' || // Home
-        e.key === 'End' || // End
-        e.key === 'PageUp' || // Page Up
-        e.key === 'PageDown' || // Page Down
-        e.key === 'ArrowUp' || // Flèche haut
-        e.key === 'ArrowDown' || // Flèche bas
-        e.key === 'ArrowLeft' || // Flèche gauche
-        e.key === 'ArrowRight' || // Flèche droite
+        (!isInputElement && e.key === 'Delete') || // Delete (seulement hors input)
+        (!isInputElement && e.key === 'Home') || // Home (seulement hors input)
+        (!isInputElement && e.key === 'End') || // End (seulement hors input)
+        (!isInputElement && e.key === 'PageUp') || // Page Up (seulement hors input)
+        (!isInputElement && e.key === 'PageDown') || // Page Down (seulement hors input)
+        (!isInputElement && e.key === 'ArrowUp') || // Flèche haut (seulement hors input)
+        (!isInputElement && e.key === 'ArrowDown') || // Flèche bas (seulement hors input)
+        (!isInputElement && e.key === 'ArrowLeft') || // Flèche gauche (seulement hors input)
+        (!isInputElement && e.key === 'ArrowRight') || // Flèche droite (seulement hors input)
         e.key === 'Escape' || // Échap
-        e.key === 'Tab' || // Tab
-        e.key === 'Enter' || // Entrée
-        e.key === 'Space' || // Espace
-        e.key === 'Backspace' || // Retour arrière
+        (!isInputElement && e.key === 'Tab') || // Tab (seulement hors input)
+        (!isInputElement && e.key === 'Enter') || // Entrée (seulement hors input)
+        (!isInputElement && e.key === 'Space') || // Espace (seulement hors input)
+        (!isInputElement && e.key === 'Backspace') || // Retour arrière (seulement hors input)
         e.key === 'Meta' || // Cmd (Mac)
         e.key === 'ContextMenu' // Menu contextuel
       ) {

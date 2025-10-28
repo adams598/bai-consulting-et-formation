@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Save, Eye, AlertCircle } from 'lucide-react';
+import { X, Plus, Trash2, Save, Eye, AlertCircle, CheckCircle } from 'lucide-react';
 import { Quiz, QuizQuestion, QuizAnswer } from '../types';
 import QuizPreviewModal from './QuizPreviewModal';
 import ConfirmationModal from './ConfirmationModal';
@@ -172,19 +172,36 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     }));
   };
 
-  const setCorrectAnswer = (questionIndex: number, answerIndex: number) => {
+  const setCorrectAnswer = (questionIndex: number, answerIndex: number, isMultipleChoice: boolean = false) => {
     setQuestions(prev => prev.map((q, i) => {
       if (i === questionIndex) {
-        return {
-          ...q,
-          answers: q.answers?.map((a, ai) => ({
-            ...a,
-            isCorrect: ai === answerIndex
-          })) || []
-        };
+        if (isMultipleChoice) {
+          // Pour choix multiples : toggle (permet plusieurs réponses correctes)
+          return {
+            ...q,
+            answers: q.answers?.map((a, ai) => ({
+              ...a,
+              isCorrect: ai === answerIndex ? !a.isCorrect : a.isCorrect
+            })) || []
+          };
+        } else {
+          // Pour Vrai/Faux : une seule réponse possible (radio)
+          return {
+            ...q,
+            answers: q.answers?.map((a, ai) => ({
+              ...a,
+              isCorrect: ai === answerIndex
+            })) || []
+          };
+        }
       }
       return q;
     }));
+  };
+
+  // Fonction pour compter le nombre de réponses correctes
+  const getCorrectAnswersCount = (question: Partial<QuizQuestion>) => {
+    return question.answers?.filter(a => a.isCorrect).length || 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -242,7 +259,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
       if (!hasCorrectAnswer) {
         confirmation.showConfirmation({
           title: 'Aucune réponse correcte',
-          message: `Question ${i + 1}: Une réponse correcte doit être sélectionnée.`,
+          message: `Question ${i + 1}: Au moins une réponse correcte doit être sélectionnée.`,
           confirmText: 'Compris',
           type: 'warning',
           onConfirm: () => {}
@@ -292,7 +309,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[10002]">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">
@@ -497,7 +514,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                             type="radio"
                             name={`correct-${qIndex}`}
                             checked={question.answers?.[0]?.isCorrect}
-                            onChange={() => setCorrectAnswer(qIndex, 0)}
+                            onChange={() => setCorrectAnswer(qIndex, 0, false)}
                             className="text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm font-medium text-green-600">Vrai</span>
@@ -507,42 +524,75 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                             type="radio"
                             name={`correct-${qIndex}`}
                             checked={question.answers?.[1]?.isCorrect}
-                            onChange={() => setCorrectAnswer(qIndex, 1)}
+                            onChange={() => setCorrectAnswer(qIndex, 1, false)}
                             className="text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm font-medium text-red-600">Faux</span>
                         </div>
                       </div>
                     ) : (
-                      question.answers?.map((answer, aIndex) => (
-                        <div key={aIndex} className="flex items-center space-x-3">
-                          <input
-                            type="radio"
-                            name={`correct-${qIndex}`}
-                            checked={answer.isCorrect}
-                            onChange={() => setCorrectAnswer(qIndex, aIndex)}
-                            className="text-blue-600 focus:ring-blue-500"
-                            title="Marquer comme réponse correcte"
-                          />
-                          <input
-                            type="text"
-                            value={answer.answer}
-                            onChange={(e) => updateAnswer(qIndex, aIndex, 'answer', e.target.value)}
-                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            placeholder={`Réponse ${aIndex + 1}`}
-                            required
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeAnswer(qIndex, aIndex)}
-                            className="text-red-600 hover:text-red-700 p-1"
-                            disabled={question.answers!.length <= 2}
-                            title="Supprimer cette réponse"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))
+                      <>
+                        {/* Indicateur du nombre de réponses attendues */}
+                        {question.type === 'multiple_choice' && (
+                          <div className="mb-3">
+                            {(() => {
+                              const correctCount = getCorrectAnswersCount(question);
+                              if (correctCount === 0) {
+                                return (
+                                  <div className="flex items-center space-x-2 text-sm text-gray-500">
+                                    <AlertCircle className="h-4 w-4" />
+                                    <span>Aucune réponse correcte sélectionnée</span>
+                                  </div>
+                                );
+                              } else if (correctCount === 1) {
+                                return (
+                                  <div className="flex items-center space-x-2 text-sm text-blue-600 font-medium">
+                                    <CheckCircle className="h-4 w-4" />
+                                    <span>Une seule réponse attendue</span>
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div className="flex items-center space-x-2 text-sm text-purple-600 font-medium">
+                                    <CheckCircle className="h-4 w-4" />
+                                    <span>Plusieurs réponses sont attendues ({correctCount} réponse{correctCount > 1 ? 's' : ''})</span>
+                                  </div>
+                                );
+                              }
+                            })()}
+                          </div>
+                        )}
+                        
+                        {question.answers?.map((answer, aIndex) => (
+                          <div key={aIndex} className="flex items-center space-x-3">
+                            <input
+                              type={question.type === 'multiple_choice' ? 'checkbox' : 'radio'}
+                              name={question.type === 'multiple_choice' ? `correct-${qIndex}-${aIndex}` : `correct-${qIndex}`}
+                              checked={answer.isCorrect}
+                              onChange={() => setCorrectAnswer(qIndex, aIndex, question.type === 'multiple_choice')}
+                              className={question.type === 'multiple_choice' ? 'rounded border-gray-300 text-blue-600 focus:ring-blue-500' : 'text-blue-600 focus:ring-blue-500'}
+                              title={question.type === 'multiple_choice' ? 'Cocher/décocher comme réponse correcte' : 'Marquer comme réponse correcte'}
+                            />
+                            <input
+                              type="text"
+                              value={answer.answer}
+                              onChange={(e) => updateAnswer(qIndex, aIndex, 'answer', e.target.value)}
+                              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              placeholder={`Réponse ${aIndex + 1}`}
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => removeAnswer(qIndex, aIndex)}
+                              className="text-red-600 hover:text-red-700 p-1"
+                              disabled={question.answers!.length <= 2}
+                              title="Supprimer cette réponse"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </>
                     )}
                   </div>
                 )}

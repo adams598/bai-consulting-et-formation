@@ -1,13 +1,16 @@
 // LessonPlayer.tsx
-import React, { useState, useEffect, useContext } from 'react';
-import { X, Play, FileText, Video, Presentation, Clock, CheckCircle, BookOpen, Lock, Edit, RefreshCw } from 'lucide-react';
-import { FormationContent } from '../types';
+import React, { useState, useEffect, useContext, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { X, Play, FileText, Video, Presentation, Clock, CheckCircle, BookOpen, Lock, Edit, RefreshCw, HelpCircle, Plus, XCircle, ChevronLeft, ChevronRight, AlertCircle } from 'lucide-react';
+import { FormationContent, Quiz } from '../types';
 import { getLessonImageUrl, getImageUrl, getLessonFileUrl } from '../../../utils/imageUtils';
 import TestViewer from './TestViewer';
+import QuizConfigModal from './QuizConfigModal';
 import '../../../components/LessonPlayer.css';
 import { useAuth } from '../../../providers/auth-provider';
 import progressService from '../../../services/progressService';
 import { authService } from '../../../services/authService';
+import { quizApi } from '../../../api/adminApi';
 
 interface LessonPlayerProps {
   formation: {
@@ -41,6 +44,18 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   const [showLessonModal, setShowLessonModal] = useState(false);
   const [isCalculatingDuration, setIsCalculatingDuration] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  
+  // États pour la gestion du quiz
+  const [quiz, setQuiz] = useState<Quiz | null>(null);
+  const [showQuizModal, setShowQuizModal] = useState(false);
+  const [isLoadingQuiz, setIsLoadingQuiz] = useState(false);
+  const [isQuizSelected, setIsQuizSelected] = useState(false);
+  const [quizResult, setQuizResult] = useState<{
+    score: number;
+    isPassed: boolean;
+    totalScore: number;
+    userScore: number;
+  } | null>(null);
 
 
   // Transformer les données des leçons pour s'assurer que toutes les propriétés sont bien définies
@@ -102,6 +117,83 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   const isAdmin = () => {
     const currentUser = authService.getCurrentUser();
     return currentUser && (currentUser.role === 'SUPER_ADMIN' || currentUser.role === 'BANK_ADMIN');
+  };
+
+  // Fonction pour récupérer le quiz de la formation
+  const fetchQuiz = async () => {
+    if (!isAdmin()) return;
+    
+    setIsLoadingQuiz(true);
+    try {
+      const response = await fetch(`http://localhost:3000/api/admin/formations/${formation.id}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data.quiz) {
+          setQuiz(data.data.quiz);
+        }
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération du quiz:', error);
+    } finally {
+      setIsLoadingQuiz(false);
+    }
+  };
+
+  // Fonction pour sauvegarder le quiz
+  const handleSaveQuiz = async (quizData: any) => {
+    try {
+      console.log('💾 Sauvegarde du quiz:', quizData);
+      
+      if (quiz && quiz.id) {
+        // Mise à jour du quiz existant
+        const response = await quizApi.updateQuiz(quiz.id, {
+          title: quizData.title || '',
+          description: quizData.description || '',
+          passingScore: quizData.passingScore || 80,
+          timeLimit: quizData.timeLimit || undefined,
+          questions: quizData.questions || []
+        });
+        
+        if (response.data.success) {
+          console.log('✅ Quiz mis à jour:', response.data.data);
+          setQuiz(response.data.data);
+          setSuccessMessage('Quiz mis à jour avec succès !');
+          setTimeout(() => setSuccessMessage(null), 5000);
+          // Recharger le quiz depuis l'API
+          await fetchQuiz();
+        }
+      } else {
+        // Création d'un nouveau quiz
+        const response = await quizApi.createQuiz(formation.id, {
+          title: quizData.title || '',
+          description: quizData.description || '',
+          passingScore: quizData.passingScore || 80,
+          timeLimit: quizData.timeLimit || undefined,
+          questions: quizData.questions || []
+        });
+        
+        if (response.data.success) {
+          console.log('✅ Quiz créé:', response.data.data);
+          setQuiz(response.data.data);
+          setSuccessMessage('Quiz créé avec succès !');
+          setTimeout(() => setSuccessMessage(null), 5000);
+          // Recharger le quiz depuis l'API
+          await fetchQuiz();
+        }
+      }
+      setShowQuizModal(false);
+    } catch (error) {
+      console.error('❌ Erreur lors de la sauvegarde du quiz:', error);
+      setSuccessMessage('Erreur lors de la sauvegarde du quiz');
+      setTimeout(() => setSuccessMessage(null), 5000);
+    }
   };
 
   // Fonction pour calculer la durée réelle de la vidéo
@@ -296,6 +388,20 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     }
   }, [formation.id, lessons]);
 
+  // Charger le quiz au montage du composant (pour les admins)
+  useEffect(() => {
+    if (isAdmin()) {
+      fetchQuiz();
+    }
+  }, [formation.id]);
+
+  // Effet de débogage pour surveiller l'état de la modal
+  useEffect(() => {
+    if (showQuizModal) {
+      console.log('📌 showQuizModal est maintenant true, la modal devrait s\'afficher');
+    }
+  }, [showQuizModal]);
+
   // Sélectionner automatiquement la première leçon ou la leçon initiale
   useEffect(() => {
     if (lessons.length > 0 && !selectedLesson) {
@@ -332,6 +438,8 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     
     if (isAccessible) {
       setSelectedLesson(lesson);
+      setIsQuizSelected(false); // Désélectionner le quiz si une leçon est sélectionnée
+      setQuizResult(null);
     } else {
       console.log('🚫 Sélection bloquée pour', lesson.title, '- Leçon non accessible');
     }
@@ -455,6 +563,442 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     );
   };
 
+  const renderQuizContent = () => {
+    if (!quiz) return null;
+
+    // Si on a un résultat, afficher les résultats
+    if (quizResult) {
+      return (
+        <div className="h-full flex items-center justify-center p-8">
+          <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8">
+            <div className="text-center">
+              {quizResult.isPassed ? (
+                <>
+                  <CheckCircle className="h-20 w-20 text-green-500 mx-auto mb-4" />
+                  <h2 className="text-3xl font-bold text-green-600 mb-2">Quiz réussi !</h2>
+                  <p className="text-gray-600 mb-6">Félicitations, vous avez réussi le quiz avec un score de {quizResult.score}%</p>
+                </>
+              ) : (
+                <>
+                  <XCircle className="h-20 w-20 text-red-500 mx-auto mb-4" />
+                  <h2 className="text-3xl font-bold text-red-600 mb-2">Quiz échoué</h2>
+                  <p className="text-gray-600 mb-6">Vous avez obtenu {quizResult.score}% sur {quizResult.totalScore} points. Le score minimum requis est {quiz.passingScore}%</p>
+                </>
+              )}
+              
+              <div className="bg-gray-50 rounded-lg p-6 mb-6">
+                <div className="grid grid-cols-2 gap-4 text-center">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Votre score</p>
+                    <p className="text-2xl font-bold text-gray-900">{quizResult.userScore} / {quizResult.totalScore}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Pourcentage</p>
+                    <p className="text-2xl font-bold text-gray-900">{quizResult.score}%</p>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <div className="w-full bg-gray-200 rounded-full h-4">
+                    <div
+                      className={`h-4 rounded-full transition-all ${
+                        quizResult.isPassed ? 'bg-green-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${quizResult.score}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  setQuizResult(null);
+                  setIsQuizSelected(false);
+                  setSelectedLesson(null);
+                }}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Retour aux leçons
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Sinon, afficher le quiz inline
+    return <InlineQuizPlayer quiz={quiz} onComplete={(result) => setQuizResult(result)} onClose={() => setIsQuizSelected(false)} />;
+  };
+
+  // Composant Quiz Player Inline - Inspiré de QuizPreviewModal
+  const InlineQuizPlayer = ({ quiz, onComplete, onClose }: { quiz: Quiz; onComplete: (result: any) => void; onClose: () => void }) => {
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | number[] | string>>({});
+    const [showResults, setShowResults] = useState(false);
+    const [timeLeft, setTimeLeft] = useState<number | null>(null);
+    const [startTime, setStartTime] = useState<Date | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const formatTime = (seconds: number): string => {
+      const minutes = Math.floor(seconds / 60);
+      const remainingSeconds = seconds % 60;
+      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+    };
+
+    const handleAnswerSelect = (questionIndex: number, answerIndex: number | string, isMultiple: boolean = false) => {
+      if (isMultiple && typeof answerIndex === 'number') {
+        // Pour choix multiples : toggle avec indices numériques
+        setSelectedAnswers(prev => {
+          const current = prev[questionIndex];
+          let currentArray: number[] = [];
+          if (Array.isArray(current)) {
+            currentArray = current.filter(c => typeof c === 'number') as number[];
+          } else if (typeof current === 'number') {
+            currentArray = [current];
+          }
+          
+          const newArray = currentArray.includes(answerIndex)
+            ? currentArray.filter(id => id !== answerIndex)
+            : [...currentArray, answerIndex];
+          
+          if (newArray.length === 0) {
+            const newPrev = { ...prev };
+            delete newPrev[questionIndex];
+            return newPrev;
+          }
+          return { ...prev, [questionIndex]: newArray as number[] };
+        });
+      } else if (!isMultiple) {
+        // Pour radio/text (une seule réponse)
+        setSelectedAnswers(prev => ({
+          ...prev,
+          [questionIndex]: answerIndex
+        }));
+      }
+    };
+
+    const calculateScore = () => {
+      let correctAnswers = 0;
+      let totalPoints = 0;
+      let earnedPoints = 0;
+
+      quiz.questions.forEach((question, qIndex) => {
+        const selectedAnswer = selectedAnswers[qIndex];
+        const points = question.points || 1;
+        totalPoints += points;
+
+        if (question.type === 'text') {
+          // Pour les questions texte libre, on considère qu'elles sont correctes (évaluation manuelle)
+          if (selectedAnswer && selectedAnswer.toString().trim()) {
+            earnedPoints += points;
+            correctAnswers++;
+          }
+        } else if (question.type === 'multiple_choice') {
+          // Pour choix multiples : vérifier si toutes les bonnes réponses sont sélectionnées
+          const correctAnswerIndices = question.answers
+            .map((answer, aIndex) => answer.isCorrect ? aIndex : null)
+            .filter(index => index !== null) as number[];
+          
+          let userAnswers: number[] = [];
+          if (Array.isArray(selectedAnswer)) {
+            userAnswers = selectedAnswer.filter(a => typeof a === 'number') as number[];
+          } else if (typeof selectedAnswer === 'number') {
+            userAnswers = [selectedAnswer];
+          }
+          
+          const allCorrect = correctAnswerIndices.length > 0 && 
+            correctAnswerIndices.every(correctIndex => userAnswers.includes(correctIndex)) &&
+            userAnswers.length === correctAnswerIndices.length;
+          
+          if (allCorrect) {
+            earnedPoints += points;
+            correctAnswers++;
+          }
+        } else if (question.answers && typeof selectedAnswer === 'number') {
+          // Pour radio/vrai-faux
+          const answer = question.answers[selectedAnswer];
+          if (answer?.isCorrect) {
+            earnedPoints += points;
+            correctAnswers++;
+          }
+        }
+      });
+
+      const percentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+      const passed = percentage >= quiz.passingScore;
+
+      return {
+        correctAnswers,
+        totalQuestions: quiz.questions.length,
+        earnedPoints,
+        totalPoints,
+        percentage,
+        passed
+      };
+    };
+
+    const handleSubmitQuiz = useCallback(() => {
+      setIsSubmitting(true);
+      const results = calculateScore();
+      onComplete({
+        score: results.percentage,
+        isPassed: results.passed,
+        totalScore: results.totalPoints,
+        userScore: results.earnedPoints,
+        correctAnswers: results.correctAnswers,
+        totalQuestions: results.totalQuestions
+      });
+      setShowResults(true);
+      setIsSubmitting(false);
+    }, [selectedAnswers, quiz, onComplete]);
+
+    // Initialiser le timer si nécessaire
+    useEffect(() => {
+      if (quiz.timeLimit && !startTime && !showResults) {
+        setTimeLeft(quiz.timeLimit * 60); // Convertir en secondes
+        setStartTime(new Date());
+      }
+    }, [quiz.timeLimit, startTime, showResults]);
+
+    // Timer countdown
+    useEffect(() => {
+      if (timeLeft === null || timeLeft <= 0 || showResults) return;
+
+      const timer = setInterval(() => {
+        setTimeLeft(prev => {
+          if (prev === null || prev <= 1) {
+            handleSubmitQuiz();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+
+      return () => clearInterval(timer);
+    }, [timeLeft, showResults, handleSubmitQuiz]);
+
+    const results = showResults ? calculateScore() : null;
+    const currentQuestion = quiz.questions[currentQuestionIndex];
+    const progress = ((currentQuestionIndex + 1) / quiz.questions.length) * 100;
+    const correctAnswersCount = currentQuestion ? currentQuestion.answers.filter(a => a.isCorrect).length : 0;
+    const isMultipleChoice = currentQuestion?.type === "multiple_choice" && correctAnswersCount > 1;
+
+    return (
+      <div className="h-full flex flex-col bg-white overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
+          <div className="flex items-center space-x-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              {quiz.title}
+            </h2>
+            {timeLeft !== null && (
+              <div className="flex items-center text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
+                <Clock className="h-4 w-4 mr-1" />
+                {formatTime(timeLeft)}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6">
+          {quiz.description && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-blue-800">{quiz.description}</p>
+            </div>
+          )}
+
+          {!showResults ? (
+            <>
+              {/* Progress bar */}
+              <div className="mb-6">
+                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                  <span>Question {currentQuestionIndex + 1} sur {quiz.questions.length}</span>
+                  <span>Seuil de réussite : {quiz.passingScore}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
+              </div>
+
+              {/* Question actuelle */}
+              {currentQuestion && (
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between">
+                    <h3 className="text-lg font-medium text-gray-900 flex-1">
+                      {currentQuestion.question}
+                    </h3>
+                    <div className="ml-4 flex items-center space-x-2">
+                      <span className="text-sm text-gray-500">
+                        {currentQuestion.points || 1} point(s)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Indication pour choix multiples */}
+                  {isMultipleChoice && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800 font-medium">
+                        Plusieurs réponses sont attendues
+                      </p>
+                    </div>
+                  )}
+
+                  {correctAnswersCount === 1 && currentQuestion.type === 'multiple_choice' && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800 font-medium">
+                        Une seule réponse attendue
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {currentQuestion.type === 'text' ? (
+                      <textarea
+                        value={typeof selectedAnswers[currentQuestionIndex] === 'string' 
+                          ? selectedAnswers[currentQuestionIndex] as string 
+                          : ''}
+                        onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value, false)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        rows={4}
+                        placeholder="Tapez votre réponse ici..."
+                      />
+                    ) : (
+                      currentQuestion.answers.map((answer, aIndex) => {
+                        const selected = selectedAnswers[currentQuestionIndex];
+                        const isSelected = currentQuestion.type === "multiple_choice"
+                          ? Array.isArray(selected) && selected.includes(aIndex)
+                          : selected === aIndex;
+
+                        return (
+                          <label
+                            key={aIndex}
+                            className="flex items-center space-x-3 p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer"
+                          >
+                            <input
+                              type={currentQuestion.type === "multiple_choice" ? "checkbox" : "radio"}
+                              name={`question-${currentQuestionIndex}`}
+                              checked={isSelected}
+                              onChange={() => handleAnswerSelect(currentQuestionIndex, aIndex, currentQuestion.type === "multiple_choice")}
+                              className={currentQuestion.type === "multiple_choice" 
+                                ? "text-blue-600 focus:ring-blue-500 rounded" 
+                                : "text-blue-600 focus:ring-blue-500"}
+                            />
+                            <span className="text-gray-900">{answer.answer}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Navigation */}
+              <div className="flex justify-between mt-8">
+                <button
+                  onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
+                  disabled={currentQuestionIndex === 0}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Précédent
+                </button>
+
+                {currentQuestionIndex < quiz.questions.length - 1 ? (
+                  <button
+                    onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                  >
+                    Suivant
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSubmitQuiz}
+                    disabled={isSubmitting}
+                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {isSubmitting ? "Soumission..." : "Terminer le quiz"}
+                  </button>
+                )}
+              </div>
+            </>
+          ) : (
+            /* Résultats */
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
+                  results!.passed ? 'bg-green-100' : 'bg-red-100'
+                }`}>
+                  {results!.passed ? (
+                    <CheckCircle className="h-8 w-8 text-green-600" />
+                  ) : (
+                    <AlertCircle className="h-8 w-8 text-red-600" />
+                  )}
+                </div>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  {results!.passed ? 'Quiz réussi !' : 'Quiz échoué'}
+                </h3>
+                <p className="text-gray-600">
+                  Vous avez obtenu {results!.percentage}% ({results!.earnedPoints}/{results!.totalPoints} points)
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-2xl font-bold text-gray-900">{results!.correctAnswers}</div>
+                  <div className="text-sm text-gray-600">Bonnes réponses</div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-2xl font-bold text-gray-900">{results!.totalQuestions}</div>
+                  <div className="text-sm text-gray-600">Questions</div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-2xl font-bold text-gray-900">{results!.earnedPoints}</div>
+                  <div className="text-sm text-gray-600">Points obtenus</div>
+                </div>
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-2xl font-bold text-gray-900">{results!.percentage}%</div>
+                  <div className="text-sm text-gray-600">Score final</div>
+                </div>
+              </div>
+
+              <div className="flex justify-center space-x-3">
+                <button
+                  onClick={() => {
+                    setCurrentQuestionIndex(0);
+                    setSelectedAnswers({});
+                    setShowResults(false);
+                    setTimeLeft(quiz.timeLimit ? quiz.timeLimit * 60 : null);
+                    setStartTime(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Recommencer
+                </button>
+                <button
+                  onClick={() => {
+                    setShowResults(false);
+                    setIsQuizSelected(false);
+                    setQuizResult(null);
+                  }}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -538,7 +1082,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                             : 'border-gray-200 hover:border-gray-300 cursor-pointer hover:shadow-md'
                       }`}
                     >
-                      {/* Image de couverture */}
+                      {/* Image de couverture
                       {lesson.coverImage ? (
                         <div className="mb-3 relative overflow-hidden rounded-lg">
                           <img
@@ -564,7 +1108,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                             getFileIcon(lesson)
                           )}
                         </div>
-                      )}
+                      )} */}
 
                       {/* Titre et type */}
                       <div className="flex items-start justify-between mb-2">
@@ -572,7 +1116,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                           {lesson.title}
                         </h3>
                         <div className="flex items-center space-x-1 ml-2">
-                          {getFileIcon(lesson)}
+                          {/* {getFileIcon(lesson)} */}
                           {progress?.completed && (
                             <CheckCircle className="h-4 w-4 text-green-500" />
                           )}
@@ -618,7 +1162,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                         )}
                       </div>
 
-                      {/* Bouton d'action */}
+                      {/* Bouton d'action
                       <button
                         disabled={!isAccessible}
                         className={`w-full py-2 px-3 text-xs font-medium rounded-md transition-colors ${
@@ -637,7 +1181,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                         ) : (
                           getActionButtonText(lesson)
                         )}
-                      </button>
+                      </button> */}
 
                       {/* Barre de progression */}
                       {!isAccessible ? (
@@ -667,13 +1211,107 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                     </div>
                   );
                 })}
+
+                {/* Carte Quiz pour les admins */}
+                {isAdmin() && (
+                  <div
+                    className={`p-4 bg-white rounded-lg border-2 transition-all ${
+                      !quiz
+                        ? 'border-dashed border-gray-300 hover:border-blue-400 cursor-pointer hover:shadow-md'
+                        : isQuizSelected
+                          ? 'border-purple-500 bg-purple-50 cursor-pointer hover:shadow-md'
+                          : 'border-purple-200 hover:border-purple-300 cursor-pointer hover:shadow-md'
+                    }`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!quiz) {
+                        // Si pas de quiz, ouvrir la modal de configuration
+                        console.log('🎯 Clic sur la carte Quiz - ouverture de la modal, showQuizModal:', showQuizModal);
+                        setShowQuizModal(true);
+                        console.log('✅ showQuizModal mis à true');
+                      } else {
+                        // Si quiz existe, le sélectionner pour le jouer
+                        setIsQuizSelected(true);
+                        setSelectedLesson(null);
+                        setQuizResult(null);
+                      }
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center space-x-2 flex-1">
+                        <div className={`p-2 rounded-md ${
+                          quiz 
+                            ? 'bg-purple-100' 
+                            : 'bg-gray-100'
+                        }`}>
+                          <HelpCircle className={`h-5 w-5 ${
+                            quiz 
+                              ? 'text-purple-600' 
+                              : 'text-gray-400'
+                          }`} />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900 text-sm">
+                            {quiz ? quiz.title : 'Quiz de validation'}
+                          </h3>
+                          {quiz && quiz.questions && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {quiz.questions.length} question{quiz.questions.length > 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1 ml-2">
+                        {quiz ? (
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setShowQuizModal(true);
+                            }}
+                            className="p-1 hover:bg-purple-100 rounded transition-colors"
+                            title="Modifier le quiz"
+                          >
+                            <Edit className="h-4 w-4 text-purple-600" />
+                          </button>
+                        ) : (
+                          <Plus className="h-4 w-4 text-blue-600" />
+                        )}
+                      </div>
+                    </div>
+
+                    {quiz && (
+                      <div className="flex items-center justify-between text-xs text-gray-500">
+                        <div className="flex items-center space-x-2">
+                          <span>Score minimum: {quiz.passingScore}%</span>
+                          {quiz.timeLimit && (
+                            <span>• {quiz.timeLimit} min</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {!quiz && (
+                      <div className="flex items-center justify-center pt-2">
+                        <span className="text-xs text-blue-600">
+                          Cliquez pour ajouter un quiz de validation
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
 
-          {/* Right Side - Contenu de la leçon */}
+          {/* Right Side - Contenu de la leçon ou quiz */}
           <div className="flex-1 bg-white overflow-hidden">
-            {selectedLesson ? (
+            {isQuizSelected && quiz ? (
+              <div className="h-full overflow-y-auto">
+                {renderQuizContent()}
+              </div>
+            ) : selectedLesson ? (
               <div className="h-full">
                 {renderLessonContent()}
               </div>
@@ -681,7 +1319,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
               <div className="flex items-center justify-center h-full">
                 <div className="text-center">
                   <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500 text-lg">Sélectionnez une leçon pour commencer</p>
+                  <p className="text-gray-500 text-lg">Sélectionnez une leçon ou le quiz pour commencer</p>
                 </div>
               </div>
             )}
@@ -859,6 +1497,29 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
             <X className="h-4 w-4" />
           </button>
         </div>
+      )}
+
+      {/* Modal de configuration du Quiz - Rendu via portail pour éviter les restrictions CSS */}
+      {showQuizModal && typeof document !== 'undefined' && createPortal(
+        <QuizConfigModal
+          isOpen={showQuizModal}
+          formationId={formation.id}
+          existingQuiz={quiz ? {
+            id: quiz.id,
+            formationId: quiz.formationId,
+            title: quiz.title,
+            description: quiz.description,
+            passingScore: quiz.passingScore,
+            timeLimit: quiz.timeLimit,
+            isActive: quiz.isActive,
+            createdAt: quiz.createdAt,
+            updatedAt: quiz.updatedAt,
+            questions: quiz.questions
+          } : undefined}
+          onClose={() => setShowQuizModal(false)}
+          onSave={handleSaveQuiz}
+        />,
+        document.body
       )}
     </>
   );

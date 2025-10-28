@@ -362,19 +362,17 @@ export const quizController = {
     }
   },
 
-  // Soumettre les réponses d'un quiz
-  async submitQuizAttempt(req, res) {
+  // Obtenir la dernière tentative d'un quiz pour un utilisateur
+  async getLastQuizAttempt(req, res) {
     try {
-      const { attemptId } = req.params;
-      const { answers, timeSpent } = req.body;
+      const { quizId } = req.params;
       const userId = req.user.id;
 
-      // Vérifier si la tentative existe et appartient à l'utilisateur
-      const attempt = await prisma.quizAttempt.findFirst({
+      const lastAttempt = await prisma.quizAttempt.findFirst({
         where: {
-          id: attemptId,
           userId,
-          completedAt: null, // Pas encore terminée
+          quizId,
+          completedAt: { not: null }, // Seulement les tentatives terminées
         },
         include: {
           quiz: {
@@ -387,13 +385,97 @@ export const quizController = {
             },
           },
         },
+        orderBy: {
+          completedAt: "desc",
+        },
       });
 
-      if (!attempt) {
-        return res.status(404).json({
-          success: false,
-          message: "Tentative non trouvée ou déjà terminée",
+      if (!lastAttempt) {
+        return res.json({
+          success: true,
+          data: null,
+          message: "Aucune tentative trouvée",
         });
+      }
+
+      res.json({
+        success: true,
+        data: {
+          ...lastAttempt,
+          answers: lastAttempt.answers ? JSON.parse(lastAttempt.answers) : null,
+        },
+      });
+    } catch (error) {
+      console.error("Erreur getLastQuizAttempt:", error);
+      res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Soumettre les réponses d'un quiz (crée une nouvelle tentative ou met à jour une en cours)
+  async submitQuizAttempt(req, res) {
+    try {
+      const { quizId } = req.params;
+      const { answers, timeSpent, attemptId } = req.body;
+      const userId = req.user.id;
+
+      let attempt;
+      
+      // Si un attemptId est fourni, vérifier qu'il existe et est en cours
+      if (attemptId) {
+        attempt = await prisma.quizAttempt.findFirst({
+          where: {
+            id: attemptId,
+            userId,
+            quizId,
+            completedAt: null, // Pas encore terminée
+          },
+          include: {
+            quiz: {
+              include: {
+                questions: {
+                  include: {
+                    answers: true,
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (!attempt) {
+          return res.status(404).json({
+            success: false,
+            message: "Tentative non trouvée ou déjà terminée",
+          });
+        }
+      } else {
+        // Créer une nouvelle tentative
+        const quiz = await prisma.quiz.findUnique({
+          where: { id: quizId },
+          include: {
+            questions: {
+              include: {
+                answers: true,
+              },
+            },
+          },
+        });
+
+        if (!quiz) {
+          return res.status(404).json({
+            success: false,
+            message: "Quiz non trouvé",
+          });
+        }
+
+        attempt = {
+          quiz,
+          userId,
+          quizId,
+        };
       }
 
       // Calculer le score
@@ -437,18 +519,37 @@ export const quizController = {
         totalScore > 0 ? Math.round((userScore / totalScore) * 100) : 0;
       const isPassed = scorePercentage >= attempt.quiz.passingScore;
 
-      // Mettre à jour la tentative
-      const updatedAttempt = await prisma.quizAttempt.update({
-        where: { id: attemptId },
-        data: {
-          score: scorePercentage,
-          totalScore,
-          isPassed,
-          timeSpent: timeSpent || null,
-          answers: JSON.stringify(answers),
-          completedAt: new Date(),
-        },
-      });
+      // Créer ou mettre à jour la tentative
+      let updatedAttempt;
+      if (attemptId && attempt.id) {
+        // Mettre à jour la tentative existante
+        updatedAttempt = await prisma.quizAttempt.update({
+          where: { id: attempt.id },
+          data: {
+            score: scorePercentage,
+            totalScore,
+            isPassed,
+            timeSpent: timeSpent || null,
+            answers: JSON.stringify(answers),
+            completedAt: new Date(),
+          },
+        });
+      } else {
+        // Créer une nouvelle tentative
+        updatedAttempt = await prisma.quizAttempt.create({
+          data: {
+            userId,
+            quizId,
+            score: scorePercentage,
+            totalScore,
+            isPassed,
+            timeSpent: timeSpent || null,
+            answers: JSON.stringify(answers),
+            startedAt: new Date(),
+            completedAt: new Date(),
+          },
+        });
+      }
 
       // Créer une notification si le quiz est réussi
       if (isPassed) {

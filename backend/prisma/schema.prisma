@@ -287,9 +287,10 @@ model QuizAttempt {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   quiz Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
 
-  @@unique([userId, quizId])
   @@index([userId])
   @@index([quizId])
+  @@index([userId, quizId])
+  @@index([userId, quizId, completedAt])
   @@map("quiz_attempts")
 }
 
