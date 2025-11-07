@@ -55,7 +55,13 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     isPassed: boolean;
     totalScore: number;
     userScore: number;
+    correctAnswers?: number;
+    totalQuestions?: number;
+    answers?: Record<string, string | string[]>;
   } | null>(null);
+  const [lastAttempt, setLastAttempt] = useState<any | null>(null);
+  const [showQuizRecap, setShowQuizRecap] = useState(false);
+  const [selectedQuestionIndex, setSelectedQuestionIndex] = useState<number | null>(null);
 
 
   // Transformer les données des leçons pour s'assurer que toutes les propriétés sont bien définies
@@ -137,6 +143,8 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         const data = await response.json();
         if (data.success && data.data.quiz) {
           setQuiz(data.data.quiz);
+          // Charger la dernière tentative si le quiz existe
+          await fetchLastAttempt(data.data.quiz.id);
         }
       }
     } catch (error) {
@@ -144,6 +152,146 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     } finally {
       setIsLoadingQuiz(false);
     }
+  };
+
+  // Fonction pour récupérer la dernière tentative
+  const fetchLastAttempt = async (quizId: string) => {
+    try {
+      const response = await quizApi.getLastAttempt(quizId);
+      if (response.data.success && response.data.data) {
+        setLastAttempt(response.data.data);
+      } else {
+        setLastAttempt(null);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération de la dernière tentative:', error);
+      setLastAttempt(null);
+    }
+  };
+
+  // Vérifier si toutes les leçons sont complétées
+  const areAllLessonsCompleted = () => {
+    // Filtrer uniquement les leçons (pas les sections)
+    const actualLessons = lessons.filter(lesson => lesson.contentType === 'LESSON');
+    
+    if (actualLessons.length === 0) {
+      return true; // Pas de leçons, le quiz peut être joué
+    }
+    
+    // Vérifier que toutes les leçons sont complétées
+    return actualLessons.every(lesson => {
+      const progress = lessonProgress[lesson.id];
+      return progress?.completed === true;
+    });
+  };
+
+  // Fonction pour déterminer l'état du quiz et les actions disponibles
+  const getQuizState = () => {
+    const allLessonsCompleted = areAllLessonsCompleted();
+    
+    if (!quiz) {
+      return {
+        canPlay: false,
+        canRetry: false,
+        canFinish: false,
+        buttonText: 'Jouer',
+        buttonVariant: 'primary' as const,
+        allLessonsCompleted: false,
+        reason: 'Aucun quiz configuré'
+      };
+    }
+
+    // Si toutes les leçons ne sont pas complétées et qu'il n'y a pas eu de tentative précédente
+    if (!allLessonsCompleted && !lastAttempt) {
+      return {
+        canPlay: false,
+        canRetry: false,
+        canFinish: false,
+        buttonText: 'Jouer',
+        buttonVariant: 'primary' as const,
+        allLessonsCompleted: false,
+        reason: 'Complétez d\'abord toutes les leçons'
+      };
+    }
+
+    if (!lastAttempt) {
+      return {
+        canPlay: allLessonsCompleted,
+        canRetry: false,
+        canFinish: false,
+        buttonText: 'Jouer',
+        buttonVariant: 'primary' as const,
+        allLessonsCompleted,
+        reason: allLessonsCompleted ? undefined : 'Complétez d\'abord toutes les leçons'
+      };
+    }
+
+    const score = lastAttempt.score;
+    // answers peut être soit une string (JSON) soit déjà un objet
+    let answersObj = null;
+    if (lastAttempt.answers) {
+      if (typeof lastAttempt.answers === 'string') {
+        try {
+          answersObj = JSON.parse(lastAttempt.answers);
+        } catch (e) {
+          console.error('Erreur parsing answers:', e);
+          answersObj = null;
+        }
+      } else {
+        answersObj = lastAttempt.answers;
+      }
+    }
+    const correctAnswers = answersObj ? Object.keys(answersObj).length : 0;
+
+    // 100% = Terminer uniquement (peut toujours être cliqué même si leçons non complétées)
+    if (score === 100) {
+      return {
+        canPlay: false,
+        canRetry: false,
+        canFinish: true,
+        buttonText: 'Terminer',
+        buttonVariant: 'success' as const,
+        allLessonsCompleted: true,
+        reason: undefined
+      };
+    }
+
+    // Réussi entre 80-99% = Rejouer (optionnel) + Terminer (mis en avant)
+    if (score >= quiz.passingScore && score < 100) {
+      return {
+        canPlay: false,
+        canRetry: allLessonsCompleted, // Rejouer seulement si toutes les leçons sont complétées
+        canFinish: true,
+        buttonText: 'Rejouer',
+        buttonVariant: 'secondary' as const,
+        primaryAction: 'finish' as const,
+        allLessonsCompleted,
+        reason: allLessonsCompleted ? undefined : 'Complétez toutes les leçons pour rejouer'
+      };
+    }
+
+    // Échec <80% = Rejouer (obligatoire, mais seulement si toutes les leçons sont complétées)
+    if (score < quiz.passingScore) {
+      return {
+        canPlay: false,
+        canRetry: allLessonsCompleted, // Rejouer seulement si toutes les leçons sont complétées
+        canFinish: false,
+        buttonText: 'Rejouer',
+        buttonVariant: 'warning' as const,
+        allLessonsCompleted,
+        reason: allLessonsCompleted ? 'Vous devez rejouer le quiz' : 'Complétez toutes les leçons avant de rejouer'
+      };
+    }
+
+    return {
+      canPlay: allLessonsCompleted,
+      canRetry: false,
+      canFinish: false,
+      buttonText: 'Jouer',
+      buttonVariant: 'primary' as const,
+      allLessonsCompleted,
+      reason: allLessonsCompleted ? undefined : 'Complétez d\'abord toutes les leçons'
+    };
   };
 
   // Fonction pour sauvegarder le quiz
@@ -386,6 +534,16 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     if (lessons.length > 0) {
       loadProgressions();
     }
+    
+    // Recharger les progressions périodiquement pour détecter les changements
+    // (utile quand une leçon est complétée dans un autre onglet ou composant)
+    const interval = setInterval(() => {
+      if (lessons.length > 0) {
+        loadProgressions();
+      }
+    }, 3000); // Recharger toutes les 3 secondes
+    
+    return () => clearInterval(interval);
   }, [formation.id, lessons]);
 
   // Charger le quiz au montage du composant (pour les admins)
@@ -626,13 +784,21 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     }
 
     // Sinon, afficher le quiz inline
-    return <InlineQuizPlayer quiz={quiz} onComplete={(result) => setQuizResult(result)} onClose={() => setIsQuizSelected(false)} />;
+    return <InlineQuizPlayer 
+      quiz={quiz} 
+      onComplete={async (result) => {
+        setQuizResult(result);
+        // Recharger la dernière tentative après sauvegarde
+        await fetchLastAttempt(quiz.id);
+      }} 
+      onClose={() => setIsQuizSelected(false)} 
+    />;
   };
 
   // Composant Quiz Player Inline - Inspiré de QuizPreviewModal
   const InlineQuizPlayer = ({ quiz, onComplete, onClose }: { quiz: Quiz; onComplete: (result: any) => void; onClose: () => void }) => {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | number[] | string>>({});
+    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | number[] | string | string[]>>({});
     const [showResults, setShowResults] = useState(false);
     const [timeLeft, setTimeLeft] = useState<number | null>(null);
     const [startTime, setStartTime] = useState<Date | null>(null);
@@ -692,6 +858,26 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
             earnedPoints += points;
             correctAnswers++;
           }
+        } else if (question.type === 'fill_in_blank') {
+          // Pour les phrases à trous : vérifier chaque trou
+          const expectedAnswers = question.answers.map(a => a.answer.toLowerCase().trim());
+          let userAnswers: string[] = [];
+          
+          if (Array.isArray(selectedAnswer)) {
+            userAnswers = selectedAnswer
+              .filter((ans): ans is string => typeof ans === 'string')
+              .map(ans => ans.toLowerCase().trim());
+          }
+          
+          // Vérifier si toutes les réponses sont correctes
+          const allCorrect = expectedAnswers.length > 0 &&
+            expectedAnswers.length === userAnswers.length &&
+            expectedAnswers.every((expected, idx) => expected === userAnswers[idx]);
+          
+          if (allCorrect) {
+            earnedPoints += points;
+            correctAnswers++;
+          }
         } else if (question.type === 'multiple_choice') {
           // Pour choix multiples : vérifier si toutes les bonnes réponses sont sélectionnées
           const correctAnswerIndices = question.answers
@@ -736,20 +922,67 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
       };
     };
 
-    const handleSubmitQuiz = useCallback(() => {
+    const handleSubmitQuiz = useCallback(async () => {
       setIsSubmitting(true);
       const results = calculateScore();
+      
+      // Convertir les réponses d'indices vers des IDs de questions/réponses pour l'API
+      const answersForApi: Record<string, string | string[]> = {};
+      quiz.questions.forEach((question, qIndex) => {
+        const selectedAnswer = selectedAnswers[qIndex];
+        if (selectedAnswer !== undefined) {
+          if (question.type === 'fill_in_blank') {
+            // Phrases à trous : garder le tableau de réponses (strings)
+            if (Array.isArray(selectedAnswer)) {
+              answersForApi[question.id] = selectedAnswer.filter((ans): ans is string => typeof ans === 'string');
+            } else if (typeof selectedAnswer === 'string') {
+              answersForApi[question.id] = [selectedAnswer];
+            }
+          } else if (Array.isArray(selectedAnswer) && question.type === 'multiple_choice') {
+            // Choix multiples : convertir les indices en IDs de réponses
+            const indices = selectedAnswer.filter((val): val is number => typeof val === 'number');
+            answersForApi[question.id] = indices.map(index => question.answers[index].id);
+          } else if (typeof selectedAnswer === 'number') {
+            // Radio/vrai-faux : convertir l'indice en ID de réponse
+            answersForApi[question.id] = question.answers[selectedAnswer].id;
+          } else if (typeof selectedAnswer === 'string') {
+            // Texte libre : garder tel quel
+            answersForApi[question.id] = selectedAnswer;
+          }
+        }
+      });
+
+      // Sauvegarder les résultats dans la base de données
+      try {
+        const timeSpent = timeLeft !== null && startTime !== null 
+          ? Math.floor((new Date().getTime() - startTime.getTime()) / 1000)
+          : undefined;
+        
+        const response = await quizApi.submitAttempt(quiz.id, {
+          answers: answersForApi,
+          timeSpent,
+        });
+
+        if (response.data.success) {
+          console.log('✅ Résultats sauvegardés:', response.data.data);
+        }
+      } catch (error) {
+        console.error('❌ Erreur lors de la sauvegarde des résultats:', error);
+      }
+
+      // Appeler onComplete avec les résultats et les réponses
       onComplete({
         score: results.percentage,
         isPassed: results.passed,
         totalScore: results.totalPoints,
         userScore: results.earnedPoints,
         correctAnswers: results.correctAnswers,
-        totalQuestions: results.totalQuestions
+        totalQuestions: results.totalQuestions,
+        answers: selectedAnswers // Garder les réponses originales pour le récapitulatif
       });
       setShowResults(true);
       setIsSubmitting(false);
-    }, [selectedAnswers, quiz, onComplete]);
+    }, [selectedAnswers, quiz, onComplete, timeLeft, startTime]);
 
     // Initialiser le timer si nécessaire
     useEffect(() => {
@@ -859,23 +1092,80 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                     </div>
                   )}
 
-                  <div className="space-y-3">
-                    {currentQuestion.type === 'text' ? (
-                      <textarea
-                        value={typeof selectedAnswers[currentQuestionIndex] === 'string' 
-                          ? selectedAnswers[currentQuestionIndex] as string 
-                          : ''}
-                        onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value, false)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        rows={4}
-                        placeholder="Tapez votre réponse ici..."
-                      />
-                    ) : (
-                      currentQuestion.answers.map((answer, aIndex) => {
-                        const selected = selectedAnswers[currentQuestionIndex];
-                        const isSelected = currentQuestion.type === "multiple_choice"
-                          ? Array.isArray(selected) && selected.includes(aIndex)
-                          : selected === aIndex;
+                      <div className="space-y-3">
+                        {currentQuestion.type === 'text' ? (
+                          <textarea
+                            value={typeof selectedAnswers[currentQuestionIndex] === 'string' 
+                              ? selectedAnswers[currentQuestionIndex] as string 
+                              : ''}
+                            onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value, false)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            rows={4}
+                            placeholder="Tapez votre réponse ici..."
+                          />
+                        ) : currentQuestion.type === 'fill_in_blank' ? (
+                          // Phrases à trous
+                          <div className="space-y-4">
+                            {(() => {
+                              // Parser la phrase pour extraire les parties et les trous
+                              const parts = currentQuestion.question.split(/(\{[^}]+\})/g);
+                              const blanks = currentQuestion.question.match(/\{([^}]+)\}/g) || [];
+                              const rawAnswers = selectedAnswers[currentQuestionIndex];
+                              const currentAnswers: string[] = Array.isArray(rawAnswers) 
+                                ? rawAnswers.filter((ans): ans is string => typeof ans === 'string')
+                                : [];
+                              
+                              let blankIndex = 0;
+                              
+                              return (
+                                <div className="bg-gray-50 p-4 rounded-lg">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {parts.map((part, partIdx) => {
+                                      if (part.match(/^\{[^}]+\}$/)) {
+                                        // C'est un trou
+                                        const currentBlankIndex = blankIndex;
+                                        blankIndex++;
+                                        return (
+                                          <input
+                                            key={partIdx}
+                                            type="text"
+                                            value={currentAnswers[currentBlankIndex] || ''}
+                                            onChange={(e) => {
+                                              const newAnswers: string[] = [...currentAnswers];
+                                              newAnswers[currentBlankIndex] = e.target.value;
+                                              setSelectedAnswers(prev => ({
+                                                ...prev,
+                                                [currentQuestionIndex]: newAnswers
+                                              }));
+                                            }}
+                                            className="px-3 py-1 border-2 border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-600 min-w-[120px] bg-white"
+                                            placeholder={`Trou ${currentBlankIndex + 1}`}
+                                          />
+                                        );
+                                      } else {
+                                        // C'est du texte normal
+                                        return (
+                                          <span key={partIdx} className="text-gray-900">
+                                            {part}
+                                          </span>
+                                        );
+                                      }
+                                    })}
+                                  </div>
+                                  <div className="mt-3 text-xs text-gray-500">
+                                    <AlertCircle className="h-3 w-3 inline mr-1" />
+                                    Remplissez les {blanks.length} trou{blanks.length > 1 ? 's' : ''} de la phrase
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        ) : (
+                          currentQuestion.answers.map((answer, aIndex) => {
+                            const selected = selectedAnswers[currentQuestionIndex];
+                            const isSelected = currentQuestion.type === "multiple_choice"
+                              ? Array.isArray(selected) && selected.some((val) => val === aIndex)
+                              : selected === aIndex;
 
                         return (
                           <label
@@ -1230,12 +1520,8 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                         console.log('🎯 Clic sur la carte Quiz - ouverture de la modal, showQuizModal:', showQuizModal);
                         setShowQuizModal(true);
                         console.log('✅ showQuizModal mis à true');
-                      } else {
-                        // Si quiz existe, le sélectionner pour le jouer
-                        setIsQuizSelected(true);
-                        setSelectedLesson(null);
-                        setQuizResult(null);
                       }
+                      // Ne pas jouer automatiquement au clic sur la carte, utiliser les boutons
                     }}
                   >
                     <div className="flex items-start justify-between mb-2">
@@ -1282,14 +1568,125 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                     </div>
 
                     {quiz && (
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <div className="flex items-center space-x-2">
-                          <span>Score minimum: {quiz.passingScore}%</span>
-                          {quiz.timeLimit && (
-                            <span>• {quiz.timeLimit} min</span>
+                      <>
+                        <div className="mt-2 text-xs text-gray-500">
+                          {lastAttempt ? (
+                            <div>
+                              <span>Dernier score: {lastAttempt.score}%</span>
+                              {lastAttempt.isPassed ? (
+                                <span className="ml-2 text-green-600">✓ Réussi</span>
+                              ) : (
+                                <span className="ml-2 text-red-600">✗ Échoué</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span>Pas encore joué</span>
                           )}
                         </div>
-                      </div>
+                        
+                        {/* Boutons d'action selon l'état */}
+                        {(() => {
+                          const quizState = getQuizState();
+                          const canPlayQuiz = quizState.allLessonsCompleted;
+                          const actualLessons = lessons.filter(l => l.contentType === 'LESSON');
+                          const completedLessons = actualLessons.filter(l => lessonProgress[l.id]?.completed).length;
+                          
+                          return (
+                            <div className="mt-3 flex flex-col space-y-2">
+                              {/* Message informatif si toutes les leçons ne sont pas complétées */}
+                              {!canPlayQuiz && quiz && (
+                                <div className="mb-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                                  <p className="text-xs text-yellow-800">
+                                    <Lock className="h-3 w-3 inline mr-1" />
+                                    {completedLessons} / {actualLessons.length} leçon{actualLessons.length > 1 ? 's' : ''} complétée{actualLessons.length > 1 ? 's' : ''}
+                                  </p>
+                                  <p className="text-xs text-yellow-700 mt-1">
+                                    Complétez toutes les leçons pour accéder au quiz
+                                  </p>
+                                </div>
+                              )}
+                              
+                              {quizState.canPlay && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (canPlayQuiz) {
+                                      setIsQuizSelected(true);
+                                      setSelectedLesson(null);
+                                      setQuizResult(null);
+                                    }
+                                  }}
+                                  disabled={!canPlayQuiz}
+                                  className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
+                                    canPlayQuiz
+                                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  }`}
+                                >
+                                  Jouer
+                                </button>
+                              )}
+                              
+                              {quizState.canRetry && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    if (canPlayQuiz) {
+                                      setIsQuizSelected(true);
+                                      setSelectedLesson(null);
+                                      setQuizResult(null);
+                                    }
+                                  }}
+                                  disabled={!canPlayQuiz}
+                                  className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
+                                    !canPlayQuiz
+                                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                      : quizState.buttonVariant === 'warning'
+                                      ? 'bg-orange-600 text-white hover:bg-orange-700'
+                                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                  }`}
+                                >
+                                  Rejouer
+                                </button>
+                              )}
+                              
+                              {quizState.canFinish && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    // Action terminer : fermer le quiz
+                                    setIsQuizSelected(false);
+                                    setQuizResult(null);
+                                  }}
+                                  className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
+                                    quizState.primaryAction === 'finish'
+                                      ? 'bg-green-600 text-white hover:bg-green-700'
+                                      : 'bg-green-500 text-white hover:bg-green-600'
+                                  }`}
+                                >
+                                  Terminer
+                                </button>
+                              )}
+                              
+                              {lastAttempt && (
+                                <button
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setShowQuizRecap(true);
+                                  }}
+                                  className="w-full px-3 py-2 bg-gray-100 text-gray-700 text-sm rounded-md hover:bg-gray-200 transition-colors"
+                                >
+                                  Récap
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </>
                     )}
 
                     {!quiz && (
@@ -1519,6 +1916,308 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
           onClose={() => setShowQuizModal(false)}
           onSave={handleSaveQuiz}
         />,
+        document.body
+      )}
+
+      {/* Modal de récapitulatif du quiz */}
+      {showQuizRecap && quiz && lastAttempt && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[10002] flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-purple-600 to-brand-blue text-white p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold mb-2">Récapitulatif du quiz</h2>
+                  <p className="text-purple-100">{quiz.title}</p>
+                  <div className="mt-2 flex items-center space-x-4 text-sm">
+                    <span>Score: {lastAttempt.score}%</span>
+                    <span>•</span>
+                    <span>{lastAttempt.isPassed ? '✓ Réussi' : '✗ Échoué'}</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowQuizRecap(false);
+                    setSelectedQuestionIndex(null);
+                  }}
+                  className="text-white hover:text-purple-200 transition-colors"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+            </div>
+
+            {/* Contenu */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {selectedQuestionIndex === null ? (
+                <>
+                  {/* Grille de questions */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Questions</h3>
+                    <div className="grid grid-cols-10 sm:grid-cols-12 md:grid-cols-15 gap-2">
+                      {quiz.questions.map((question, index) => {
+                        // answers peut être soit une string (JSON) soit déjà un objet
+                        let userAnswers: Record<string, any> = {};
+                        if (lastAttempt.answers) {
+                          if (typeof lastAttempt.answers === 'string') {
+                            try {
+                              userAnswers = JSON.parse(lastAttempt.answers);
+                            } catch (e) {
+                              userAnswers = {};
+                            }
+                          } else {
+                            userAnswers = lastAttempt.answers as Record<string, any>;
+                          }
+                        }
+                        const userAnswer = userAnswers[question.id];
+                        
+                        // Vérifier si la réponse est correcte
+                        let isCorrect: boolean = false;
+                        if (question.type === 'fill_in_blank') {
+                          // Phrases à trous : comparer les réponses
+                          const expectedAnswers = question.answers.map(a => a.answer.toLowerCase().trim());
+                          const userAnswersArray = Array.isArray(userAnswer) 
+                            ? userAnswer.map((ans: string) => ans.toLowerCase().trim())
+                            : [];
+                          isCorrect = expectedAnswers.length > 0 &&
+                            expectedAnswers.length === userAnswersArray.length &&
+                            expectedAnswers.every((expected, idx) => expected === userAnswersArray[idx]);
+                        } else if (question.type === 'multiple_choice') {
+                          const correctAnswerIds = question.answers.filter(a => a.isCorrect).map(a => a.id);
+                          const userAnswerIds = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
+                          isCorrect = correctAnswerIds.length > 0 && 
+                            correctAnswerIds.every(id => userAnswerIds.includes(id)) &&
+                            userAnswerIds.length === correctAnswerIds.length;
+                        } else if (question.type === 'true_false') {
+                          const correctAnswer = question.answers.find(a => a.isCorrect);
+                          isCorrect = Boolean(correctAnswer && userAnswer === correctAnswer.id);
+                        }
+
+                        return (
+                          <button
+                            key={question.id}
+                            onClick={() => setSelectedQuestionIndex(index)}
+                            className={`w-10 h-10 flex items-center justify-center rounded-md font-semibold text-sm transition-all hover:scale-110 ${
+                              isCorrect
+                                ? 'bg-green-500 text-white hover:bg-green-600'
+                                : 'bg-red-500 text-white hover:bg-red-600'
+                            }`}
+                          >
+                            {index + 1}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Légende */}
+                  <div className="flex items-center space-x-6 text-sm">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 bg-green-500 rounded"></div>
+                      <span className="text-gray-700">Réponse correcte</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 bg-red-500 rounded"></div>
+                      <span className="text-gray-700">Réponse incorrecte</span>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Détail de la question */}
+                  <button
+                    onClick={() => setSelectedQuestionIndex(null)}
+                    className="mb-4 flex items-center text-blue-600 hover:text-blue-700 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Retour à la grille
+                  </button>
+
+                  {(() => {
+                    const question = quiz.questions[selectedQuestionIndex];
+                    // answers peut être soit une string (JSON) soit déjà un objet
+                    let userAnswers: Record<string, any> = {};
+                    if (lastAttempt.answers) {
+                      if (typeof lastAttempt.answers === 'string') {
+                        try {
+                          userAnswers = JSON.parse(lastAttempt.answers);
+                        } catch (e) {
+                          userAnswers = {};
+                        }
+                      } else {
+                        userAnswers = lastAttempt.answers as Record<string, any>;
+                      }
+                    }
+                    const userAnswer = question.id ? userAnswers[question.id] : undefined;
+                    
+                    // Vérifier si la réponse est correcte
+                    let isCorrect: boolean = false;
+                    if (question.type === 'fill_in_blank') {
+                      // Phrases à trous : comparer les réponses
+                      const expectedAnswers = question.answers.map(a => a.answer.toLowerCase().trim());
+                      const userAnswersArray = Array.isArray(userAnswer) 
+                        ? userAnswer.map((ans: string) => ans.toLowerCase().trim())
+                        : [];
+                      isCorrect = expectedAnswers.length > 0 &&
+                        expectedAnswers.length === userAnswersArray.length &&
+                        expectedAnswers.every((expected, idx) => expected === userAnswersArray[idx]);
+                    } else if (question.type === 'multiple_choice') {
+                      const correctAnswerIds = question.answers.filter(a => a.isCorrect).map(a => a.id);
+                      const userAnswerIds = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
+                      isCorrect = correctAnswerIds.length > 0 && 
+                        correctAnswerIds.every(id => userAnswerIds.includes(id)) &&
+                        userAnswerIds.length === correctAnswerIds.length;
+                    } else if (question.type === 'true_false') {
+                      const correctAnswer = question.answers.find(a => a.isCorrect);
+                      isCorrect = Boolean(correctAnswer && userAnswer === correctAnswer.id);
+                    }
+
+                    return (
+                      <div className="space-y-6">
+                        <div>
+                          <div className="flex items-center justify-between mb-2">
+                            <h3 className="text-xl font-semibold text-gray-900">
+                              Question {selectedQuestionIndex + 1}
+                            </h3>
+                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+                              isCorrect 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {isCorrect ? '✓ Correcte' : '✗ Incorrecte'}
+                            </span>
+                          </div>
+                          <p className="text-lg text-gray-700">{question.question}</p>
+                        </div>
+
+                        <div className="space-y-4">
+                          {question.type === 'fill_in_blank' ? (
+                            // Affichage spécial pour phrases à trous
+                            <>
+                              <div>
+                                <h4 className="font-semibold text-gray-900 mb-2">Votre phrase complétée :</h4>
+                                <div className="bg-blue-50 p-4 rounded-lg">
+                                  {(() => {
+                                    const parts = question.question.split(/(\{[^}]+)\}/g);
+                                    const userAnswersArray = Array.isArray(userAnswer) ? userAnswer : [];
+                                    let blankIdx = 0;
+                                    
+                                    return (
+                                      <p className="text-gray-900">
+                                        {parts.map((part, idx) => {
+                                          if (part.match(/^\{[^}]+$/)) {
+                                            const answer = userAnswersArray[blankIdx] || '____';
+                                            blankIdx++;
+                                            return (
+                                              <span key={idx} className="font-medium text-blue-700 underline">
+                                                {answer}
+                                              </span>
+                                            );
+                                          }
+                                          return <span key={idx}>{part}</span>;
+                                        })}
+                                      </p>
+                                    );
+                                  })()}
+                                </div>
+                              </div>
+                              
+                              {!isCorrect && (
+                                <div>
+                                  <h4 className="font-semibold text-gray-900 mb-2">Phrase correcte :</h4>
+                                  <div className="bg-green-50 p-4 rounded-lg">
+                                    {(() => {
+                                      const parts = question.question.split(/(\{[^}]+)\}/g);
+                                      const correctAnswers = question.answers.map(a => a.answer);
+                                      let blankIdx = 0;
+                                      
+                                      return (
+                                        <p className="text-gray-900">
+                                          {parts.map((part, idx) => {
+                                            if (part.match(/^\{[^}]+$/)) {
+                                              const answer = correctAnswers[blankIdx] || '';
+                                              blankIdx++;
+                                              return (
+                                                <span key={idx} className="font-medium text-green-700 underline">
+                                                  {answer}
+                                                </span>
+                                              );
+                                            }
+                                            return <span key={idx}>{part}</span>;
+                                          })}
+                                        </p>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            // Affichage standard pour choix multiples, vrai/faux, etc.
+                            <>
+                              {/* Vos réponses */}
+                              <div>
+                                <h4 className="font-semibold text-gray-900 mb-2">Vos réponses :</h4>
+                                <div className="space-y-2">
+                                  {question.answers.map((answer) => {
+                                    const userAnswerIds = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
+                                    const isSelected = userAnswerIds.includes(answer.id);
+                                    
+                                    return (
+                                      <div
+                                        key={answer.id}
+                                        className={`p-3 rounded-lg border-2 ${
+                                          isSelected
+                                            ? 'border-blue-500 bg-blue-50'
+                                            : 'border-gray-200'
+                                        }`}
+                                      >
+                                        <div className="flex items-center justify-between">
+                                          <span className={isSelected ? 'font-medium text-gray-900' : 'text-gray-600'}>
+                                            {answer.answer}
+                                          </span>
+                                          {isSelected && (
+                                            <span className="text-blue-600 font-medium">✓ Sélectionnée</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+
+                              {/* Bonnes réponses */}
+                              {!isCorrect && (
+                                <div>
+                                  <h4 className="font-semibold text-gray-900 mb-2">Bonne(s) réponse(s) :</h4>
+                                  <div className="space-y-2">
+                                    {question.answers
+                                      .filter(a => a.isCorrect)
+                                      .map((answer) => (
+                                        <div
+                                          key={answer.id}
+                                          className="p-3 rounded-lg border-2 border-green-500 bg-green-50"
+                                        >
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-medium text-gray-900">{answer.answer}</span>
+                                            <span className="text-green-600 font-medium">✓ Correcte</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
+          </div>
+        </div>,
         document.body
       )}
     </>

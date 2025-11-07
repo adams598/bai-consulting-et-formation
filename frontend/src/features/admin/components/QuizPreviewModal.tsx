@@ -16,12 +16,12 @@ const QuizPreviewModal: React.FC<QuizPreviewModalProps> = ({
   questions
 }) => {
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | string>>({});
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | number[] | string | string[]>>({});
   const [showResults, setShowResults] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleAnswerSelect = (questionIndex: number, answerIndex: number | string) => {
+  const handleAnswerSelect = (questionIndex: number, answerIndex: number | string | string[]) => {
     setSelectedAnswers(prev => ({
       ...prev,
       [questionIndex]: answerIndex
@@ -42,6 +42,22 @@ const QuizPreviewModal: React.FC<QuizPreviewModalProps> = ({
         // Pour les questions texte libre, on considère qu'elles sont correctes (évaluation manuelle)
         earnedPoints += points;
         correctAnswers++;
+      } else if (question.type === 'fill_in_blank') {
+        // Pour les phrases à trous : vérifier chaque trou
+        const expectedAnswers = question.answers?.map(a => a.answer.toLowerCase().trim()) || [];
+        const userAnswers = Array.isArray(selectedAnswer) 
+          ? selectedAnswer.map((ans: string) => ans.toLowerCase().trim())
+          : [];
+        
+        // Vérifier si toutes les réponses sont correctes
+        const allCorrect = expectedAnswers.length > 0 &&
+          expectedAnswers.length === userAnswers.length &&
+          expectedAnswers.every((expected, idx) => expected === userAnswers[idx]);
+        
+        if (allCorrect) {
+          earnedPoints += points;
+          correctAnswers++;
+        }
       } else if (question.answers && typeof selectedAnswer === 'number') {
         const answer = question.answers[selectedAnswer];
         if (answer?.isCorrect) {
@@ -146,6 +162,59 @@ const QuizPreviewModal: React.FC<QuizPreviewModalProps> = ({
                         rows={4}
                         placeholder="Tapez votre réponse ici..."
                       />
+                    ) : questions[currentQuestion].type === 'fill_in_blank' ? (
+                      // Phrases à trous
+                      <div className="space-y-4">
+                        {(() => {
+                          const questionText = questions[currentQuestion].question || '';
+                          const parts = questionText.split(/(\{[^}]+\})/g);
+                          const blanks = questionText.match(/\{([^}]+)\}/g) || [];
+                          const currentAnswers = Array.isArray(selectedAnswers[currentQuestion]) 
+                            ? selectedAnswers[currentQuestion] as string[]
+                            : [];
+                          
+                          let blankIndex = 0;
+                          
+                          return (
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <div className="flex flex-wrap items-center gap-2">
+                                {parts.map((part, partIdx) => {
+                                  if (part.match(/^\{[^}]+\}$/)) {
+                                    // C'est un trou
+                                    const currentBlankIndex = blankIndex;
+                                    blankIndex++;
+                                    return (
+                                      <input
+                                        key={partIdx}
+                                        type="text"
+                                        value={currentAnswers[currentBlankIndex] || ''}
+                                        onChange={(e) => {
+                                          const newAnswers = [...currentAnswers];
+                                          newAnswers[currentBlankIndex] = e.target.value;
+                                          handleAnswerSelect(currentQuestion, newAnswers);
+                                        }}
+                                        className="px-3 py-1 border-2 border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-600 min-w-[120px] bg-white"
+                                        placeholder={`Trou ${currentBlankIndex + 1}`}
+                                      />
+                                    );
+                                  } else {
+                                    // C'est du texte normal
+                                    return (
+                                      <span key={partIdx} className="text-gray-900">
+                                        {part}
+                                      </span>
+                                    );
+                                  }
+                                })}
+                              </div>
+                              <div className="mt-3 text-xs text-gray-500">
+                                <AlertCircle className="h-3 w-3 inline mr-1" />
+                                Remplissez les {blanks.length} trou{blanks.length > 1 ? 's' : ''} de la phrase
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     ) : (
                       questions[currentQuestion].answers?.map((answer, aIndex) => (
                         <label

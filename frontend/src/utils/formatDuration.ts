@@ -4,9 +4,15 @@ export const formatDuration = (seconds: number): string => {
   } else if (seconds < 3600) {
     const minutes = Math.floor(seconds / 60);
     return `${minutes}m`;
-  } else {
+  } else if (seconds < 86400) { // < 24h
     const hours = Math.floor(seconds / 3600);
     return `${hours}h`;
+  } else if (seconds < 604800) { // < 7 jours
+    const days = Math.floor(seconds / 86400);
+    return `${days}j`;
+  } else {
+    const weeks = Math.floor(seconds / 604800);
+    return `${weeks}w`;
   }
 };
 

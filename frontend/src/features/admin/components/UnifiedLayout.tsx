@@ -573,19 +573,20 @@ const UnifiedLayoutContent: React.FC = () => {
                       <button
                         onClick={() => {
                           setShowUserMenu(false);
-                          navigate('/admin/settings');
+                          handleEditProfile();
                         }}
                         className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                       >
                         <User className="h-4 w-4 mr-3" />
-                        Profil
+                        Modifier le profil
                       </button>
+                      <div className="border-t border-gray-200 my-1"></div>
                       <button
                         onClick={() => {
                           setShowUserMenu(false);
                           handleLogout();
                         }}
-                        className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                        className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                       >
                         <LogOut className="h-4 w-4 mr-3" />
                         Déconnexion
@@ -700,6 +701,17 @@ const UnifiedLayoutContent: React.FC = () => {
           <div
             className="fixed inset-0 z-40 bg-transparent"
             onClick={() => setIsNotificationsOpen(false)}
+          />
+        )}
+
+        {/* Modales */}
+        {showProfileModal && (
+          <ProfileModal
+            key={currentUser?.id || 'no-user'}
+            user={currentUser}
+            onClose={() => setShowProfileModal(false)}
+            onSave={handleSaveProfile}
+            onChangePassword={handleSavePassword}
           />
         )}
       </div>
@@ -900,6 +912,7 @@ const UnifiedLayoutContent: React.FC = () => {
           user={currentUser}
           onClose={() => setShowProfileModal(false)}
           onSave={handleSaveProfile}
+          onChangePassword={handleSavePassword}
         />
       )}
 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Mail, Building } from 'lucide-react';
+import { X, User, Mail, Building, Key, Eye, EyeOff } from 'lucide-react';
 import { User as UserType } from '../types';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
@@ -10,9 +10,10 @@ interface ProfileModalProps {
   user: UserType | null;
   onClose: () => void;
   onSave: (updatedUser: Partial<UserType>) => void;
+  onChangePassword?: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
-export const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose, onSave }) => {
+export const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose, onSave, onChangePassword }) => {
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
@@ -21,7 +22,17 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose, onSav
     phone: user?.phone || '',
     avatar: user?.avatar || ''
   });
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showPasswordSection, setShowPasswordSection] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
   
   const { toast } = useToast();
 
@@ -105,6 +116,69 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose, onSav
       ...prev,
       avatar: ''
     }));
+  };
+
+  const handlePasswordChange = async () => {
+    if (!onChangePassword) {
+      toast({
+        title: "Erreur",
+        description: "La modification du mot de passe n'est pas disponible",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validation
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs du mot de passe",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: "Erreur",
+        description: "Les nouveaux mots de passe ne correspondent pas",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      toast({
+        title: "Erreur",
+        description: "Le mot de passe doit contenir au moins 6 caractères",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsChangingPassword(true);
+    try {
+      await onChangePassword(passwordData.currentPassword, passwordData.newPassword);
+      toast({
+        title: "Succès",
+        description: "Mot de passe modifié avec succès",
+      });
+      // Réinitialiser les champs de mot de passe
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      setShowPasswordSection(false);
+    } catch (error) {
+      toast({
+        title: "Erreur",
+        description: "Impossible de modifier le mot de passe. Vérifiez votre mot de passe actuel.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   return (
@@ -220,6 +294,108 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose, onSav
           </div>
 
           </div>
+
+          {/* Section Mot de passe */}
+          {onChangePassword && (
+            <div className="border-t border-gray-200 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowPasswordSection(!showPasswordSection)}
+                className="flex items-center space-x-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                <Key className="w-4 h-4" />
+                <span>Modifier le mot de passe</span>
+              </button>
+
+              {showPasswordSection && (
+                <div className="mt-4 space-y-4">
+                  {/* Mot de passe actuel */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Mot de passe actuel *
+                    </label>
+                    <div className="relative">
+                      <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        type={showCurrentPassword ? "text" : "password"}
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData(prev => ({...prev, currentPassword: e.target.value}))}
+                        className="pl-10 pr-10"
+                        placeholder="Votre mot de passe actuel"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Nouveau mot de passe */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nouveau mot de passe *
+                    </label>
+                    <div className="relative">
+                      <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        type={showNewPassword ? "text" : "password"}
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData(prev => ({...prev, newPassword: e.target.value}))}
+                        className="pl-10 pr-10"
+                        placeholder="Nouveau mot de passe (min. 6 caractères)"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Confirmation mot de passe */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Confirmer le nouveau mot de passe *
+                    </label>
+                    <div className="relative">
+                      <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        type={showConfirmPassword ? "text" : "password"}
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData(prev => ({...prev, confirmPassword: e.target.value}))}
+                        className="pl-10 pr-10"
+                        placeholder="Confirmer le nouveau mot de passe"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Bouton pour changer le mot de passe */}
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      onClick={handlePasswordChange}
+                      disabled={isChangingPassword}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {isChangingPassword ? 'Modification...' : 'Changer le mot de passe'}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Actions */}
           <div className="flex justify-end space-x-3 pt-4">

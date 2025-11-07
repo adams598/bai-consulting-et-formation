@@ -161,7 +161,13 @@ const LearnerFormationsPage: React.FC = () => {
       console.log('📊 Formations chargées avec assignation:', formationsData.length);
       
       // Debug: Afficher les données brutes de l'API
-      console.log('🔍 Données brutes de l\'API:', formationsData);
+      console.log('🔍 Données brutes de l\'API (première formation):', formationsData[0]);
+      console.log('🔍 Champs de la première formation:', {
+        title: formationsData[0]?.title,
+        pedagogicalModality: formationsData[0]?.pedagogicalModality,
+        organization: formationsData[0]?.organization,
+        code: formationsData[0]?.code
+      });
       
       // Extraire les univers uniques des formations
       const uniqueUniverses = new Map();
@@ -184,35 +190,49 @@ const LearnerFormationsPage: React.FC = () => {
       console.log('🌍 Univers récupérés via l\'API:', Array.from(uniqueUniverses.values()));
 
       // Transformer les données de l'API
-      const transformedFormations: LearnerFormation[] = formationsData.map((formation: any) => ({
-        id: formation.id,
-        title: formation.title,
-        description: formation.description,
-        duration: formation.duration,
-        totalDuration: formation.totalDuration,
-        coverImage: formation.coverImage,
-        code: formation.code,
-        isActive: formation.isActive,
-        lessonCount: formation.lessonCount,
-        createdAt: formation.createdAt,
-        updatedAt: formation.updatedAt,
-        universeId: formation.universeId,
-        isOpportunity: formation.isOpportunity,
-        hasQuiz: formation.hasQuiz,
+      const transformedFormations: LearnerFormation[] = formationsData.map((formation: any) => {
+        console.log(`🔄 Transformation formation "${formation.title}":`, {
+          pedagogicalModality: formation.pedagogicalModality,
+          organization: formation.organization,
+          code: formation.code
+        });
         
-        // Informations d'assignation
-        assignment: formation.assignment || {
-          id: 'default',
-          status: 'PENDING' as const,
-          progress: 0,
-          assignedAt: formation.createdAt.toString(),
-          isMandatory: false,
-          timeSpent: 0
-        },
-        globalProgress: formation.globalProgress || 0,
-        quizPassed: formation.quizPassed || false,
-        certificateEarned: formation.certificateEarned || false
-      }));
+        return {
+          id: formation.id,
+          title: formation.title,
+          description: formation.description,
+          duration: formation.duration,
+          totalDuration: formation.totalDuration,
+          coverImage: formation.coverImage,
+          code: formation.code,
+          pedagogicalModality: formation.pedagogicalModality,
+          organization: formation.organization,
+          prerequisites: formation.prerequisites,
+          objectives: formation.objectives,
+          detailedProgram: formation.detailedProgram,
+          targetAudience: formation.targetAudience,
+          isActive: formation.isActive,
+          lessonCount: formation.lessonCount,
+          createdAt: formation.createdAt,
+          updatedAt: formation.updatedAt,
+          universeId: formation.universeId,
+          isOpportunity: formation.isOpportunity,
+          hasQuiz: formation.hasQuiz,
+          
+          // Informations d'assignation
+          assignment: formation.assignment || {
+            id: 'default',
+            status: 'PENDING' as const,
+            progress: 0,
+            assignedAt: formation.createdAt.toString(),
+            isMandatory: false,
+            timeSpent: 0
+          },
+          globalProgress: formation.globalProgress || 0,
+          quizPassed: formation.quizPassed || false,
+          certificateEarned: formation.certificateEarned || false
+        };
+      });
       
       // Stocker toutes les formations
       setAllFormations(transformedFormations);
@@ -280,9 +300,15 @@ const LearnerFormationsPage: React.FC = () => {
     } else if (seconds < 3600) {
       const minutes = Math.floor(seconds / 60);
       return `${minutes}m`;
-    } else {
+    } else if (seconds < 86400) { // < 24h
       const hours = Math.floor(seconds / 3600);
       return `${hours}h`;
+    } else if (seconds < 604800) { // < 7 jours
+      const days = Math.floor(seconds / 86400);
+      return `${days}j`;
+    } else {
+      const weeks = Math.floor(seconds / 604800);
+      return `${weeks}w`;
     }
   }, []);
 
@@ -707,22 +733,26 @@ const LearnerFormationsPage: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                       {formations.map((formation, index) => {
                         const isAssigned = isFormationAssigned(formation.id);
+                        
+                        // Debug: Afficher pedagogicalModality dans la console
+                        console.log(`📚 Formation "${formation.title}":`, {
+                          pedagogicalModality: formation.pedagogicalModality,
+                          code: formation.code,
+                          organization: formation.organization
+                        });
+                        
                         return (
                         <div
                           key={formation.id}
                           className={`group relative transition-all duration-300 ease-in-out overflow-hidden ${
                             isAssigned 
                               ? 'cursor-pointer hover:scale-105' 
-                              : 'cursor-not-allowed opacity-60'
+                              : 'cursor-not-allowed'
                           }`}
-                          onClick={() => handleFormationClick(formation)}
+                          onClick={() => isAssigned && handleFormationClick(formation)}
                         >
                           {/* Section supérieure - Fond brand-blue avec logo BAI */}
-                          <div className={`h-36 transition-all duration-300 flex items-center justify-center relative ${
-                            isAssigned 
-                              ? 'bg-brand-blue' 
-                              : 'bg-gray-500'
-                          }`}>
+                          <div className="h-36 bg-brand-blue transition-all duration-300 flex items-center justify-center relative">
                             {/* Logo BAI au centre dans un cercle beige */}
                             <div className="absolute top-20 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 flex items-center justify-center">
                               <div className="w-16 h-16 border-2 border-brand-beige rounded-full flex items-center justify-center">
@@ -738,9 +768,9 @@ const LearnerFormationsPage: React.FC = () => {
                               </div>
                             </div>
 
-                            {/* Icône cadenas pour les formations non assignées */}
+                            {/* Icône cadenas au survol pour les formations non assignées */}
                             {!isAssigned && (
-                              <div className="absolute top-3 right-3">
+                              <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                                 <div className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center">
                                   <Lock className="h-3 w-3 text-white" />
                                 </div>
@@ -784,7 +814,9 @@ const LearnerFormationsPage: React.FC = () => {
                               
                               {/* E-learning et durée */}
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-gray-500">E-learning</span>
+                                <span className="text-xs text-gray-500">
+                                  {formation.pedagogicalModality || 'E-learning'}
+                                </span>
                                 <div className="flex items-center">
                                   <Clock className="w-3 h-3 mr-1 text-gray-400" />
                                   <span className="text-xs text-gray-500">
@@ -825,22 +857,26 @@ const LearnerFormationsPage: React.FC = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {formationsWithoutUniverse.map((formation, index) => {
                       const isAssigned = isFormationAssigned(formation.id);
+                      
+                      // Debug: Afficher pedagogicalModality dans la console
+                      console.log(`📚 Formation sans univers "${formation.title}":`, {
+                        pedagogicalModality: formation.pedagogicalModality,
+                        code: formation.code,
+                        organization: formation.organization
+                      });
+                      
                       return (
                       <div
                         key={formation.id}
                         className={`group relative w-64 h-48 transition-all duration-300 ease-in-out rounded-lg overflow-hidden ${
                           isAssigned 
                             ? 'cursor-pointer hover:scale-105' 
-                            : 'cursor-not-allowed opacity-60'
+                            : 'cursor-not-allowed'
                         }`}
-                        onClick={() => handleFormationClick(formation)}
+                        onClick={() => isAssigned && handleFormationClick(formation)}
                       >
                         {/* Section supérieure - Fond brand-blue avec logo BAI (70% de la hauteur) */}
-                        <div className={`h-[70%] rounded-t-lg transition-all duration-300 ${
-                          isAssigned 
-                            ? 'bg-brand-blue group-hover:shadow-2xl' 
-                            : 'bg-gray-500'
-                        }`}>
+                        <div className="h-[70%] bg-brand-blue rounded-t-lg transition-all duration-300 group-hover:shadow-2xl">
                           {/* Logo BAI au centre avec bordure beige */}
                           <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-16 h-16 flex items-center justify-center">
                             <div className="w-12 h-12 border-2 border-brand-beige rounded-full flex items-center justify-center">
@@ -852,9 +888,9 @@ const LearnerFormationsPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Icône cadenas pour les formations non assignées */}
+                          {/* Icône cadenas au survol pour les formations non assignées */}
                           {!isAssigned && (
-                            <div className="absolute top-3 right-3">
+                            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                               <div className="w-6 h-6 rounded-full bg-gray-600 flex items-center justify-center">
                                 <Lock className="h-3 w-3 text-white" />
                               </div>
@@ -897,7 +933,9 @@ const LearnerFormationsPage: React.FC = () => {
                           
                           {/* E-learning et durée */}
                           <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-500">E-learning</span>
+                            <span className="text-xs text-gray-500">
+                              {formation.pedagogicalModality || 'E-learning'}
+                            </span>
                             <div className="flex items-center">
                               <Clock className="w-3 h-3 mr-1 text-gray-400" />
                               <span className="text-xs text-gray-500">

@@ -519,6 +519,12 @@ export const formationsController = {
           totalDuration: formation.duration, // Utiliser duration comme totalDuration
           coverImage: formation.coverImage,
           code: formation.code,
+          pedagogicalModality: formation.pedagogicalModality,
+          organization: formation.organization,
+          prerequisites: formation.prerequisites,
+          objectives: formation.objectives,
+          detailedProgram: formation.detailedProgram,
+          targetAudience: formation.targetAudience,
           isActive: formation.isActive,
           lessonCount,
           createdAt: formation.createdAt,

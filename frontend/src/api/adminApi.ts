@@ -126,6 +126,10 @@ export const quizApi = {
     api.put<ApiResponse<Quiz>>(`/api/admin/quiz/${id}`, data),
   deleteQuiz: (id: string) => api.delete<ApiResponse<void>>(`/api/admin/quiz/${id}`),
   toggleActive: (id: string) => api.patch<ApiResponse<Quiz>>(`/api/admin/quiz/${id}/toggle`),
+  getLastAttempt: (quizId: string) => 
+    api.get<ApiResponse<any>>(`/api/admin/quiz/${quizId}/last-attempt`),
+  submitAttempt: (quizId: string, data: { answers: Record<string, string | string[]>, timeSpent?: number, attemptId?: string }) =>
+    api.post<ApiResponse<any>>(`/api/admin/quiz/${quizId}/submit`, data),
 };
 
 // ===== USERS API =====

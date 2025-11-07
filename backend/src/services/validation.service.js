@@ -117,7 +117,7 @@ class ValidationService {
             Joi.object({
               question: Joi.string().min(5).max(500).required().trim(),
               type: Joi.string()
-                .valid("multiple_choice", "true_false", "text")
+                .valid("multiple_choice", "true_false", "text", "fill_in_blank")
                 .required(),
               order: Joi.number().integer().min(0).max(100).required(),
               points: Joi.number().integer().min(1).max(10).optional(),

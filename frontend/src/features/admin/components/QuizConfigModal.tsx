@@ -114,6 +114,9 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
             updatedQuestion.answers = [
               { answer: 'Réponse libre', isCorrect: true, order: 1 }
             ];
+          } else if (value === 'fill_in_blank') {
+            // Pour les phrases à trous, initialiser avec une phrase vide
+            updatedQuestion.answers = [];
           } else if (value === 'multiple_choice' && (!q.answers || q.answers.length < 2)) {
             updatedQuestion.answers = [
               { answer: '', isCorrect: false, order: 1 },
@@ -485,11 +488,75 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                     <option value="multiple_choice">Choix multiple</option>
                     <option value="true_false">Vrai/Faux</option>
                     <option value="text">Texte libre</option>
+                    <option value="fill_in_blank">Phrases à trous</option>
                   </select>
                 </div>
 
+                {/* Interface spéciale pour phrases à trous */}
+                {question.type === 'fill_in_blank' && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Phrase avec trous *
+                      </label>
+                      <div className="bg-blue-50 border border-blue-200 rounded-md p-3 mb-3">
+                        <div className="flex items-start space-x-2">
+                          <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div className="text-sm text-blue-800">
+                            <p className="font-medium mb-1">Comment créer une phrase à trous :</p>
+                            <ul className="list-disc list-inside space-y-1 text-xs">
+                              <li>Utilisez des accolades pour marquer les trous : <code className="bg-blue-100 px-1 rounded">{"Le {chat} dort sur le {canapé}"}</code></li>
+                              <li>Les mots entre accolades seront remplacés par des champs de saisie</li>
+                              <li>Les réponses attendues sont automatiquement extraites</li>
+                              <li>La correction ignore les majuscules et les espaces superflus</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                      <textarea
+                        value={question.question}
+                        onChange={(e) => {
+                          updateQuestion(qIndex, 'question', e.target.value);
+                          // Extraire automatiquement les réponses des trous
+                          const matches = e.target.value.match(/\{([^}]+)\}/g);
+                          if (matches) {
+                            const blanks = matches.map((match, idx) => ({
+                              answer: match.replace(/[{}]/g, ''),
+                              isCorrect: true,
+                              order: idx + 1
+                            }));
+                            setQuestions(prev => prev.map((q, i) => 
+                              i === qIndex ? { ...q, answers: blanks } : q
+                            ));
+                          }
+                        }}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Ex: Le {chat} dort sur le {canapé}"
+                        rows={3}
+                        required
+                      />
+                    </div>
+                    
+                    {/* Aperçu des trous détectés */}
+                    {question.answers && question.answers.length > 0 && (
+                      <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                        <p className="text-sm font-medium text-green-800 mb-2">
+                          {question.answers.length} trou{question.answers.length > 1 ? 's' : ''} détecté{question.answers.length > 1 ? 's' : ''} :
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {question.answers.map((answer, idx) => (
+                            <span key={idx} className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                              {idx + 1}. {answer.answer}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Réponses */}
-                {question.type !== 'text' && (
+                {question.type !== 'text' && question.type !== 'fill_in_blank' && (
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <label className="block text-sm font-medium text-gray-700">

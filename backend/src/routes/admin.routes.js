@@ -404,6 +404,20 @@ router.get(
   newQuizController.getQuizStats
 );
 
+router.get(
+  "/quiz/:quizId/last-attempt",
+  authMiddleware,
+  adminMiddleware,
+  newQuizController.getLastQuizAttempt
+);
+
+router.post(
+  "/quiz/:quizId/submit",
+  authMiddleware,
+  adminMiddleware,
+  newQuizController.submitQuizAttempt
+);
+
 // Routes des assignations banque-formation
 router.post(
   "/bank-formations",
