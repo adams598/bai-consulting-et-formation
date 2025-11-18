@@ -1,9 +1,15 @@
 import axios from 'axios';
 import { currentEnv } from './environments';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL ?? currentEnv.apiUrl;
+
+export const API_ENDPOINTS = {
+  CONTACT: `${API_BASE_URL}/api/contact`,
+};
+
 // Configuration de base pour axios
 const api = axios.create({
-  baseURL: currentEnv.apiUrl,
+  baseURL: API_BASE_URL,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -81,4 +87,4 @@ api.interceptors.response.use(
   }
 );
 
-export { api }; 
+export { api, API_BASE_URL }; 
