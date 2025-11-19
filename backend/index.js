@@ -67,20 +67,31 @@ const authLimiter = rateLimit({
 });
 
 // Configuration CORS sécurisée
+const defaultOrigins =
+  process.env.NODE_ENV === "production"
+    ? [
+        "https://olivedrab-hornet-656554.hostingersite.com",
+        "https://bai-consulting-et-formation-1.onrender.com",
+      ]
+    : [
+        "http://localhost:3001",
+        "http://localhost:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:3000",
+      ];
+
+const allowedOrigins = process.env.CORS_ALLOWED_ORIGINS
+  ? process.env.CORS_ALLOWED_ORIGINS.split(",").map((origin) => origin.trim())
+  : defaultOrigins;
+
 const corsOptions = {
-  origin:
-    process.env.NODE_ENV === "production"
-      ? [
-          "https://votre-domaine.com",
-          "https://admin.votre-domaine.com",
-          "https://apprenant.votre-domaine.com",
-        ]
-      : [
-          "http://localhost:3001",
-          "http://localhost:3000",
-          "http://127.0.0.1:3001",
-          "http://127.0.0.1:3000",
-        ],
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`Origin non autorisée: ${origin}`));
+    }
+  },
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: [
     "Content-Type",

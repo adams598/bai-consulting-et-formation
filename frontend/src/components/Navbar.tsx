@@ -176,7 +176,7 @@ export default function Navbar() {
           ))}
         </ul>
         <div className="hidden xl:block">
-          <Link to="/apprenant/connexion">
+          <Link to="/admin/login">
             <Button variant="secondary" className="flex items-center gap-2 bg-[#C7B299] text-[#00314B] hover:bg-[#00314B] hover:text-white border-none">
               <User className="w-5 h-5" />
               Espace apprenant
@@ -243,7 +243,7 @@ export default function Navbar() {
             ))}
           </ul>
           <div className="mt-auto">
-            <Link to="/apprenant/connexion" onClick={handleMobileClose}>
+            <Link to="/admin/login" onClick={handleMobileClose}>
               <Button variant="secondary" className="w-full flex items-center justify-center gap-2 bg-[#C7B299] text-[#00314B] hover:bg-[#00314B] hover:text-white border-none">
                 <User className="w-5 h-5" />
                 Espace apprenant

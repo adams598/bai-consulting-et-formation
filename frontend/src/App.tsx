@@ -236,8 +236,8 @@ function App() {
           <Route path="/login" element={<AdminLoginPage />} />
           
           {/* Routes Apprenant */}
-          <Route path="/apprenant/connexion" element={<AdminLoginPage />} />
-          <Route path="/apprenant/dashboard" element={
+          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/admin/login" element={
             <IntranetGuard allowedRoles={['COLLABORATOR']}>
               <DashboardPage />
             </IntranetGuard>

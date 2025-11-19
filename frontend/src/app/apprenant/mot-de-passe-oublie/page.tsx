@@ -79,7 +79,7 @@ export default function ForgotPasswordPage() {
             </form>
           </CardContent>
           <CardFooter>
-            <Link to="/apprenant/connexion" className="text-sm text-brand-blue dark:text-dark-accent hover:underline w-full text-center">
+            <Link to="/admin/login" className="text-sm text-brand-blue dark:text-dark-accent hover:underline w-full text-center">
               Retour à la connexion
             </Link>
           </CardFooter>
