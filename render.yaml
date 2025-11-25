@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: bai-consulting-backend
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install && npm run db:generate
+    startCommand: cd backend && node index.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /api/health
+

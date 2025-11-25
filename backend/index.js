@@ -7,6 +7,7 @@ import path from "path";
 import fs from "fs";
 import https from "https";
 import http from "http";
+import { PrismaClient } from "@prisma/client";
 import { sendContactMail } from "./src/services/contactMail.service.js";
 import {
   validateInput,
@@ -256,6 +257,41 @@ app.get("/api/opportunities/files/:filename", (req, res) => {
     res.sendFile(filePath);
   } else {
     res.status(404).json({ error: "Fichier non trouvé", path: filePath });
+  }
+});
+
+// Route de base pour test
+app.get("/", (req, res) => {
+  res.json({ 
+    message: "Backend BAI Consulting is running", 
+    status: "ok",
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Route de santé (health check)
+app.get("/api/health", async (req, res) => {
+  try {
+    // Tester la connexion à la base de données
+    const prisma = new PrismaClient();
+    
+    // Test simple de connexion
+    await prisma.$queryRaw`SELECT 1`;
+    
+    await prisma.$disconnect();
+    
+    res.json({
+      status: "ok",
+      database: "connected",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: "error",
+      database: "disconnected",
+      error: error.message,
+      timestamp: new Date().toISOString(),
+    });
   }
 });
 
