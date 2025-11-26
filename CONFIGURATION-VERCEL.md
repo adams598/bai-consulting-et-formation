@@ -27,16 +27,18 @@ Dans **Settings → General → Build & Development Settings** :
 
 - **Root Directory** : Laissez vide (racine du projet)
 - **Build Command** : `cd backend && npm install && npm run vercel-build`
-- **Output Directory** : Laissez vide
+- **Output Directory** : ⚠️ **LAISSEZ VIDE** (pas de dossier public pour un backend)
 - **Install Command** : `cd backend && npm install`
+- **Framework Preset** : "Other" (pas Next.js, pas React, etc.)
 
-### 3. Alternative : Configuration automatique
+### 3. Configuration automatique
 
-Le fichier `vercel.json` à la racine devrait être détecté automatiquement. Si ce n'est pas le cas :
+Le fichier `vercel.json` à la racine configure automatiquement :
+- Le build avec `@vercel/node` pour les serverless functions
+- Les routes pour rediriger toutes les requêtes vers `backend/index.js`
+- Pas besoin de dossier `public` ou `outputDirectory` (c'est un backend, pas un frontend)
 
-1. Allez dans **Settings → General**
-2. Vérifiez que "Framework Preset" est sur "Other"
-3. Le fichier `vercel.json` devrait être utilisé automatiquement
+**Important** : Si Vercel vous demande un "Output Directory", ignorez-le ou laissez-le vide. Le fichier `vercel.json` gère tout.
 
 ## 🔧 Structure du projet
 
@@ -50,6 +52,14 @@ Vercel va :
 **Note** : Le fichier `backend/index.js` exporte maintenant l'app Express pour Vercel, et ne démarre le serveur que si ce n'est pas sur Vercel (variable `VERCEL`).
 
 ## ⚠️ Important
+
+### Problème résolu : "No Output Directory named 'public' found"
+
+Cette erreur survient quand Vercel cherche un dossier de sortie frontend. Solution appliquée :
+- **Dossier `public/` créé** : Un dossier `public` vide a été créé à la racine pour satisfaire Vercel
+- Le fichier `vercel.json` utilise `builds` et `routes` pour les serverless functions
+- Vercel utilise les serverless functions avec `@vercel/node` pour le backend Express
+- Le dossier `public` reste vide (pas de fichiers statiques nécessaires pour un backend)
 
 ### Problème résolu : Migration SQLite → PostgreSQL
 
