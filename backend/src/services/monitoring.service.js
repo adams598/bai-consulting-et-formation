@@ -38,9 +38,23 @@ class MonitoringService {
   }
 
   ensureLogDirectory() {
+    // Sur Vercel (serverless), le système de fichiers est en lecture seule
+    // Ne pas créer de dossier en production sur Vercel
+    if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+      // Désactiver l'écriture de logs sur fichiers en production serverless
+      this.logFile = null;
+      return;
+    }
+    
     const logDir = path.dirname(this.logFile);
-    if (!fs.existsSync(logDir)) {
-      fs.mkdirSync(logDir, { recursive: true });
+    try {
+      if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+      }
+    } catch (error) {
+      // Si on ne peut pas créer le dossier (ex: Vercel), désactiver les logs fichiers
+      console.warn('Impossible de créer le dossier de logs, désactivation des logs fichiers:', error.message);
+      this.logFile = null;
     }
   }
 
@@ -164,7 +178,14 @@ class MonitoringService {
   writeLog(logEntry) {
     try {
       const logLine = JSON.stringify(logEntry) + "\n";
-      fs.appendFileSync(this.logFile, logLine);
+      if (this.logFile) {
+        try {
+          fs.appendFileSync(this.logFile, logLine);
+        } catch (error) {
+          // Ignorer les erreurs d'écriture de logs (ex: Vercel)
+          console.warn('Impossible d\'écrire dans le fichier de logs:', error.message);
+        }
+      }
     } catch (error) {
       console.error("Erreur lors de l'écriture du log:", error);
     }
@@ -300,7 +321,7 @@ class MonitoringService {
   // Obtenir les logs récents
   getRecentLogs(limit = 100) {
     try {
-      if (!fs.existsSync(this.logFile)) {
+      if (!this.logFile || !fs.existsSync(this.logFile)) {
         return [];
       }
 
@@ -328,6 +349,10 @@ class MonitoringService {
   // Nettoyer les anciens logs
   cleanupLogs(daysToKeep = 30) {
     try {
+      if (!this.logFile) {
+        return; // Pas de logs fichiers sur Vercel
+      }
+      
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
 
@@ -349,7 +374,13 @@ class MonitoringService {
         .filter((log) => log !== null && new Date(log.timestamp) > cutoffDate);
 
       const cleanedLogs = logs.map((log) => JSON.stringify(log)).join("\n");
-      fs.writeFileSync(this.logFile, cleanedLogs + "\n");
+      if (this.logFile) {
+        try {
+          fs.writeFileSync(this.logFile, cleanedLogs + "\n");
+        } catch (error) {
+          console.warn('Impossible d\'écrire dans le fichier de logs:', error.message);
+        }
+      }
 
       console.log(`Logs nettoyés: ${logs.length} entrées conservées`);
     } catch (error) {
