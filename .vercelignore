@@ -1,0 +1,8 @@
+# Fichiers à ignorer pour Vercel
+frontend/
+node_modules/
+*.md
+.git/
+.env
+.env.local
+
