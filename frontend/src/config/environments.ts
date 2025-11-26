@@ -33,7 +33,7 @@ export const environments = {
   
   production: {
     name: 'Production',
-    apiUrl: 'https://bai-consulting-et-formation-1.onrender.com',
+    apiUrl: 'https://bai-consulting-et-formation-git-dev-adams-projects-b35f6371.vercel.app',
     isIntranet: false,
     authType: 'credentials' as const,
     allowedRoles: ['SUPER_ADMIN', 'BANK_ADMIN', 'COLLABORATOR']

@@ -1,7 +1,8 @@
 // Handler pour Vercel Serverless Functions à la racine
+// Import synchrone simple - Vercel gère le reste
 import app from '../backend/index.js';
 
-// Vercel attend un handler qui reçoit (req, res)
-// L'app Express est déjà configurée pour gérer les requêtes
+// Export direct de l'app Express
+// Vercel va appeler app(req, res) automatiquement
 export default app;
 
