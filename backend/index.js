@@ -617,21 +617,27 @@ const sslOptions = {
     : null,
 };
 
-// Démarrage du serveur avec SSL si les certificats sont disponibles
-if (sslOptions.key && sslOptions.cert) {
-  const httpsServer = https.createServer(sslOptions, app);
-  httpsServer.listen(port, () => {
-    console.log(`🔒 Serveur HTTPS démarré sur https://localhost:${port}`);
-    console.log(`📜 Certificat SSL: ${process.env.SSL_CERT_PATH}`);
-    console.log(`🔑 Clé SSL: ${process.env.SSL_KEY_PATH}`);
-  });
-} else {
-  // Serveur HTTP pour le développement
-  app.listen(port, () => {
-    console.log(`🌐 Serveur HTTP démarré sur http://localhost:${port}`);
-    if (process.env.NODE_ENV === "production") {
-      console.log("⚠️  ATTENTION: SSL non configuré en production !");
-      console.log("📝 Configurez SSL_CERT_PATH et SSL_KEY_PATH dans .env");
-    }
-  });
+// Démarrage du serveur (sauf sur Vercel qui gère le serveur)
+if (!process.env.VERCEL) {
+  // Démarrage du serveur avec SSL si les certificats sont disponibles
+  if (sslOptions.key && sslOptions.cert) {
+    const httpsServer = https.createServer(sslOptions, app);
+    httpsServer.listen(port, () => {
+      console.log(`🔒 Serveur HTTPS démarré sur https://localhost:${port}`);
+      console.log(`📜 Certificat SSL: ${process.env.SSL_CERT_PATH}`);
+      console.log(`🔑 Clé SSL: ${process.env.SSL_KEY_PATH}`);
+    });
+  } else {
+    // Serveur HTTP pour le développement
+    app.listen(port, () => {
+      console.log(`🌐 Serveur HTTP démarré sur http://localhost:${port}`);
+      if (process.env.NODE_ENV === "production") {
+        console.log("⚠️  ATTENTION: SSL non configuré en production !");
+        console.log("📝 Configurez SSL_CERT_PATH et SSL_KEY_PATH dans .env");
+      }
+    });
+  }
 }
+
+// Export pour Vercel Serverless Functions
+export default app;

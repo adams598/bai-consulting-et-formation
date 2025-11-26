@@ -115,3 +115,5 @@ Puis testez : `https://bai-consulting-et-formation-1.onrender.com/`
 3. Testez `/api/health`
 4. Si ça fonctionne, testez la connexion depuis le frontend Hostinger
 
+
+
