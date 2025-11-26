@@ -31,6 +31,10 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Trust proxy - nécessaire pour Vercel et les reverse proxies
+// Permet à Express de faire confiance aux en-têtes X-Forwarded-* envoyés par Vercel
+app.set('trust proxy', true);
+
 // Middlewares de sécurité
 app.use(addSecurityHeaders);
 app.use(securityLogger);
