@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { generatePassword } from "../utils/password.js";
 import { sendEmail } from "../services/email.service.js";
 import progressService from "../services/progress.service.js";
+import { hostingerUploadService } from "../services/hostinger-upload.service.js";
 
 const prisma = new PrismaClient();
 
@@ -1206,6 +1207,47 @@ export const formationsController = {
             formationId: formation.id,
           },
         });
+      }
+
+      // Créer le dossier de formation sur Hostinger en production
+      if (
+        process.env.NODE_ENV === "production" &&
+        hostingerUploadService.isEnabled()
+      ) {
+        // Sanitizer le titre de la formation (même logique que dans upload.controller.js)
+        const sanitizedFormationTitle = title
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "") // Retirer les accents
+          .replace(/[^a-zA-Z0-9\s\-_]/g, "") // Préserver les underscores et tirets
+          .replace(/\s+/g, "_") // Remplacer les espaces par des underscores
+          .replace(/[_-]+/g, (match) => match[0]) // Remplacer les underscores/tirets multiples par un seul
+          .replace(/^[_-]|[_-]$/g, ""); // Retirer les underscores/tirets en début/fin
+
+        const formationDirPath = `uploads/formations/${sanitizedFormationTitle}`;
+
+        try {
+          console.log("🚀 Création du dossier de formation sur Hostinger...");
+          const dirCreated = await hostingerUploadService.ensureDirectory(
+            formationDirPath
+          );
+
+          if (dirCreated) {
+            console.log(
+              `✅ Dossier de formation créé sur Hostinger: ${formationDirPath}`
+            );
+          } else {
+            console.warn(
+              `⚠️ Échec de la création du dossier sur Hostinger: ${formationDirPath}`
+            );
+          }
+        } catch (error) {
+          console.error(
+            "❌ Erreur lors de la création du dossier sur Hostinger:",
+            error
+          );
+          // Ne pas faire échouer la création de formation si l'upload FTP échoue
+        }
       }
 
       // Invalider le cache des formations

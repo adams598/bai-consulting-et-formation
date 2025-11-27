@@ -26,6 +26,53 @@ class HostingerUploadService {
     return this.enabled;
   }
 
+  /**
+   * Crée un dossier sur Hostinger (récursivement si nécessaire)
+   * @param {string} relativePath - Chemin relatif du dossier (ex: "uploads/formations/titre_formation")
+   * @returns {Promise<boolean>} - true si le dossier a été créé avec succès
+   */
+  async ensureDirectory(relativePath) {
+    if (!this.enabled) {
+      return false;
+    }
+
+    const client = new ftp.Client(10000);
+    client.ftp.verbose = process.env.NODE_ENV !== "production";
+
+    const normalizedRelativePath = relativePath
+      .replace(/\\/g, "/")
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, ""); // Retirer le slash final
+
+    const remotePath = path.posix.join(this.baseDir, normalizedRelativePath);
+
+    try {
+      await client.access({
+        host: this.host,
+        user: this.user,
+        password: this.password,
+        secure: this.secure,
+      });
+
+      await client.ensureDir(remotePath);
+
+      console.log("✅ Dossier créé sur Hostinger:", {
+        relativePath: normalizedRelativePath,
+        remotePath,
+      });
+
+      return true;
+    } catch (error) {
+      console.error(
+        "❌ Échec de la création du dossier sur Hostinger:",
+        error.message
+      );
+      return false;
+    } finally {
+      client.close();
+    }
+  }
+
   async upload(localPath, relativePath) {
     if (!this.enabled) {
       return null;
@@ -48,8 +95,11 @@ class HostingerUploadService {
         secure: this.secure,
       });
 
+      // S'assurer que le dossier parent existe
       const remoteDir = path.posix.dirname(remotePath);
       await client.ensureDir(remoteDir);
+
+      // Uploader le fichier
       await client.uploadFrom(localPath, remotePath);
 
       const publicUrl = this.baseUrl

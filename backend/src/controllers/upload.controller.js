@@ -816,6 +816,17 @@ export const uploadController = {
         process.env.NODE_ENV === "production" &&
         hostingerUploadService.isEnabled()
       ) {
+        // S'assurer que le dossier de formation existe sur Hostinger
+        const formationDirPath = `uploads/formations/${sanitizedFormationTitle}`;
+        try {
+          await hostingerUploadService.ensureDirectory(formationDirPath);
+        } catch (dirError) {
+          console.warn(
+            "⚠️ Erreur lors de la création du dossier de formation:",
+            dirError
+          );
+        }
+
         const remoteRelativePath = path.posix.join(
           "uploads",
           "formations",
