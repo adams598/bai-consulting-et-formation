@@ -155,17 +155,22 @@ async function checkExistingLessonFiles(formationTitle, lessonTitle) {
       return { exists: false, files: [] };
     }
 
-    const files = fs.readdirSync(lessonPath);
-    const lessonFiles = files.filter((file) => file.startsWith("file-"));
+    // Vérifier si video.mp4 existe
+    const videoPath = path.join(lessonPath, "video.mp4");
+    const exists = fs.existsSync(videoPath);
 
     return {
-      exists: lessonFiles.length > 0,
-      files: lessonFiles.map((file) => ({
-        name: file,
-        path: path.join(lessonPath, file),
-        size: fs.statSync(path.join(lessonPath, file)).size,
-        type: getMimeType(file),
-      })),
+      exists: exists,
+      files: exists
+        ? [
+            {
+              name: "video.mp4",
+              path: videoPath,
+              size: fs.statSync(videoPath).size,
+              type: getMimeType("video.mp4"),
+            },
+          ]
+        : [],
     };
   } catch (error) {
     console.error(
@@ -194,23 +199,19 @@ async function deleteExistingLessonFile(formationTitle, lessonTitle) {
       return { success: false, message: "Dossier de leçon introuvable" };
     }
 
-    const files = fs.readdirSync(lessonPath);
-    const lessonFiles = files.filter((file) => file.startsWith("file-"));
-
-    if (lessonFiles.length === 0) {
+    // Supprimer video.mp4 s'il existe
+    const videoPath = path.join(lessonPath, "video.mp4");
+    
+    if (!fs.existsSync(videoPath)) {
       return { success: false, message: "Aucun fichier à supprimer" };
     }
 
-    // Supprimer tous les fichiers de leçon existants
-    for (const file of lessonFiles) {
-      const filePath = path.join(lessonPath, file);
-      fs.unlinkSync(filePath);
-      console.log(`🗑️ Fichier supprimé: ${filePath}`);
-    }
+    fs.unlinkSync(videoPath);
+    console.log(`🗑️ Fichier supprimé: ${videoPath}`);
 
     return {
       success: true,
-      message: `${lessonFiles.length} fichier(s) supprimé(s)`,
+      message: "Fichier video.mp4 supprimé",
     };
   } catch (error) {
     console.error(
@@ -514,41 +515,9 @@ export const uploadController = {
         });
       }
 
-      let targetFilename = filename;
-      let filePath;
-
-      // Si pas de nom de fichier fourni, chercher le fichier qui commence par 'file'
-      if (!filename) {
-        try {
-          const files = fs.readdirSync(lessonDir);
-          console.log("🔍 getLessonFile - Fichiers dans le dossier:", files);
-
-          // Chercher le fichier qui commence par 'file' ou 'video'
-          const lessonFile = files.find(
-            (file) => file.startsWith("file") || file.startsWith("video")
-          );
-
-          if (!lessonFile) {
-            console.log("❌ Aucun fichier de leçon trouvé dans:", lessonDir);
-            return res.status(404).json({
-              success: false,
-              message: "Aucun fichier de leçon trouvé",
-            });
-          }
-
-          targetFilename = lessonFile;
-          console.log("🔍 getLessonFile - Fichier trouvé:", targetFilename);
-        } catch (error) {
-          console.error("❌ Erreur lecture dossier:", error);
-          return res.status(500).json({
-            success: false,
-            message: "Erreur lors de la lecture du dossier de la leçon",
-          });
-        }
-      }
-
-      // Construire le chemin complet du fichier
-      filePath = path.join(lessonDir, targetFilename);
+      // Toujours utiliser video.mp4 comme nom de fichier
+      const targetFilename = filename || "video.mp4";
+      const filePath = path.join(lessonDir, targetFilename);
 
       // console.log("🔍 getLessonFile - Chemin du fichier:", filePath);
 
@@ -792,24 +761,27 @@ export const uploadController = {
         console.log(`📁 Dossier leçon créé: ${lessonPath}`);
       }
 
-      // Le fichier est déjà dans le bon dossier grâce au middleware
-      const finalFilePath = path.join(lessonPath, filename);
-      console.log(`📁 Fichier uploadé directement dans: ${finalFilePath}`);
+      // Renommer le fichier en video.mp4 pour uniformiser
+      const finalFilename = "video.mp4";
+      const finalFilePath = path.join(lessonPath, finalFilename);
+      
+      // Supprimer l'ancien fichier video.mp4 s'il existe
+      if (fs.existsSync(finalFilePath)) {
+        fs.unlinkSync(finalFilePath);
+        console.log(`🗑️ Ancien fichier video.mp4 supprimé`);
+      }
 
-      // Vérifier si le fichier existe déjà dans le dossier de destination
-      if (!fs.existsSync(finalFilePath)) {
-        // Le fichier n'est pas encore dans le bon dossier, le déplacer
-        if (req.file.path && fs.existsSync(req.file.path)) {
-          fs.copyFileSync(req.file.path, finalFilePath);
-          fs.unlinkSync(req.file.path); // Supprimer le fichier temporaire
-          console.log(`📁 Fichier déplacé vers: ${finalFilePath}`);
-        } else {
-          throw new Error("Fichier temporaire introuvable");
-        }
+      // Déplacer et renommer le fichier uploadé en video.mp4
+      if (req.file.path && fs.existsSync(req.file.path)) {
+        fs.copyFileSync(req.file.path, finalFilePath);
+        fs.unlinkSync(req.file.path); // Supprimer le fichier temporaire
+        console.log(`📁 Fichier renommé et déplacé vers: ${finalFilePath}`);
+      } else {
+        throw new Error("Fichier temporaire introuvable");
       }
 
       // Upload automatique sur Hostinger en production uniquement
-      let fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${filename}`;
+      let fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${finalFilename}`;
 
       // En production, uploader automatiquement sur Hostinger
       if (
@@ -833,7 +805,7 @@ export const uploadController = {
           sanitizedFormationTitle,
           "lessons",
           sanitizedLessonTitle,
-          filename
+          finalFilename
         );
 
         try {
@@ -870,11 +842,13 @@ export const uploadController = {
       }
 
       // Déterminer le type de contenu basé sur le MIME type et l'extension
+      // Utiliser le nom original pour détecter le type, mais le fichier final est video.mp4
       const detectedMimeType = getMimeType(filename);
       const contentType = getContentTypeFromMime(detectedMimeType, filename);
 
       console.log("🔍 Type de contenu détecté:", {
-        filename,
+        originalFilename: filename,
+        finalFilename: finalFilename,
         detectedMimeType,
         contentType,
         originalMimeType: mimetype,
@@ -913,7 +887,8 @@ export const uploadController = {
       }
 
       console.log("📎 Fichier joint de leçon uploadé avec succès:", {
-        filename,
+        originalFilename: filename,
+        finalFilename: finalFilename,
         filePath: finalFilePath,
         mimetype,
         size,
@@ -927,8 +902,8 @@ export const uploadController = {
         success: true,
         data: {
           fileUrl,
-          fileId: filename,
-          filename,
+          fileId: finalFilename,
+          filename: finalFilename,
           size,
           mimetype: detectedMimeType,
           contentType: contentType,

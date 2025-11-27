@@ -163,14 +163,16 @@ export const getLessonImageUrl = (lessonImage: string | null | undefined): strin
 
 /**
  * Construit l'URL de téléchargement d'un fichier de leçon
+ * Tous les fichiers de leçon sont maintenant nommés "video.mp4" de manière uniforme
  * @param formationTitle - Le titre de la formation
  * @param lessonTitle - Le titre de la leçon
- * @returns L'URL complète vers le serveur backend pour télécharger le fichier
+ * @param filename - Paramètre optionnel ignoré (toujours "video.mp4")
+ * @returns L'URL complète vers le fichier video.mp4 de la leçon
  */
 export const getLessonFileUrl = (
   formationTitle: string,
   lessonTitle: string,
-  filename?: string
+  filename?: string // Paramètre conservé pour compatibilité mais ignoré
 ): string => {
   if (!formationTitle || !lessonTitle) return '';
   
@@ -190,16 +192,8 @@ export const getLessonFileUrl = (
     .replace(/_+/g, '_')
     .replace(/^_|_$/g, '');
 
-  if (filename) {
-    const sanitizedFilename = filename
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/\s+/g, '_');
-
-    return `${baseUrl}/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${sanitizedFilename}`;
-  }
-
-  return `${baseUrl}/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/`;
+  // Toujours utiliser video.mp4 comme nom de fichier
+  return `${baseUrl}/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/video.mp4`;
 };
 
 /**
