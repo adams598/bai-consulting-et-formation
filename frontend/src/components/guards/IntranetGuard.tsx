@@ -37,11 +37,11 @@ export const IntranetGuard: React.FC<IntranetGuardProps> = ({
       setError(null);
 
       // 1. Vérifier si on est sur l'intranet (sauf en développement)
-      if (!currentEnv.isIntranet && currentEnv.name !== 'Development') {
-        setError('Accès intranet requis');
-        setHasAccess(false);
-        return;
-      }
+      // if (!currentEnv.isIntranet && currentEnv.name !== 'Development') {
+      //   setError('Accès intranet requis');
+      //   setHasAccess(true);
+      //   return;
+      // }
 
       // 2. Vérifier l'authentification (simulation pour le développement)
       if (currentEnv.name === 'Development') {
