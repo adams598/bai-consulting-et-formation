@@ -31,6 +31,9 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
+// Trust proxy pour les environnements derrière un reverse proxy (Vercel, Render, etc.)
+app.set("trust proxy", true);
+
 // Middlewares de sécurité
 app.use(addSecurityHeaders);
 app.use(securityLogger);
@@ -50,6 +53,7 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => req.ip || req.connection?.remoteAddress || "unknown",
   skip: (req) => {
     // Skip rate limiting pour les health checks
     return req.path === "/api/admin/auth/health";
@@ -64,6 +68,7 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => req.ip || req.connection?.remoteAddress || "unknown",
   skipSuccessfulRequests: true, // Ne pas compter les connexions réussies
 });
 
@@ -609,21 +614,25 @@ const sslOptions = {
     : null,
 };
 
-// Démarrage du serveur avec SSL si les certificats sont disponibles
-if (sslOptions.key && sslOptions.cert) {
-  const httpsServer = https.createServer(sslOptions, app);
-  httpsServer.listen(port, () => {
-    console.log(`🔒 Serveur HTTPS démarré sur https://localhost:${port}`);
-    console.log(`📜 Certificat SSL: ${process.env.SSL_CERT_PATH}`);
-    console.log(`🔑 Clé SSL: ${process.env.SSL_KEY_PATH}`);
-  });
-} else {
-  // Serveur HTTP pour le développement
-  app.listen(port, () => {
-    console.log(`🌐 Serveur HTTP démarré sur http://localhost:${port}`);
-    if (process.env.NODE_ENV === "production") {
-      console.log("⚠️  ATTENTION: SSL non configuré en production !");
-      console.log("📝 Configurez SSL_CERT_PATH et SSL_KEY_PATH dans .env");
-    }
-  });
+// Export de l'app pour les environnements serverless (Vercel)
+export default app;
+
+// Démarrage du serveur local (développement / self-hosted)
+if (!process.env.VERCEL) {
+  if (sslOptions.key && sslOptions.cert) {
+    const httpsServer = https.createServer(sslOptions, app);
+    httpsServer.listen(port, () => {
+      console.log(`🔒 Serveur HTTPS démarré sur https://localhost:${port}`);
+      console.log(`📜 Certificat SSL: ${process.env.SSL_CERT_PATH}`);
+      console.log(`🔑 Clé SSL: ${process.env.SSL_KEY_PATH}`);
+    });
+  } else {
+    app.listen(port, () => {
+      console.log(`🌐 Serveur HTTP démarré sur http://localhost:${port}`);
+      if (process.env.NODE_ENV === "production") {
+        console.log("⚠️  ATTENTION: SSL non configuré en production !");
+        console.log("📝 Configurez SSL_CERT_PATH et SSL_KEY_PATH dans .env");
+      }
+    });
+  }
 }
