@@ -25,7 +25,7 @@ export const environments = {
   
   formation: {
     name: 'Formation Public',
-    apiUrl: 'https://api.bai-consulting.com',
+    apiUrl: 'https://bai-consulting-et-formation-1.onrender.com',
     isIntranet: false,
     authType: 'credentials' as const,
     allowedRoles: ['COLLABORATOR']
