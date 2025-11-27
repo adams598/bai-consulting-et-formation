@@ -8,7 +8,11 @@ class HostingerUploadService {
     this.password = process.env.HOSTINGER_FTP_PASSWORD;
     this.secure = process.env.HOSTINGER_FTP_SECURE === "true";
     this.baseDir = process.env.HOSTINGER_FTP_BASE_DIR || "public_html";
-    this.baseUrl = (process.env.HOSTINGER_UPLOAD_BASE_URL || "").replace(/\/+$/, "");
+    // URL de base pour les fichiers uploadés (par défaut: domaine Hostinger)
+    this.baseUrl = (
+      process.env.HOSTINGER_UPLOAD_BASE_URL ||
+      "https://olivedrab-hornet-656554.hostingersite.com"
+    ).replace(/\/+$/, "");
     this.enabled = Boolean(this.host && this.user && this.password);
 
     if (!this.enabled) {
@@ -34,10 +38,7 @@ class HostingerUploadService {
       .replace(/\\/g, "/")
       .replace(/^\/+/, "");
 
-    const remotePath = path.posix.join(
-      this.baseDir,
-      normalizedRelativePath
-    );
+    const remotePath = path.posix.join(this.baseDir, normalizedRelativePath);
 
     try {
       await client.access({
@@ -72,4 +73,3 @@ class HostingerUploadService {
 }
 
 export const hostingerUploadService = new HostingerUploadService();
-

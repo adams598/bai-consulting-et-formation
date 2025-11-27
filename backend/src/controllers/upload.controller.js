@@ -808,29 +808,54 @@ export const uploadController = {
         }
       }
 
-      // Upload automatique sur Hostinger (si configuré)
-      const remoteRelativePath = path.posix.join(
-        "uploads",
-        "formations",
-        sanitizedFormationTitle,
-        "lessons",
-        sanitizedLessonTitle,
-        filename
-      );
-
+      // Upload automatique sur Hostinger en production uniquement
       let fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${filename}`;
 
-      try {
-        const remoteUrl = await hostingerUploadService.upload(
-          finalFilePath,
-          remoteRelativePath
+      // En production, uploader automatiquement sur Hostinger
+      if (
+        process.env.NODE_ENV === "production" &&
+        hostingerUploadService.isEnabled()
+      ) {
+        const remoteRelativePath = path.posix.join(
+          "uploads",
+          "formations",
+          sanitizedFormationTitle,
+          "lessons",
+          sanitizedLessonTitle,
+          filename
         );
 
-        if (remoteUrl) {
-          fileUrl = remoteUrl;
+        try {
+          console.log("🚀 Upload automatique sur Hostinger en cours...");
+          const remoteUrl = await hostingerUploadService.upload(
+            finalFilePath,
+            remoteRelativePath
+          );
+
+          if (remoteUrl) {
+            fileUrl = remoteUrl;
+            console.log(
+              "✅ Fichier uploadé sur Hostinger avec succès:",
+              remoteUrl
+            );
+          } else {
+            console.warn(
+              "⚠️ Upload Hostinger retourné null, utilisation de l'URL locale"
+            );
+          }
+        } catch (hostingerError) {
+          console.error("❌ Upload Hostinger échoué:", hostingerError);
+          // En cas d'erreur, on continue avec l'URL locale
+          console.warn("⚠️ Utilisation de l'URL locale en cas d'erreur FTP");
         }
-      } catch (hostingerError) {
-        console.error("❌ Upload Hostinger échoué:", hostingerError);
+      } else {
+        if (process.env.NODE_ENV !== "production") {
+          console.log("ℹ️ Mode développement : upload Hostinger ignoré");
+        } else if (!hostingerUploadService.isEnabled()) {
+          console.warn(
+            "⚠️ Service Hostinger désactivé : variables FTP manquantes"
+          );
+        }
       }
 
       // Déterminer le type de contenu basé sur le MIME type et l'extension
