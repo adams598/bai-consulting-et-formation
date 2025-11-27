@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 import path from "path";
+import { hostingerUploadService } from "../services/hostinger-upload.service.js";
 
 const prisma = new PrismaClient();
 
@@ -698,12 +699,8 @@ export const uploadController = {
       }
 
       // Créer les dossiers de la leçon
-      const sanitizedFormationTitle = formationTitle
-        .replace(/[^a-zA-Z0-9_-]/g, "_")
-        .toLowerCase();
-      const sanitizedLessonTitle = lessonTitle
-        .replace(/[^a-zA-Z0-9_-]/g, "_")
-        .toLowerCase();
+      const sanitizedFormationTitle = sanitizeTitle(formationTitle);
+      const sanitizedLessonTitle = sanitizeTitle(lessonTitle);
       const lessonPath = `uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}`;
 
       // Vérifier si les dossiers existent, sinon les créer
@@ -811,8 +808,30 @@ export const uploadController = {
         }
       }
 
-      // Générer l'URL publique du fichier original
-      const fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${filename}`;
+      // Upload automatique sur Hostinger (si configuré)
+      const remoteRelativePath = path.posix.join(
+        "uploads",
+        "formations",
+        sanitizedFormationTitle,
+        "lessons",
+        sanitizedLessonTitle,
+        filename
+      );
+
+      let fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${filename}`;
+
+      try {
+        const remoteUrl = await hostingerUploadService.upload(
+          finalFilePath,
+          remoteRelativePath
+        );
+
+        if (remoteUrl) {
+          fileUrl = remoteUrl;
+        }
+      } catch (hostingerError) {
+        console.error("❌ Upload Hostinger échoué:", hostingerError);
+      }
 
       // Déterminer le type de contenu basé sur le MIME type et l'extension
       const detectedMimeType = getMimeType(filename);

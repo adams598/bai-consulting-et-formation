@@ -3,6 +3,19 @@
  * @param imagePath - Le chemin relatif de l'image (ex: /uploads/formations/...)
  * @returns L'URL complète vers le serveur backend
  */
+import { currentEnv } from '../config/environments';
+
+const getBaseUrl = (): string => {
+  const envUrl = import.meta.env.VITE_UPLOADS_BASE_URL;
+  if (envUrl) return envUrl.replace(/\/+$/, '');
+  if (typeof window !== 'undefined') {
+    return (currentEnv.apiUrl || window.location.origin).replace(/\/+$/, '');
+  }
+  return 'http://localhost:3000';
+};
+
+const baseUrl = getBaseUrl();
+
 export const getImageUrl = (imagePath: string | null | undefined): string => {
   if (!imagePath) return '';
   
@@ -51,7 +64,7 @@ export const getImageUrl = (imagePath: string | null | undefined): string => {
         .replace(/_+/g, '_') // Remplacer les underscores multiples par un seul
         .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
       
-      const apiUrl = `http://localhost:3000/api/formations/${sanitizedFormationTitle}/${filename}`;
+      const apiUrl = `${baseUrl}/api/formations/${sanitizedFormationTitle}/${filename}`;
       //console.log('🔍 getImageUrl - URL API formation couverture générée:', apiUrl);
       return apiUrl;
     }
@@ -78,7 +91,7 @@ export const getImageUrl = (imagePath: string | null | undefined): string => {
         .replace(/_+/g, '_') // Remplacer les underscores multiples par un seul
         .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
       
-      const apiUrl = `http://localhost:3000/api/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${filename}`;
+      const apiUrl = `${baseUrl}/api/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${filename}`;
       //console.log('🔍 getImageUrl - URL API leçon générée:', apiUrl);
       return apiUrl;
     }
@@ -105,7 +118,7 @@ export const getImageUrl = (imagePath: string | null | undefined): string => {
         .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
       
       // Utiliser la route admin qui récupère le fichier le plus récent
-      const apiUrl = `http://localhost:3000/api/admin/lesson-file/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}`;
+      const apiUrl = `${baseUrl}/api/admin/lesson-file/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}`;
       //console.log('🔍 getImageUrl - URL API dossier leçon générée:', apiUrl);
       return apiUrl;
     }
@@ -113,13 +126,13 @@ export const getImageUrl = (imagePath: string | null | undefined): string => {
   
   // Fallback to the old /api/images/ route for other /uploads/ types
   if (cleanPath.startsWith('uploads/')) {
-    const apiUrl = `http://localhost:3000/api/images/${cleanPath.replace('uploads/', '')}`;
+    const apiUrl = `${baseUrl}/api/images/${cleanPath.replace('uploads/', '')}`;
     //console.log('🔍 getImageUrl - URL API fallback générée:', apiUrl);
     return apiUrl;
   }
   
   // Fallback to direct URL if not an uploads/ path
-  const directUrl = `http://localhost:3000/${cleanPath}`;
+  const directUrl = `${baseUrl}/${cleanPath}`;
   //console.log('🔍 getImageUrl - URL directe générée:', directUrl);
   return directUrl;
 };
@@ -156,32 +169,37 @@ export const getLessonImageUrl = (lessonImage: string | null | undefined): strin
  */
 export const getLessonFileUrl = (
   formationTitle: string,
-  lessonTitle: string
+  lessonTitle: string,
+  filename?: string
 ): string => {
   if (!formationTitle || !lessonTitle) return '';
   
-  // Sanitizer les titres pour correspondre au backend
   const sanitizedFormationTitle = formationTitle
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Retirer les accents
-    .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
-    .replace(/_+/g, '_') // Remplacer les underscores multiples par un seul
-    .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
-    
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+
   const sanitizedLessonTitle = lessonTitle
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Retirer les accents
-    .replace(/[^a-zA-Z0-9_-]/g, "_") // Remplacer les caractères spéciaux par _
-    .replace(/_+/g, '_') // Remplacer les underscores multiples par un seul
-    .replace(/^_|_$/g, ''); // Retirer les underscores en début/fin
-  
-  // URL directe vers l'API qui récupère le fichier de la leçon
-  const apiUrl = `http://localhost:3000/api/admin/lesson-file/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}`;
-  
-  // console.log('🔍 getLessonFileUrl - URL API générée:', apiUrl);
-  return apiUrl;
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+
+  if (filename) {
+    const sanitizedFilename = filename
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/\s+/g, '_');
+
+    return `${baseUrl}/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${sanitizedFilename}`;
+  }
+
+  return `${baseUrl}/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/`;
 };
 
 /**
@@ -200,7 +218,7 @@ export const getOpportunityFileUrl = (fileName: string | null | undefined): stri
   }
   
   // Construire l'URL complète vers l'API publique des fichiers OC (sans authentification)
-  const apiUrl = `http://localhost:3000/api/opportunities/files/${fileName}`;
+  const apiUrl = `${baseUrl}/api/opportunities/files/${fileName}`;
   
   // console.log('🔍 getOpportunityFileUrl retourne:', apiUrl);
   return apiUrl;
