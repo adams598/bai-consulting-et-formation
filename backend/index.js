@@ -31,10 +31,6 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Trust proxy - nécessaire pour Vercel et les reverse proxies
-// Permet à Express de faire confiance aux en-têtes X-Forwarded-* envoyés par Vercel
-app.set('trust proxy', true);
-
 // Middlewares de sécurité
 app.use(addSecurityHeaders);
 app.use(securityLogger);
@@ -77,6 +73,7 @@ const defaultOrigins =
     ? [
         "https://olivedrab-hornet-656554.hostingersite.com",
         "https://bai-consulting-et-formation-1.onrender.com",
+        "https://bai-consulting-et-formation-pmkxuygdn-adams-projects-b35f6371.vercel.app",
       ]
     : [
         "http://localhost:3001",
@@ -264,26 +261,17 @@ app.get("/api/opportunities/files/:filename", (req, res) => {
   }
 });
 
-// Route de base pour test
-app.get("/", (req, res) => {
-  res.json({ 
-    message: "Backend BAI Consulting is running", 
-    status: "ok",
-    timestamp: new Date().toISOString()
-  });
-});
-
 // Route de santé (health check)
 app.get("/api/health", async (req, res) => {
   try {
     // Tester la connexion à la base de données
     const prisma = new PrismaClient();
-    
+
     // Test simple de connexion
     await prisma.$queryRaw`SELECT 1`;
-    
+
     await prisma.$disconnect();
-    
+
     res.json({
       status: "ok",
       database: "connected",
@@ -621,27 +609,21 @@ const sslOptions = {
     : null,
 };
 
-// Démarrage du serveur (sauf sur Vercel qui gère le serveur)
-if (!process.env.VERCEL) {
-  // Démarrage du serveur avec SSL si les certificats sont disponibles
-  if (sslOptions.key && sslOptions.cert) {
-    const httpsServer = https.createServer(sslOptions, app);
-    httpsServer.listen(port, () => {
-      console.log(`🔒 Serveur HTTPS démarré sur https://localhost:${port}`);
-      console.log(`📜 Certificat SSL: ${process.env.SSL_CERT_PATH}`);
-      console.log(`🔑 Clé SSL: ${process.env.SSL_KEY_PATH}`);
-    });
-  } else {
-    // Serveur HTTP pour le développement
-    app.listen(port, () => {
-      console.log(`🌐 Serveur HTTP démarré sur http://localhost:${port}`);
-      if (process.env.NODE_ENV === "production") {
-        console.log("⚠️  ATTENTION: SSL non configuré en production !");
-        console.log("📝 Configurez SSL_CERT_PATH et SSL_KEY_PATH dans .env");
-      }
-    });
-  }
+// Démarrage du serveur avec SSL si les certificats sont disponibles
+if (sslOptions.key && sslOptions.cert) {
+  const httpsServer = https.createServer(sslOptions, app);
+  httpsServer.listen(port, () => {
+    console.log(`🔒 Serveur HTTPS démarré sur https://localhost:${port}`);
+    console.log(`📜 Certificat SSL: ${process.env.SSL_CERT_PATH}`);
+    console.log(`🔑 Clé SSL: ${process.env.SSL_KEY_PATH}`);
+  });
+} else {
+  // Serveur HTTP pour le développement
+  app.listen(port, () => {
+    console.log(`🌐 Serveur HTTP démarré sur http://localhost:${port}`);
+    if (process.env.NODE_ENV === "production") {
+      console.log("⚠️  ATTENTION: SSL non configuré en production !");
+      console.log("📝 Configurez SSL_CERT_PATH et SSL_KEY_PATH dans .env");
+    }
+  });
 }
-
-// Export pour Vercel Serverless Functions
-export default app;
