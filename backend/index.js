@@ -166,8 +166,8 @@ app.options("/api/formations/:formationTitle/:filename", (req, res) => {
   res.header("Cross-Origin-Opener-Policy", "unsafe-none");
   res.status(200).end();
 });
-app.get("/api/formations", (req, res) => {
-  res.send("Hello World");
+app.get("/", (req, res) => {
+  res.send("<h1>Le backend fonctionne correctement</h1>");
 });
 app.get("/api/formations/:formationTitle/:filename", (req, res) => {
   const { formationTitle, filename } = req.params;
