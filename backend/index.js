@@ -2,7 +2,7 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import OpenAI from "openai";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import path from "path";
 import fs from "fs";
 import https from "https";
@@ -53,7 +53,7 @@ const limiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || req.connection?.remoteAddress || "unknown",
+  keyGenerator: ipKeyGenerator,
   skip: (req) => {
     // Skip rate limiting pour les health checks
     return req.path === "/api/admin/auth/health";
@@ -68,7 +68,7 @@ const authLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.ip || req.connection?.remoteAddress || "unknown",
+  keyGenerator: ipKeyGenerator,
   skipSuccessfulRequests: true, // Ne pas compter les connexions réussies
 });
 
@@ -166,7 +166,9 @@ app.options("/api/formations/:formationTitle/:filename", (req, res) => {
   res.header("Cross-Origin-Opener-Policy", "unsafe-none");
   res.status(200).end();
 });
-
+app.get("/api/formations", (req, res) => {
+  res.send("Hello World");
+});
 app.get("/api/formations/:formationTitle/:filename", (req, res) => {
   const { formationTitle, filename } = req.params;
   const imagePath = path.join(
@@ -176,7 +178,6 @@ app.get("/api/formations/:formationTitle/:filename", (req, res) => {
     formationTitle,
     filename
   );
-
   console.log("🔍 Route /api/formations couverture appelée:");
   console.log("  - formationTitle:", formationTitle);
   console.log("  - filename:", filename);
