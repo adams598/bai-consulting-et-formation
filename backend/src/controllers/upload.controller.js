@@ -201,7 +201,7 @@ async function deleteExistingLessonFile(formationTitle, lessonTitle) {
 
     // Supprimer video.mp4 s'il existe
     const videoPath = path.join(lessonPath, "video.mp4");
-    
+
     if (!fs.existsSync(videoPath)) {
       return { success: false, message: "Aucun fichier à supprimer" };
     }
@@ -764,7 +764,7 @@ export const uploadController = {
       // Renommer le fichier en video.mp4 pour uniformiser
       const finalFilename = "video.mp4";
       const finalFilePath = path.join(lessonPath, finalFilename);
-      
+
       // Supprimer l'ancien fichier video.mp4 s'il existe
       if (fs.existsSync(finalFilePath)) {
         fs.unlinkSync(finalFilePath);
@@ -791,10 +791,34 @@ export const uploadController = {
         // S'assurer que le dossier de formation existe sur Hostinger
         const formationDirPath = `uploads/formations/${sanitizedFormationTitle}`;
         try {
-          await hostingerUploadService.ensureDirectory(formationDirPath);
+          const formationDirCreated =
+            await hostingerUploadService.ensureDirectory(formationDirPath);
+          if (formationDirCreated) {
+            console.log(
+              `✅ Dossier de formation créé/vérifié sur Hostinger: ${formationDirPath}`
+            );
+          }
         } catch (dirError) {
-          console.warn(
-            "⚠️ Erreur lors de la création du dossier de formation:",
+          console.error(
+            "❌ Erreur lors de la création du dossier de formation:",
+            dirError
+          );
+        }
+
+        // S'assurer que le dossier de leçon existe sur Hostinger
+        const lessonDirPath = `uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}`;
+        try {
+          const lessonDirCreated = await hostingerUploadService.ensureDirectory(
+            lessonDirPath
+          );
+          if (lessonDirCreated) {
+            console.log(
+              `✅ Dossier de leçon créé/vérifié sur Hostinger: ${lessonDirPath}`
+            );
+          }
+        } catch (dirError) {
+          console.error(
+            "❌ Erreur lors de la création du dossier de leçon:",
             dirError
           );
         }

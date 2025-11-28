@@ -1217,34 +1217,43 @@ export const formationsController = {
         // Sanitizer le titre de la formation (même logique que dans upload.controller.js)
         const sanitizedFormationTitle = title
           .toLowerCase()
-          .normalize("NFD")
-          .replace(/[\u0300-\u036f]/g, "") // Retirer les accents
-          .replace(/[^a-zA-Z0-9\s\-_]/g, "") // Préserver les underscores et tirets
-          .replace(/\s+/g, "_") // Remplacer les espaces par des underscores
-          .replace(/[_-]+/g, (match) => match[0]) // Remplacer les underscores/tirets multiples par un seul
-          .replace(/^[_-]|[_-]$/g, ""); // Retirer les underscores/tirets en début/fin
+          .replace(/[^a-zA-Z0-9_-]/g, "_")
+          .replace(/[_-]+/g, "_")
+          .replace(/^[_-]|[_-]$/g, "");
 
         const formationDirPath = `uploads/formations/${sanitizedFormationTitle}`;
 
         try {
           console.log("🚀 Création du dossier de formation sur Hostinger...");
+          console.log(`📁 Chemin du dossier: ${formationDirPath}`);
+          console.log(
+            `🔧 Service Hostinger activé: ${hostingerUploadService.isEnabled()}`
+          );
+
           const dirCreated = await hostingerUploadService.ensureDirectory(
             formationDirPath
           );
 
           if (dirCreated) {
             console.log(
-              `✅ Dossier de formation créé sur Hostinger: ${formationDirPath}`
+              `✅ Dossier de formation créé/vérifié sur Hostinger: ${formationDirPath}`
             );
           } else {
-            console.warn(
-              `⚠️ Échec de la création du dossier sur Hostinger: ${formationDirPath}`
+            console.error(
+              `❌ Échec de la création du dossier sur Hostinger: ${formationDirPath}`
+            );
+            console.error(
+              "⚠️ Vérifiez les variables d'environnement FTP (HOSTINGER_FTP_HOST, HOSTINGER_FTP_USER, HOSTINGER_FTP_PASSWORD)"
             );
           }
         } catch (error) {
           console.error(
             "❌ Erreur lors de la création du dossier sur Hostinger:",
             error
+          );
+          console.error("📋 Détails de l'erreur:", error.message);
+          console.error(
+            "⚠️ Vérifiez les variables d'environnement FTP et la connexion au serveur Hostinger"
           );
           // Ne pas faire échouer la création de formation si l'upload FTP échoue
         }
