@@ -105,57 +105,39 @@ class HostingerUploadService {
         console.warn(`⚠️ Impossible de lister la racine:`, listError.message);
       }
 
-      // Vérifier où on est et se placer dans le répertoire de base (public_html)
-      const initialPwd = await client.pwd();
-      console.log(`📂 Répertoire de travail initial: ${initialPwd}`);
+      // TOUJOURS aller à la racine absolue d'abord pour éviter les chemins dupliqués
+      try {
+        await client.cd("/");
+        const rootPwd = await client.pwd();
+        console.log(`📂 Racine FTP: ${rootPwd}`);
+      } catch (rootError) {
+        console.warn(`⚠️ Impossible d'aller à la racine: ${rootError.message}`);
+      }
 
-      // Normaliser le chemin pour éviter les duplications
-      // Si on est déjà dans /public_html, ne pas refaire cd
-      const normalizedInitialPwd = initialPwd.replace(/\/+/g, "/");
-      const targetBaseDir = `/${this.baseDir}`;
-      let basePwd = initialPwd;
+      // Maintenant naviguer vers public_html depuis la racine
+      try {
+        await client.cd(this.baseDir);
+        const basePwd = await client.pwd();
+        console.log(`✅ Changé vers le répertoire de base: ${basePwd}`);
 
-      // Vérifier si on est déjà dans public_html (exactement ou comme partie du chemin)
-      if (
-        normalizedInitialPwd === targetBaseDir ||
-        normalizedInitialPwd.endsWith(`/${this.baseDir}`)
-      ) {
-        console.log(`✅ On est déjà dans le répertoire de base: ${basePwd}`);
-        // S'assurer qu'on est exactement dans /public_html
-        if (normalizedInitialPwd !== targetBaseDir) {
-          try {
-            await client.cd("/");
-            await client.cd(this.baseDir);
-            basePwd = await client.pwd();
-            console.log(
-              `✅ Repositionné dans le répertoire de base: ${basePwd}`
-            );
-          } catch (cdError) {
-            console.warn(
-              `⚠️ Impossible de repositionner, on reste dans: ${basePwd}`
-            );
-          }
-        }
-      } else {
-        // On n'est pas dans public_html, s'y placer
-        try {
-          // D'abord aller à la racine pour éviter les chemins dupliqués
-          await client.cd("/");
-          await client.cd(this.baseDir);
-          basePwd = await client.pwd();
-          console.log(`✅ Changé vers le répertoire de base: ${basePwd}`);
-        } catch (cdError) {
-          console.error(
-            `❌ Impossible de se placer dans ${this.baseDir}:`,
-            cdError.message
-          );
-          console.error(
-            `💡 Vérifiez que le répertoire ${this.baseDir} existe sur le serveur FTP`
-          );
+        // Vérifier qu'on n'a pas de duplication dans le chemin
+        if (basePwd.includes(`/${this.baseDir}/${this.baseDir}`)) {
+          console.error(`❌ Chemin dupliqué détecté: ${basePwd}`);
           throw new Error(
-            `Impossible d'accéder au répertoire de base ${this.baseDir}: ${cdError.message}`
+            `Chemin dupliqué détecté. Le répertoire de base semble incorrect.`
           );
         }
+      } catch (cdError) {
+        console.error(
+          `❌ Impossible de se placer dans ${this.baseDir}:`,
+          cdError.message
+        );
+        console.error(
+          `💡 Vérifiez que le répertoire ${this.baseDir} existe sur le serveur FTP`
+        );
+        throw new Error(
+          `Impossible d'accéder au répertoire de base ${this.baseDir}: ${cdError.message}`
+        );
       }
 
       // Lister le contenu de public_html pour voir ce qui existe
@@ -240,50 +222,43 @@ class HostingerUploadService {
           console.log(`      On est maintenant dans: ${finalPwd}`);
         } else {
           console.log(`   🔨 Création du dossier de formation: ${folderName}`);
+
+          // Vérifier où on est avant de créer
+          const beforeCreatePwd = await client.pwd();
+          console.log(`      📂 Répertoire avant création: ${beforeCreatePwd}`);
+
           // ensureDir crée le dossier mais ne change pas de répertoire
           await client.ensureDir(folderName);
 
           // Attendre un peu pour que le serveur FTP enregistre le changement
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // Maintenant se placer dans le dossier créé
-          try {
-            await client.cd(folderName);
-            const finalPwd = await client.pwd();
-            console.log(
-              `      ✅ Dossier "${folderName}" créé et accessible, on est dans: ${finalPwd}`
+          // Vérifier que le dossier existe dans le listing avant d'essayer d'y entrer
+          const checkListing = await client.list();
+          const exists = checkListing.some(
+            (item) => item.name === folderName && item.isDirectory
+          );
+
+          if (!exists) {
+            throw new Error(
+              `Le dossier "${folderName}" n'apparaît pas dans le listing après création`
             );
-          } catch (cdError) {
-            // Si le cd échoue, vérifier si le dossier existe quand même
-            console.warn(
-              `      ⚠️ Impossible de se placer dans "${folderName}": ${cdError.message}`
-            );
-            console.warn(`      💡 Vérification du listing...`);
+          }
 
-            try {
-              const checkListing = await client.list();
-              const exists = checkListing.some(
-                (item) => item.name === folderName && item.isDirectory
-              );
+          console.log(
+            `      ✅ Dossier "${folderName}" vérifié dans le listing`
+          );
 
-              if (exists) {
-                console.log(
-                  `      ✅ Le dossier existe dans le listing, nouvelle tentative de cd...`
-                );
-                // Réessayer le cd
-                await client.cd(folderName);
-                const finalPwd = await client.pwd();
-                console.log(`      ✅ Succès, on est dans: ${finalPwd}`);
-              } else {
-                throw new Error(
-                  `Le dossier "${folderName}" n'a pas été créé ou n'est pas accessible`
-                );
-              }
-            } catch (verifyError) {
-              throw new Error(
-                `Impossible de créer ou d'accéder au dossier "${folderName}": ${verifyError.message}`
-              );
-            }
+          // Maintenant se placer dans le dossier créé (une seule fois)
+          await client.cd(folderName);
+          const afterCdPwd = await client.pwd();
+          console.log(`      ✅ Dossier "${folderName}" créé et accessible`);
+          console.log(`      📂 On est maintenant dans: ${afterCdPwd}`);
+
+          // Vérifier qu'on n'a pas de duplication
+          if (afterCdPwd.includes(`/${this.baseDir}/${this.baseDir}`)) {
+            console.error(`      ❌ Chemin dupliqué détecté: ${afterCdPwd}`);
+            throw new Error(`Chemin dupliqué détecté dans le répertoire final`);
           }
         }
       } catch (folderError) {
