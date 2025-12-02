@@ -55,3 +55,32 @@
     @apply text-dark-text-primary hover:text-dark-accent;
   }
 }
+
+@layer utilities {
+  /* Grid fix pour les cartes d'expertise - force 3 colonnes sur écrans moyens+ */
+  .expertise-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 1.5rem;
+  }
+  
+  @media (min-width: 768px) {
+    .expertise-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  
+  /* Grid fix pour la section À propos - force 2 colonnes sur écrans moyens+ */
+  .about-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 3rem;
+    align-items: center;
+  }
+  
+  @media (min-width: 768px) {
+    .about-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+}

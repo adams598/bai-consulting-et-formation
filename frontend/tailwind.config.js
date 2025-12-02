@@ -1,7 +1,17 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   darkMode: "class",
-  content: ["./src/**/*.{js,jsx,ts,tsx}"],
+  content: [
+    "./index.html",
+    "./src/**/*.{js,jsx,ts,tsx}",
+  ],
+  safelist: [
+    'grid-cols-1',
+    'md:grid-cols-2',
+    'md:grid-cols-3',
+    'lg:grid-cols-3',
+    'max-w-7xl',
+  ],
   theme: {
     extend: {
       colors: {

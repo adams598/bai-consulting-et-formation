@@ -475,25 +475,25 @@ function HomePage() {
         </section>
         */}
         <section className="py-10 sm:py-16 bg-gray-50 dark:bg-dark-bg-primary">
-          <div className="container mx-auto px-2 sm:px-4 md:px-8 lg:px-12">
+          <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-8 lg:px-12">
             <div className="text-center mb-10 sm:mb-16">
               <h2 className="text-2xl sm:text-3xl font-bold text-brand-blue dark:text-brand-beige break-words whitespace-normal">Nos domaines d'expertise</h2>
               <p className="mt-2 sm:mt-4 text-base sm:text-lg text-gray-600 dark:text-white max-w-xl sm:max-w-3xl mx-auto">
                 Des formations spécialisées dispensées par des professionnels du secteur.
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-              <div className="bg-white dark:bg-dark-bg-secondary rounded-lg shadow-lg overflow-hidden transform transition-all hover:scale-105">
-                <div className="h-40 sm:h-48 bg-gray-200 dark:bg-dark-bg-secondary relative">
+            <div className="expertise-grid">
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-all hover:scale-105">
+                <div className="h-40 sm:h-48 bg-gray-200 relative">
                   <img 
                     src="/images/pexels-banque-7821702.jpg"
                     alt="Services bancaires"
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="p-4 sm:p-6 dark:bg-dark-bg-secondary">
-                  <h3 className="text-lg sm:text-xl font-bold text-brand-blue dark:text-brand-beige break-words whitespace-normal">Banque</h3>
-                  <p className="mt-1 sm:mt-2 text-gray-600 text-sm sm:text-base dark:text-white break-words whitespace-normal">
+                <div className="p-4 sm:p-6">
+                  <h3 className="text-lg sm:text-xl font-bold text-brand-blue break-words whitespace-normal">Banque</h3>
+                  <p className="mt-1 sm:mt-2 text-gray-600 text-sm sm:text-base break-words whitespace-normal">
                   Formations sur la démarche relationnelle et commerciale, les rebonds commerciaux, la satisfaction client, l'augmentation du PNB de la banque.
                   </p>
                   <Link to="/banque">
@@ -504,7 +504,7 @@ function HomePage() {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-dark-bg-secondary rounded-lg shadow-lg overflow-hidden transform transition-all hover:scale-105">
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-all hover:scale-105">
                 <div className="h-40 sm:h-48 bg-gray-200 relative">
                   <img 
                     src="/images/pexels-assurance-5255183.jpg"
@@ -512,9 +512,9 @@ function HomePage() {
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="p-4 sm:p-6 dark:bg-dark-bg-secondary">
-                  <h3 className="text-lg sm:text-xl font-bold text-brand-blue dark:text-brand-beige break-words whitespace-normal">Assurance & Prévoyance</h3>
-                  <p className="mt-1 sm:mt-2 text-gray-600 text-sm sm:text-base dark:text-white break-words whitespace-normal">
+                <div className="p-4 sm:p-6">
+                  <h3 className="text-lg sm:text-xl font-bold text-brand-blue break-words whitespace-normal">Assurance & Prévoyance</h3>
+                  <p className="mt-1 sm:mt-2 text-gray-600 text-sm sm:text-base break-words whitespace-normal">
                     Formations sur l'IARD, la prévoyance, la gestion des risques et sinistres.
                   </p>
                   <Link to="/assurance">
@@ -525,7 +525,7 @@ function HomePage() {
                 </div>
               </div>
 
-              <div className="bg-white dark:bg-dark-bg-secondary rounded-lg shadow-lg overflow-hidden transform transition-all hover:scale-105">
+              <div className="bg-white rounded-lg shadow-lg overflow-hidden transform transition-all hover:scale-105">
                 <div className="h-40 sm:h-48 bg-gray-200 relative">
                   <img 
                     src="https://images.pexels.com/photos/439391/pexels-photo-439391.jpeg"
@@ -533,9 +533,9 @@ function HomePage() {
                     className="w-full h-full object-cover"
                   />
                 </div>
-                <div className="p-4 sm:p-6 dark:bg-dark-bg-secondary">
-                  <h3 className="text-lg sm:text-xl font-bold text-brand-blue dark:text-brand-beige break-words whitespace-normal">Immobilier</h3>
-                  <p className="mt-1 sm:mt-2 text-gray-600 text-sm sm:text-base dark:text-white break-words whitespace-normal">
+                <div className="p-4 sm:p-6">
+                  <h3 className="text-lg sm:text-xl font-bold text-brand-blue break-words whitespace-normal">Immobilier</h3>
+                  <p className="mt-1 sm:mt-2 text-gray-600 text-sm sm:text-base break-words whitespace-normal">
                     Formations en transaction immobilière, gestion locative et expertise immobilière.
                   </p>
                   <Link to="/immobilier">
@@ -556,9 +556,9 @@ function HomePage() {
           </div>
         </section>
 
-        <section className="py-16 bg-white dark:bg-dark-bg-primary">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
+        <section className="py-16 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="about-grid">
               <div className="relative h-96 rounded-lg overflow-hidden shadow-xl">
                 <img 
                   src="/images/concept-de-banniere-de-collegues-de-travail-avec-espace-de-copie.jpg"
@@ -567,48 +567,48 @@ function HomePage() {
                 />
               </div>
               <div className="space-y-6">
-                <h2 className="text-3xl font-bold text-brand-blue dark:text-brand-beige break-words whitespace-normal">À propos de BAI Consulting</h2>
-                <p className="text-gray-600 dark:text-white break-words whitespace-normal">
+                <h2 className="text-3xl font-bold text-brand-blue break-words whitespace-normal">À propos de BAI Consulting</h2>
+                <p className="text-gray-600 break-words whitespace-normal">
                   Fondée par des experts des secteurs de la banque, de l'assurance et de l'immobilier, BAI Consulting met son expertise au service de la montée en compétence de vos équipes commerciales et de leur développement professionnel.
                 </p>
-                <p className="text-gray-600 dark:text-white break-words whitespace-normal">
-                Nous proposons des formations adaptées aux besoins des professionnels et des entreprises avec une approche pratique et opérationnelle.
+                <p className="text-gray-600 break-words whitespace-normal">
+                  Nous proposons des formations adaptées aux besoins des professionnels et des entreprises avec une approche pratique et opérationnelle.
                 </p>
-                <p className="text-gray-600 dark:text-white break-words whitespace-normal">
-                Nos formations sont également destinées à des personnes de niveau Bac à Bac+5 désireuses de devenir des commerciaux du secteur de la banque, de l'assurance et de l'immobilier (conseiller bancaire, conseiller en assurance ou agent immobilier).
+                <p className="text-gray-600 break-words whitespace-normal">
+                  Nos formations sont également destinées à des personnes de niveau Bac à Bac+5 désireuses de devenir des commerciaux du secteur de la banque, de l'assurance et de l'immobilier (conseiller bancaire, conseiller en assurance ou agent immobilier).
                 </p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-start">
                     <div className="flex-shrink-0">
-                      <BookOpen className="h-6 w-6 text-brand-blue dark:text-brand-beige" />
+                      <BookOpen className="h-6 w-6 text-brand-blue" />
                     </div>
                     <div className="ml-3">
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words whitespace-normal">Formations adaptées</h3>
-                      <p className="mt-2 text-gray-600 dark:text-white break-words whitespace-normal">Des parcours sur mesure selon vos besoins.</p>
+                      <h3 className="text-lg font-medium text-gray-900 break-words whitespace-normal">Formations adaptées</h3>
+                      <p className="mt-2 text-gray-600 break-words whitespace-normal">Des parcours sur mesure selon vos besoins.</p>
                     </div>
                   </div>
                   <div className="flex items-start">
                     <div className="flex-shrink-0">
-                      <TrendingUp className="h-6 w-6 text-brand-blue dark:text-brand-beige" />
+                      <TrendingUp className="h-6 w-6 text-brand-blue" />
                     </div>
                     <div className="ml-3">
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-white break-words whitespace-normal">Suivi personnalisé</h3>
-                      <p className="mt-2 text-gray-600 dark:text-white break-words whitespace-normal">Un accompagnement tout au long de votre parcours.</p>
+                      <h3 className="text-lg font-medium text-gray-900 break-words whitespace-normal">Suivi personnalisé</h3>
+                      <p className="mt-2 text-gray-600 break-words whitespace-normal">Un accompagnement tout au long de votre parcours.</p>
                     </div>
                   </div>
                 </div>
-                <div className="flex justify-center mt-8">
+                <div className="flex flex-col sm:flex-row gap-4 mt-8">
                   <Link to="/contact">
-                    <button className="bg-brand-beige text-brand-blue dark:bg-dark-bg-primary dark:text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-brand-beige/80 transition-colors text-lg">
+                    <button className="bg-brand-beige text-brand-blue px-8 py-3 rounded-full font-bold shadow-lg hover:bg-brand-beige/80 transition-colors text-lg">
                       Contactez-nous
                     </button>
                   </Link>
+                  <Link to="/solutions">
+                    <button className="bg-brand-blue text-white px-6 py-4 rounded font-semibold hover:bg-brand-blue/90 transition-colors">
+                      Découvrir nos solutions
+                    </button>
+                  </Link>
                 </div>
-                <Link to="/solutions">
-                  <button className="bg-brand-blue text-white dark:text-brand-beige px-6 py-4 mt-6 rounded font-semibold hover:bg-brand-blue/90 transition-colors">
-                    Découvrir nos solutions
-                  </button>
-                </Link>
               </div>
             </div>
           </div>
