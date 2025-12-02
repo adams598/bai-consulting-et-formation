@@ -94,142 +94,169 @@ class HostingerUploadService {
       const initialPwd = await client.pwd();
       console.log(`📂 Répertoire de travail initial: ${initialPwd}`);
 
-      // Essayer deux approches pour créer le dossier
-      let dirCreated = false;
-
-      // Approche 1 : Chemin absolu depuis la racine
-      console.log(`📁 Approche 1 - Chemin absolu: ${remotePath}`);
+      // Lister le contenu de la racine pour voir ce qui existe
       try {
-        await client.ensureDir(remotePath);
-        console.log(`✅ ensureDir réussi avec chemin absolu: ${remotePath}`);
-        dirCreated = true;
-      } catch (absError) {
-        console.warn(`⚠️ Approche 1 échouée: ${absError.message}`);
-
-        // Approche 2 : Se placer dans baseDir puis créer le chemin relatif
-        console.log(`📁 Approche 2 - Chemin relatif depuis ${this.baseDir}`);
-        try {
-          // Se placer dans le répertoire de base
-          await client.cd(this.baseDir);
-          const basePwd = await client.pwd();
-          console.log(`✅ Changé vers: ${basePwd}`);
-
-          // Créer le chemin relatif depuis baseDir
-          await client.ensureDir(normalizedRelativePath);
-          console.log(
-            `✅ ensureDir réussi avec chemin relatif: ${normalizedRelativePath}`
-          );
-          dirCreated = true;
-        } catch (relError) {
-          console.error(`❌ Approche 2 échouée: ${relError.message}`);
-          throw relError; // Propager l'erreur
-        }
+        const rootListing = await client.list();
+        console.log(
+          `📋 Contenu de la racine FTP:`,
+          rootListing.map((item) => item.name).join(", ")
+        );
+      } catch (listError) {
+        console.warn(`⚠️ Impossible de lister la racine:`, listError.message);
       }
 
-      if (!dirCreated) {
-        throw new Error("Aucune approche n'a réussi à créer le dossier");
-      }
-
-      // Vérifier où on se trouve maintenant
-      const afterPwd = await client.pwd();
-      console.log(`📂 Répertoire après ensureDir: ${afterPwd}`);
-
-      // Vérifier que le dossier existe vraiment
-      // Le dossier devrait être dans: public_html/uploads/formations/dfg_formation
-      const expectedParentPath = path.posix.join(
-        this.baseDir,
-        path.posix.dirname(normalizedRelativePath)
-      );
-      const folderName = path.posix.basename(normalizedRelativePath);
-
+      // Se placer dans le répertoire de base (public_html)
       try {
-        // Retourner à la racine puis naviguer vers le répertoire parent attendu
-        await client.cd("/");
-        console.log(`🔍 Vérification: navigation vers ${expectedParentPath}`);
+        await client.cd(this.baseDir);
+        const basePwd = await client.pwd();
+        console.log(`✅ Changé vers le répertoire de base: ${basePwd}`);
 
+        // Lister le contenu de public_html pour voir ce qui existe
         try {
-          await client.cd(expectedParentPath);
-          const listing = await client.list();
+          const baseListing = await client.list();
           console.log(
-            `📋 Contenu de ${expectedParentPath}:`,
-            listing
+            `📋 Contenu de ${this.baseDir}:`,
+            baseListing
               .map(
                 (item) => `${item.name}${item.isDirectory ? " (dossier)" : ""}`
               )
               .join(", ")
           );
-
-          const folderExists = listing.some(
-            (item) => item.name === folderName && item.isDirectory
+        } catch (listError) {
+          console.warn(
+            `⚠️ Impossible de lister ${this.baseDir}:`,
+            listError.message
           );
-
-          if (folderExists) {
-            console.log("✅ Dossier créé et vérifié sur Hostinger:", {
-              relativePath: normalizedRelativePath,
-              remotePath,
-              fullPath: `${this.baseDir}/${normalizedRelativePath}`,
-              verified: true,
-              location: `${expectedParentPath}/${folderName}`,
-            });
-            return true;
-          } else {
-            console.error("❌ Le dossier n'a pas été trouvé après création");
-            console.error("   Dossier attendu:", folderName);
-            console.error("   Répertoire parent:", expectedParentPath);
-            console.error(
-              "   Contenu trouvé:",
-              listing.map((item) => item.name).join(", ")
-            );
-
-            // Essayer aussi de vérifier directement avec le chemin complet
-            console.log(`🔍 Tentative de vérification directe: ${remotePath}`);
-            try {
-              await client.cd(remotePath);
-              console.log("✅ Le dossier existe bien (accessible directement)");
-              return true;
-            } catch (directError) {
-              console.error(
-                "❌ Le dossier n'est pas accessible directement:",
-                directError.message
-              );
-              return false;
-            }
-          }
-        } catch (cdError) {
-          console.error(
-            `❌ Impossible de naviguer vers ${expectedParentPath}:`,
-            cdError.message
-          );
-          // Essayer de vérifier directement avec le chemin complet
-          try {
-            await client.cd("/");
-            await client.cd(remotePath);
-            console.log("✅ Le dossier existe bien (accessible directement)");
-            return true;
-          } catch (directError) {
-            console.error(
-              "❌ Le dossier n'est pas accessible directement:",
-              directError.message
-            );
-            return false;
-          }
         }
-      } catch (verifyError) {
+      } catch (cdError) {
         console.error(
-          "❌ Erreur lors de la vérification du dossier:",
-          verifyError.message
+          `❌ Impossible de se placer dans ${this.baseDir}:`,
+          cdError.message
         );
-        // On retourne true quand même car ensureDir n'a pas levé d'erreur
-        console.log(
-          "⚠️ Dossier probablement créé mais vérification impossible:",
-          {
-            relativePath: normalizedRelativePath,
-            remotePath,
-            fullPath: `${this.baseDir}/${normalizedRelativePath}`,
-          }
+        console.error(
+          `💡 Vérifiez que le répertoire ${this.baseDir} existe sur le serveur FTP`
         );
-        return true;
+        throw new Error(
+          `Impossible d'accéder au répertoire de base ${this.baseDir}: ${cdError.message}`
+        );
       }
+
+      // Créer le chemin segment par segment pour être sûr
+      const pathSegments = normalizedRelativePath.split("/");
+      const folderName = pathSegments[pathSegments.length - 1]; // Le dernier segment est le nom du dossier de formation
+
+      console.log(
+        `📁 Création du chemin segment par segment: ${normalizedRelativePath}`
+      );
+      console.log(`   Segments: ${pathSegments.join(" -> ")}`);
+      console.log(`   Dossier de formation à créer: "${folderName}"`);
+
+      // Naviguer dans les dossiers parents (uploads, formations) s'ils existent
+      for (let i = 0; i < pathSegments.length - 1; i++) {
+        const segment = pathSegments[i];
+        if (!segment) continue; // Ignorer les segments vides
+
+        try {
+          // Lister le contenu actuel pour voir si le dossier existe
+          const currentListing = await client.list();
+          const segmentExists = currentListing.some(
+            (item) => item.name === segment && item.isDirectory
+          );
+
+          if (segmentExists) {
+            console.log(`   ✅ Le dossier "${segment}" existe déjà`);
+            await client.cd(segment);
+            const currentPwd = await client.pwd();
+            console.log(`      On est maintenant dans: ${currentPwd}`);
+          } else {
+            // Le dossier n'existe pas, le créer
+            console.log(`   🔨 Création du dossier: ${segment}`);
+            await client.ensureDir(segment);
+            await client.cd(segment);
+            const newPwd = await client.pwd();
+            console.log(
+              `      ✅ Dossier "${segment}" créé, on est dans: ${newPwd}`
+            );
+          }
+        } catch (segmentError) {
+          console.error(
+            `   ❌ Erreur lors du traitement du segment "${segment}":`,
+            segmentError.message
+          );
+          throw new Error(
+            `Impossible de traiter le segment "${segment}" du chemin: ${segmentError.message}`
+          );
+        }
+      }
+
+      // Maintenant créer le dossier de formation (dernier segment)
+      try {
+        const finalListing = await client.list();
+        const folderExists = finalListing.some(
+          (item) => item.name === folderName && item.isDirectory
+        );
+
+        if (folderExists) {
+          console.log(
+            `   ✅ Le dossier de formation "${folderName}" existe déjà`
+          );
+          await client.cd(folderName);
+          const finalPwd = await client.pwd();
+          console.log(`      On est maintenant dans: ${finalPwd}`);
+        } else {
+          console.log(`   🔨 Création du dossier de formation: ${folderName}`);
+          await client.ensureDir(folderName);
+          await client.cd(folderName);
+          const finalPwd = await client.pwd();
+          console.log(
+            `      ✅ Dossier "${folderName}" créé, on est dans: ${finalPwd}`
+          );
+        }
+      } catch (folderError) {
+        console.error(
+          `   ❌ Erreur lors de la création du dossier de formation "${folderName}":`,
+          folderError.message
+        );
+        throw new Error(
+          `Impossible de créer le dossier de formation "${folderName}": ${folderError.message}`
+        );
+      }
+
+      // Vérification finale : on devrait être dans le dossier de formation maintenant
+      const finalPwd = await client.pwd();
+      console.log(`📂 Répertoire final: ${finalPwd}`);
+
+      // Vérifier que le chemin final correspond à ce qu'on attend
+      const expectedPath = `${this.baseDir}/${normalizedRelativePath}`;
+      const expectedPathNormalized = expectedPath.replace(/\/+/g, "/");
+
+      console.log(`🔍 Vérification finale:`);
+      console.log(`   Chemin attendu: ${expectedPathNormalized}`);
+      console.log(`   Chemin actuel: ${finalPwd}`);
+
+      // Lister le contenu pour confirmer qu'on est dans le bon dossier
+      try {
+        const finalListing = await client.list();
+        console.log(
+          `📋 Contenu du dossier de formation:`,
+          finalListing.length > 0
+            ? finalListing.map((item) => item.name).join(", ")
+            : "(vide - c'est normal pour un nouveau dossier)"
+        );
+      } catch (listError) {
+        console.warn(`⚠️ Impossible de lister le contenu:`, listError.message);
+      }
+
+      // Le dossier a été créé avec succès si on est arrivé jusqu'ici
+      console.log("✅ Dossier de formation créé et vérifié sur Hostinger:", {
+        relativePath: normalizedRelativePath,
+        remotePath,
+        fullPath: expectedPathNormalized,
+        verified: true,
+        location: finalPwd,
+      });
+
+      return true;
     } catch (error) {
       console.error("❌ Échec de la création du dossier sur Hostinger");
       console.error("   Chemin:", remotePath);
