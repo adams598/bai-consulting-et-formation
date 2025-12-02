@@ -105,39 +105,74 @@ class HostingerUploadService {
         console.warn(`⚠️ Impossible de lister la racine:`, listError.message);
       }
 
-      // Se placer dans le répertoire de base (public_html)
-      try {
-        await client.cd(this.baseDir);
-        const basePwd = await client.pwd();
-        console.log(`✅ Changé vers le répertoire de base: ${basePwd}`);
+      // Vérifier où on est et se placer dans le répertoire de base (public_html)
+      const initialPwd = await client.pwd();
+      console.log(`📂 Répertoire de travail initial: ${initialPwd}`);
 
-        // Lister le contenu de public_html pour voir ce qui existe
+      // Normaliser le chemin pour éviter les duplications
+      // Si on est déjà dans /public_html, ne pas refaire cd
+      const normalizedInitialPwd = initialPwd.replace(/\/+/g, "/");
+      const targetBaseDir = `/${this.baseDir}`;
+      let basePwd = initialPwd;
+
+      // Vérifier si on est déjà dans public_html (exactement ou comme partie du chemin)
+      if (
+        normalizedInitialPwd === targetBaseDir ||
+        normalizedInitialPwd.endsWith(`/${this.baseDir}`)
+      ) {
+        console.log(`✅ On est déjà dans le répertoire de base: ${basePwd}`);
+        // S'assurer qu'on est exactement dans /public_html
+        if (normalizedInitialPwd !== targetBaseDir) {
+          try {
+            await client.cd("/");
+            await client.cd(this.baseDir);
+            basePwd = await client.pwd();
+            console.log(
+              `✅ Repositionné dans le répertoire de base: ${basePwd}`
+            );
+          } catch (cdError) {
+            console.warn(
+              `⚠️ Impossible de repositionner, on reste dans: ${basePwd}`
+            );
+          }
+        }
+      } else {
+        // On n'est pas dans public_html, s'y placer
         try {
-          const baseListing = await client.list();
-          console.log(
-            `📋 Contenu de ${this.baseDir}:`,
-            baseListing
-              .map(
-                (item) => `${item.name}${item.isDirectory ? " (dossier)" : ""}`
-              )
-              .join(", ")
+          // D'abord aller à la racine pour éviter les chemins dupliqués
+          await client.cd("/");
+          await client.cd(this.baseDir);
+          basePwd = await client.pwd();
+          console.log(`✅ Changé vers le répertoire de base: ${basePwd}`);
+        } catch (cdError) {
+          console.error(
+            `❌ Impossible de se placer dans ${this.baseDir}:`,
+            cdError.message
           );
-        } catch (listError) {
-          console.warn(
-            `⚠️ Impossible de lister ${this.baseDir}:`,
-            listError.message
+          console.error(
+            `💡 Vérifiez que le répertoire ${this.baseDir} existe sur le serveur FTP`
+          );
+          throw new Error(
+            `Impossible d'accéder au répertoire de base ${this.baseDir}: ${cdError.message}`
           );
         }
-      } catch (cdError) {
-        console.error(
-          `❌ Impossible de se placer dans ${this.baseDir}:`,
-          cdError.message
+      }
+
+      // Lister le contenu de public_html pour voir ce qui existe
+      try {
+        const baseListing = await client.list();
+        console.log(
+          `📋 Contenu de ${this.baseDir}:`,
+          baseListing
+            .map(
+              (item) => `${item.name}${item.isDirectory ? " (dossier)" : ""}`
+            )
+            .join(", ")
         );
-        console.error(
-          `💡 Vérifiez que le répertoire ${this.baseDir} existe sur le serveur FTP`
-        );
-        throw new Error(
-          `Impossible d'accéder au répertoire de base ${this.baseDir}: ${cdError.message}`
+      } catch (listError) {
+        console.warn(
+          `⚠️ Impossible de lister ${this.baseDir}:`,
+          listError.message
         );
       }
 
@@ -205,12 +240,51 @@ class HostingerUploadService {
           console.log(`      On est maintenant dans: ${finalPwd}`);
         } else {
           console.log(`   🔨 Création du dossier de formation: ${folderName}`);
+          // ensureDir crée le dossier mais ne change pas de répertoire
           await client.ensureDir(folderName);
-          await client.cd(folderName);
-          const finalPwd = await client.pwd();
-          console.log(
-            `      ✅ Dossier "${folderName}" créé, on est dans: ${finalPwd}`
-          );
+
+          // Attendre un peu pour que le serveur FTP enregistre le changement
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          // Maintenant se placer dans le dossier créé
+          try {
+            await client.cd(folderName);
+            const finalPwd = await client.pwd();
+            console.log(
+              `      ✅ Dossier "${folderName}" créé et accessible, on est dans: ${finalPwd}`
+            );
+          } catch (cdError) {
+            // Si le cd échoue, vérifier si le dossier existe quand même
+            console.warn(
+              `      ⚠️ Impossible de se placer dans "${folderName}": ${cdError.message}`
+            );
+            console.warn(`      💡 Vérification du listing...`);
+
+            try {
+              const checkListing = await client.list();
+              const exists = checkListing.some(
+                (item) => item.name === folderName && item.isDirectory
+              );
+
+              if (exists) {
+                console.log(
+                  `      ✅ Le dossier existe dans le listing, nouvelle tentative de cd...`
+                );
+                // Réessayer le cd
+                await client.cd(folderName);
+                const finalPwd = await client.pwd();
+                console.log(`      ✅ Succès, on est dans: ${finalPwd}`);
+              } else {
+                throw new Error(
+                  `Le dossier "${folderName}" n'a pas été créé ou n'est pas accessible`
+                );
+              }
+            } catch (verifyError) {
+              throw new Error(
+                `Impossible de créer ou d'accéder au dossier "${folderName}": ${verifyError.message}`
+              );
+            }
+          }
         }
       } catch (folderError) {
         console.error(
