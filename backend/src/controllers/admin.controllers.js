@@ -1209,26 +1209,30 @@ export const formationsController = {
         });
       }
 
-      // Créer le dossier de formation sur Hostinger en production
-      if (
-        process.env.NODE_ENV === "production" &&
-        hostingerUploadService.isEnabled()
-      ) {
-        // Sanitizer le titre de la formation (même logique que dans upload.controller.js)
-        const sanitizedFormationTitle = title
-          .toLowerCase()
-          .replace(/[^a-zA-Z0-9_-]/g, "_")
-          .replace(/[_-]+/g, "_")
-          .replace(/^[_-]|[_-]$/g, "");
+      // Créer le dossier de formation sur Hostinger automatiquement
+      // Sanitizer le titre de la formation (même logique que dans upload.controller.js)
+      const sanitizedFormationTitle = title
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // Retirer les accents
+        .replace(/[^a-zA-Z0-9\s\-_]/g, "") // Préserver les underscores en plus des tirets
+        .replace(/\s+/g, "_") // Remplacer les espaces par des underscores
+        .replace(/[_-]+/g, (match) => match[0]) // Remplacer les underscores/tirets multiples par un seul
+        .replace(/^[_-]|[_-]$/g, ""); // Retirer les underscores/tirets en début/fin
 
-        const formationDirPath = `uploads/formations/${sanitizedFormationTitle}`;
+      const formationDirPath = `uploads/formations/${sanitizedFormationTitle}`;
 
+      // Vérifier si le service Hostinger est activé
+      const isHostingerEnabled = hostingerUploadService.isEnabled();
+      
+      console.log("🚀 Création d'une nouvelle formation");
+      console.log(`📝 Titre: ${title}`);
+      console.log(`📁 Nom du dossier: ${sanitizedFormationTitle}`);
+      console.log(`🔧 Service Hostinger activé: ${isHostingerEnabled}`);
+
+      if (isHostingerEnabled) {
         try {
-          console.log("🚀 Création du dossier de formation sur Hostinger...");
-          console.log(`📁 Chemin du dossier: ${formationDirPath}`);
-          console.log(
-            `🔧 Service Hostinger activé: ${hostingerUploadService.isEnabled()}`
-          );
+          console.log(`📂 Création du dossier sur Hostinger: ${formationDirPath}`);
 
           const dirCreated = await hostingerUploadService.ensureDirectory(
             formationDirPath
@@ -1240,23 +1244,37 @@ export const formationsController = {
             );
           } else {
             console.error(
-              `❌ Échec de la création du dossier sur Hostinger: ${formationDirPath}`
+              `❌ ÉCHEC de la création du dossier sur Hostinger: ${formationDirPath}`
             );
             console.error(
-              "⚠️ Vérifiez les variables d'environnement FTP (HOSTINGER_FTP_HOST, HOSTINGER_FTP_USER, HOSTINGER_FTP_PASSWORD)"
+              "⚠️ Variables d'environnement FTP requises: HOSTINGER_FTP_HOST, HOSTINGER_FTP_USER, HOSTINGER_FTP_PASSWORD"
+            );
+            console.error(
+              "⚠️ Vérifiez que ces variables sont bien configurées dans votre environnement de production"
             );
           }
         } catch (error) {
           console.error(
-            "❌ Erreur lors de la création du dossier sur Hostinger:",
-            error
+            "❌ ERREUR lors de la création du dossier sur Hostinger:"
           );
-          console.error("📋 Détails de l'erreur:", error.message);
+          console.error("📋 Message d'erreur:", error.message);
+          console.error("📋 Stack:", error.stack);
           console.error(
             "⚠️ Vérifiez les variables d'environnement FTP et la connexion au serveur Hostinger"
           );
           // Ne pas faire échouer la création de formation si l'upload FTP échoue
         }
+      } else {
+        console.warn(
+          "⚠️ Service Hostinger désactivé - Le dossier ne sera PAS créé sur Hostinger"
+        );
+        console.warn(
+          "⚠️ Pour activer le service, configurez les variables d'environnement:"
+        );
+        console.warn("   - HOSTINGER_FTP_HOST");
+        console.warn("   - HOSTINGER_FTP_USER");
+        console.warn("   - HOSTINGER_FTP_PASSWORD");
+        console.warn(`⚠️ Dossier attendu: ${formationDirPath}`);
       }
 
       // Invalider le cache des formations

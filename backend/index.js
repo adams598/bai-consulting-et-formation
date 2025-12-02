@@ -25,6 +25,7 @@ import {
   securityMonitoringMiddleware,
   loginMonitoringMiddleware,
 } from "./src/middleware/monitoring.middleware.js";
+import { hostingerUploadService } from "./src/services/hostinger-upload.service.js";
 
 dotenv.config();
 
@@ -626,6 +627,22 @@ if (!process.env.VERCEL) {
       console.log(`🔒 Serveur HTTPS démarré sur https://localhost:${port}`);
       console.log(`📜 Certificat SSL: ${process.env.SSL_CERT_PATH}`);
       console.log(`🔑 Clé SSL: ${process.env.SSL_KEY_PATH}`);
+      
+      // Vérification du service Hostinger
+      console.log("\n📦 Vérification du service Hostinger:");
+      if (hostingerUploadService.isEnabled()) {
+        console.log("✅ Service Hostinger activé - Les dossiers de formation seront créés automatiquement");
+      } else {
+        console.log("⚠️  Service Hostinger désactivé");
+        console.log("📝 Pour activer, configurez les variables d'environnement:");
+        console.log("   - HOSTINGER_FTP_HOST");
+        console.log("   - HOSTINGER_FTP_USER");
+        console.log("   - HOSTINGER_FTP_PASSWORD");
+        if (process.env.NODE_ENV === "production") {
+          console.log("⚠️  IMPORTANT: En production, ces variables sont requises pour créer les dossiers de formation sur Hostinger");
+        }
+      }
+      console.log("");
     });
   } else {
     app.listen(port, () => {
@@ -634,6 +651,22 @@ if (!process.env.VERCEL) {
         console.log("⚠️  ATTENTION: SSL non configuré en production !");
         console.log("📝 Configurez SSL_CERT_PATH et SSL_KEY_PATH dans .env");
       }
+      
+      // Vérification du service Hostinger
+      console.log("\n📦 Vérification du service Hostinger:");
+      if (hostingerUploadService.isEnabled()) {
+        console.log("✅ Service Hostinger activé - Les dossiers de formation seront créés automatiquement");
+      } else {
+        console.log("⚠️  Service Hostinger désactivé");
+        console.log("📝 Pour activer, configurez les variables d'environnement:");
+        console.log("   - HOSTINGER_FTP_HOST");
+        console.log("   - HOSTINGER_FTP_USER");
+        console.log("   - HOSTINGER_FTP_PASSWORD");
+        if (process.env.NODE_ENV === "production") {
+          console.log("⚠️  IMPORTANT: En production, ces variables sont requises pour créer les dossiers de formation sur Hostinger");
+        }
+      }
+      console.log("");
     });
   }
 }

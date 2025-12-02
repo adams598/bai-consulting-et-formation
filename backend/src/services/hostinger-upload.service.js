@@ -33,6 +33,8 @@ class HostingerUploadService {
    */
   async ensureDirectory(relativePath) {
     if (!this.enabled) {
+      console.warn("⚠️ HostingerUploadService.ensureDirectory appelé mais le service est désactivé");
+      console.warn("   Variables requises: HOSTINGER_FTP_HOST, HOSTINGER_FTP_USER, HOSTINGER_FTP_PASSWORD");
       return false;
     }
 
@@ -46,6 +48,13 @@ class HostingerUploadService {
 
     const remotePath = path.posix.join(this.baseDir, normalizedRelativePath);
 
+    console.log("🔌 Connexion FTP à Hostinger...");
+    console.log(`   Host: ${this.host}`);
+    console.log(`   User: ${this.user}`);
+    console.log(`   Base Dir: ${this.baseDir}`);
+    console.log(`   Remote Path: ${remotePath}`);
+    console.log(`   Relative Path: ${normalizedRelativePath}`);
+
     try {
       await client.access({
         host: this.host,
@@ -54,22 +63,36 @@ class HostingerUploadService {
         secure: this.secure,
       });
 
+      console.log("✅ Connexion FTP réussie");
+
+      console.log(`📁 Création du dossier: ${remotePath}`);
       await client.ensureDir(remotePath);
 
-      console.log("✅ Dossier créé sur Hostinger:", {
+      console.log("✅ Dossier créé/vérifié sur Hostinger:", {
         relativePath: normalizedRelativePath,
         remotePath,
+        fullPath: `${this.baseDir}/${normalizedRelativePath}`,
       });
 
       return true;
     } catch (error) {
-      console.error(
-        "❌ Échec de la création du dossier sur Hostinger:",
-        error.message
-      );
+      console.error("❌ Échec de la création du dossier sur Hostinger");
+      console.error("   Chemin:", remotePath);
+      console.error("   Erreur:", error.message);
+      if (error.code) {
+        console.error("   Code d'erreur:", error.code);
+      }
+      if (error.stack && process.env.NODE_ENV !== "production") {
+        console.error("   Stack:", error.stack);
+      }
       return false;
     } finally {
-      client.close();
+      try {
+        client.close();
+        console.log("🔌 Connexion FTP fermée");
+      } catch (closeError) {
+        // Ignorer les erreurs de fermeture
+      }
     }
   }
 
