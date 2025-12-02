@@ -227,39 +227,137 @@ class HostingerUploadService {
           const beforeCreatePwd = await client.pwd();
           console.log(`      📂 Répertoire avant création: ${beforeCreatePwd}`);
 
-          // ensureDir crée le dossier mais ne change pas de répertoire
+          // ensureDir crée le dossier - vérifier où on est après
           await client.ensureDir(folderName);
+
+          // Vérifier où on est après ensureDir (il peut avoir changé de répertoire)
+          const afterEnsureDirPwd = await client.pwd();
+          console.log(
+            `      📂 Répertoire après ensureDir: ${afterEnsureDirPwd}`
+          );
 
           // Attendre un peu pour que le serveur FTP enregistre le changement
           await new Promise((resolve) => setTimeout(resolve, 1000));
 
-          // Vérifier que le dossier existe dans le listing avant d'essayer d'y entrer
-          const checkListing = await client.list();
-          const exists = checkListing.some(
+          // Si on est déjà dans le dossier créé, c'est bon (ensureDir a peut-être changé de répertoire)
+          const isInFolder =
+            afterEnsureDirPwd.endsWith(`/${folderName}`) ||
+            afterEnsureDirPwd.endsWith(`\\${folderName}`) ||
+            afterEnsureDirPwd === folderName ||
+            path.posix.basename(afterEnsureDirPwd) === folderName;
+
+          if (isInFolder) {
+            console.log(
+              `      ✅ On est déjà dans le dossier "${folderName}" après ensureDir`
+            );
+            console.log(`      📂 Répertoire final: ${afterEnsureDirPwd}`);
+          } else {
+            // On est encore dans le parent, vérifier que le dossier existe dans le listing
+            const checkListing = await client.list();
+            console.log(
+              `      📋 Contenu du répertoire parent:`,
+              checkListing.map((item) => item.name).join(", ")
+            );
+
+            const exists = checkListing.some(
+              (item) => item.name === folderName && item.isDirectory
+            );
+
+            if (!exists) {
+              // Le dossier n'apparaît pas dans le listing, mais peut-être qu'il existe quand même
+              console.warn(
+                `      ⚠️ Dossier "${folderName}" non trouvé dans le listing, tentative d'accès direct...`
+              );
+              try {
+                await client.cd(folderName);
+                const testPwd = await client.pwd();
+                console.log(
+                  `      ✅ Le dossier existe et est accessible: ${testPwd}`
+                );
+              } catch (cdError) {
+                throw new Error(
+                  `Le dossier "${folderName}" n'a pas été créé ou n'est pas accessible: ${cdError.message}`
+                );
+              }
+            } else {
+              console.log(
+                `      ✅ Dossier "${folderName}" vérifié dans le listing`
+              );
+              // Maintenant se placer dans le dossier créé
+              await client.cd(folderName);
+              const afterCdPwd = await client.pwd();
+              console.log(
+                `      ✅ Dossier "${folderName}" créé et accessible`
+              );
+              console.log(`      📂 On est maintenant dans: ${afterCdPwd}`);
+            }
+          }
+
+          // Vérifier le répertoire final
+          const finalPwd = await client.pwd();
+          console.log(`      📂 Répertoire final: ${finalPwd}`);
+
+          // Vérifier qu'on n'a pas de duplication
+          if (finalPwd.includes(`/${this.baseDir}/${this.baseDir}`)) {
+            console.error(`      ❌ Chemin dupliqué détecté: ${finalPwd}`);
+            throw new Error(`Chemin dupliqué détecté dans le répertoire final`);
+          }
+
+          // VÉRIFICATION FINALE : Remonter d'un niveau et lister pour confirmer que le dossier existe
+          console.log(
+            `      🔍 Vérification finale : remontée au répertoire parent...`
+          );
+          await client.cd("..");
+          const parentPwd = await client.pwd();
+          console.log(`      📂 Répertoire parent: ${parentPwd}`);
+
+          const finalListing = await client.list();
+          console.log(
+            `      📋 Contenu du répertoire parent:`,
+            finalListing
+              .map(
+                (item) => `${item.name}${item.isDirectory ? " (dossier)" : ""}`
+              )
+              .join(", ")
+          );
+
+          const folderExistsInParent = finalListing.some(
             (item) => item.name === folderName && item.isDirectory
           );
 
-          if (!exists) {
+          if (!folderExistsInParent) {
+            console.error(
+              `      ❌ Le dossier "${folderName}" n'existe PAS dans le répertoire parent !`
+            );
+            console.error(
+              `      📂 Chemin attendu: ${parentPwd}/${folderName}`
+            );
             throw new Error(
-              `Le dossier "${folderName}" n'apparaît pas dans le listing après création`
+              `Le dossier "${folderName}" n'a pas été créé correctement dans ${parentPwd}`
             );
           }
 
           console.log(
-            `      ✅ Dossier "${folderName}" vérifié dans le listing`
+            `      ✅ VÉRIFICATION FINALE RÉUSSIE : Le dossier "${folderName}" existe bien dans ${parentPwd}`
           );
 
-          // Maintenant se placer dans le dossier créé (une seule fois)
-          await client.cd(folderName);
-          const afterCdPwd = await client.pwd();
-          console.log(`      ✅ Dossier "${folderName}" créé et accessible`);
-          console.log(`      📂 On est maintenant dans: ${afterCdPwd}`);
+          // Afficher le chemin complet où le dossier a été créé
+          const fullPath = `${parentPwd}/${folderName}`;
+          console.log(`      📍 CHEMIN COMPLET DU DOSSIER CRÉÉ: ${fullPath}`);
+          console.log(
+            `      📍 Chemin relatif depuis ${this.baseDir}: ${normalizedRelativePath}`
+          );
 
-          // Vérifier qu'on n'a pas de duplication
-          if (afterCdPwd.includes(`/${this.baseDir}/${this.baseDir}`)) {
-            console.error(`      ❌ Chemin dupliqué détecté: ${afterCdPwd}`);
-            throw new Error(`Chemin dupliqué détecté dans le répertoire final`);
+          // Vérifier que le chemin est correct (pas de duplication)
+          const expectedPath = `/${this.baseDir}/${normalizedRelativePath}`;
+          if (fullPath !== expectedPath && !fullPath.endsWith(expectedPath)) {
+            console.warn(
+              `      ⚠️ ATTENTION: Le chemin créé (${fullPath}) ne correspond pas exactement au chemin attendu (${expectedPath})`
+            );
           }
+
+          // Revenir dans le dossier pour la suite
+          await client.cd(folderName);
         }
       } catch (folderError) {
         console.error(
