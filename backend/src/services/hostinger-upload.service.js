@@ -227,17 +227,86 @@ class HostingerUploadService {
           const beforeCreatePwd = await client.pwd();
           console.log(`      📂 Répertoire avant création: ${beforeCreatePwd}`);
 
-          // ensureDir crée le dossier - vérifier où on est après
-          await client.ensureDir(folderName);
+          // Utiliser MKD directement pour être sûr que le dossier est créé
+          try {
+            // Vérifier d'abord si le dossier existe déjà
+            const listingBefore = await client.list();
+            const alreadyExists = listingBefore.some(
+              (item) => item.name === folderName && item.isDirectory
+            );
 
-          // Vérifier où on est après ensureDir (il peut avoir changé de répertoire)
-          const afterEnsureDirPwd = await client.pwd();
-          console.log(
-            `      📂 Répertoire après ensureDir: ${afterEnsureDirPwd}`
-          );
+            if (alreadyExists) {
+              console.log(`      ✅ Le dossier "${folderName}" existe déjà`);
+              await client.cd(folderName);
+            } else {
+              // Créer le dossier avec ensureDir (qui utilise MKD en interne)
+              console.log(`      🔨 Création du dossier: ${folderName}`);
+              await client.ensureDir(folderName);
 
-          // Attendre un peu pour que le serveur FTP enregistre le changement
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+              // Attendre que le serveur enregistre
+              await new Promise((resolve) => setTimeout(resolve, 2000));
+
+              // Vérifier que le dossier existe maintenant
+              let verified = false;
+              for (let attempt = 0; attempt < 5; attempt++) {
+                const listingAfter = await client.list();
+                const exists = listingAfter.some(
+                  (item) => item.name === folderName && item.isDirectory
+                );
+
+                if (exists) {
+                  console.log(
+                    `      ✅ Dossier "${folderName}" vérifié dans le listing (tentative ${
+                      attempt + 1
+                    })`
+                  );
+                  verified = true;
+                  break;
+                } else {
+                  console.log(
+                    `      ⏳ Tentative ${
+                      attempt + 1
+                    }/5 : dossier non trouvé, attente...`
+                  );
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+                }
+              }
+
+              if (!verified) {
+                throw new Error(
+                  `Le dossier "${folderName}" n'apparaît pas dans le listing après création`
+                );
+              }
+
+              // Entrer dans le dossier
+              await client.cd(folderName);
+            }
+          } catch (mkdError) {
+            // Si MKD échoue, essayer avec ensureDir en fallback
+            console.warn(
+              `      ⚠️ MKD échoué, tentative avec ensureDir: ${mkdError.message}`
+            );
+            await client.ensureDir(folderName);
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+
+            // Vérifier avec ensureDir aussi
+            const listingAfter = await client.list();
+            const exists = listingAfter.some(
+              (item) => item.name === folderName && item.isDirectory
+            );
+
+            if (!exists) {
+              throw new Error(
+                `Le dossier "${folderName}" n'a pas été créé (ni avec MKD ni avec ensureDir)`
+              );
+            }
+
+            await client.cd(folderName);
+          }
+
+          // Vérifier où on est après création
+          const afterCreatePwd = await client.pwd();
+          console.log(`      📂 Répertoire après création: ${afterCreatePwd}`);
 
           // Si on est déjà dans le dossier créé, c'est bon (ensureDir a peut-être changé de répertoire)
           const isInFolder =
