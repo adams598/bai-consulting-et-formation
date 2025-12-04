@@ -28,6 +28,10 @@ class CloudinaryService {
     return this.enabled;
   }
 
+  getCloudName() {
+    return this.cloudName;
+  }
+
   /**
    * Sanitize un titre pour créer un public_id valide
    */
@@ -67,9 +71,12 @@ class CloudinaryService {
 
       const uploadOptions = {
         resource_type: "video",
-        public_id: publicId,
+        public_id: publicId, // Structure: formations/{formation}/lessons/{lesson}/video
         overwrite: true,
         invalidate: true,
+        // Cloudinary créera automatiquement la structure de dossiers basée sur le public_id
+        // Le fichier sera accessible via l'URL avec l'extension .mp4
+        format: "mp4", // Forcer le format MP4
         // Optimisations vidéo
         eager: [
           {
@@ -82,7 +89,7 @@ class CloudinaryService {
         transformation: [
           {
             quality: "auto",
-            fetch_format: "auto",
+            fetch_format: "mp4", // Forcer MP4 dans l'URL générée
           },
         ],
       };

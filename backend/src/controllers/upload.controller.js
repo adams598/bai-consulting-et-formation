@@ -898,9 +898,20 @@ export const uploadController = {
       if (isVideo && isCloudinaryEnabled) {
         console.log("☁️ Upload de la vidéo de leçon vers Cloudinary...");
 
-        const publicId = `formations/${cloudinaryService.sanitizePublicId(
-          formationTitle
-        )}/lessons/${cloudinaryService.sanitizePublicId(lessonTitle)}/video`;
+        const sanitizedFormationTitle =
+          cloudinaryService.sanitizePublicId(formationTitle);
+        const sanitizedLessonTitle =
+          cloudinaryService.sanitizePublicId(lessonTitle);
+
+        // Public ID avec la structure de dossiers : formations/{formation}/lessons/{lesson}/video
+        // Cloudinary créera automatiquement cette structure de dossiers
+        // Le fichier sera accessible via : https://res.cloudinary.com/{cloud_name}/video/upload/formations/{formation}/lessons/{lesson}/video.mp4
+        const publicId = `formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/video`;
+
+        console.log(`📁 Structure de dossiers Cloudinary: ${publicId}`);
+        console.log(`   Formation: ${sanitizedFormationTitle}`);
+        console.log(`   Leçon: ${sanitizedLessonTitle}`);
+        console.log(`   Fichier: video.mp4`);
 
         cloudinaryResult = await cloudinaryService.uploadVideo(
           finalFilePath,
@@ -921,8 +932,20 @@ export const uploadController = {
         );
 
         if (cloudinaryResult && cloudinaryResult.secure_url) {
-          // IMPORTANT: Utiliser l'URL Cloudinary comme fileUrl
-          fileUrl = cloudinaryResult.secure_url;
+          // Construire l'URL au format exact demandé
+          // Format: https://res.cloudinary.com/{cloud_name}/video/upload/formations/{formation}/lessons/{lesson}/video.mp4
+          // Cloudinary a créé automatiquement la structure de dossiers basée sur le public_id
+          const cloudName = cloudinaryService.getCloudName();
+          fileUrl = `https://res.cloudinary.com/${cloudName}/video/upload/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/video.mp4`;
+          console.log(`🔗 URL Cloudinary construite: ${fileUrl}`);
+          console.log(
+            `📁 Structure de dossiers créée automatiquement dans Cloudinary:`
+          );
+          console.log(`   formations/${sanitizedFormationTitle}/`);
+          console.log(
+            `   formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/`
+          );
+          console.log(`   Fichier: video.mp4`);
           console.log("✅ Vidéo de leçon uploadée avec succès sur Cloudinary");
           console.log("📹 URL Cloudinary complète de la vidéo:");
           console.log(`   Formation: ${formationTitle}`);
