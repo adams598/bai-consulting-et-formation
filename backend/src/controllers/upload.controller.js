@@ -886,8 +886,16 @@ export const uploadController = {
       let fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${finalFilename}`;
       let cloudinaryResult = null;
 
+      // Vérifier si Cloudinary est activé
+      const isCloudinaryEnabled = cloudinaryService.isEnabled();
+      console.log("🔍 Vérification Cloudinary:", {
+        isVideo,
+        isCloudinaryEnabled,
+        willUploadToCloudinary: isVideo && isCloudinaryEnabled,
+      });
+
       // Si c'est une vidéo, utiliser Cloudinary
-      if (isVideo && cloudinaryService.isEnabled()) {
+      if (isVideo && isCloudinaryEnabled) {
         console.log("☁️ Upload de la vidéo de leçon vers Cloudinary...");
 
         const publicId = `formations/${cloudinaryService.sanitizePublicId(
@@ -913,6 +921,7 @@ export const uploadController = {
         );
 
         if (cloudinaryResult && cloudinaryResult.secure_url) {
+          // IMPORTANT: Utiliser l'URL Cloudinary comme fileUrl
           fileUrl = cloudinaryResult.secure_url;
           console.log("✅ Vidéo de leçon uploadée avec succès sur Cloudinary");
           console.log("📹 URL Cloudinary complète de la vidéo:");
@@ -920,6 +929,9 @@ export const uploadController = {
           console.log(`   Leçon: ${lessonTitle}`);
           console.log(`   Public ID: ${cloudinaryResult.public_id}`);
           console.log(`   URL complète: ${cloudinaryResult.secure_url}`);
+          console.log(
+            `   ✅ fileUrl mis à jour avec l'URL Cloudinary: ${fileUrl}`
+          );
           console.log(
             `   Durée: ${
               cloudinaryResult.duration
@@ -951,7 +963,12 @@ export const uploadController = {
           console.warn(
             "⚠️ Upload Cloudinary échoué, utilisation du stockage local"
           );
+          console.warn("⚠️ cloudinaryResult:", cloudinaryResult);
         }
+      } else if (isVideo && !isCloudinaryEnabled) {
+        console.warn("⚠️ Vidéo détectée mais Cloudinary n'est pas activé");
+        console.warn("⚠️ Variables Cloudinary manquantes ou incorrectes");
+        console.warn("⚠️ La vidéo sera stockée localement");
       }
 
       console.log("🔍 Type de contenu détecté:", {
@@ -981,10 +998,11 @@ export const uploadController = {
             where: { id: lesson.id },
             data: {
               type: contentType,
-              fileUrl: fileUrl,
+              fileUrl: fileUrl, // URL Cloudinary si upload réussi, sinon chemin local
             },
           });
           console.log(`✅ Type de leçon mis à jour en base: ${contentType}`);
+          console.log(`✅ fileUrl sauvegardé en base de données: ${fileUrl}`);
         } else {
           console.log("⚠️ Leçon non trouvée en base pour mise à jour du type");
         }
@@ -999,19 +1017,23 @@ export const uploadController = {
       console.log("📎 Fichier joint de leçon uploadé avec succès:", {
         originalFilename: filename,
         finalFilename: finalFilename,
-        filePath: finalFilePath,
+        filePath: cloudinaryResult ? "Cloudinary" : finalFilePath,
         mimetype,
         size,
-        fileUrl,
+        fileUrl, // URL Cloudinary si upload réussi, sinon chemin local
         formationTitle,
         lessonTitle,
         lessonPath,
+        cloudinaryUploaded: cloudinaryResult ? true : false,
       });
+
+      // IMPORTANT: S'assurer que fileUrl contient l'URL Cloudinary si l'upload a réussi
+      const responseFileUrl = cloudinaryResult?.secure_url || fileUrl;
 
       res.json({
         success: true,
         data: {
-          fileUrl,
+          fileUrl: responseFileUrl, // URL Cloudinary prioritaire
           fileId: cloudinaryResult?.public_id || finalFilename,
           filename: finalFilename,
           size,
@@ -1024,10 +1046,13 @@ export const uploadController = {
                 duration: cloudinaryResult.duration,
                 width: cloudinaryResult.width,
                 height: cloudinaryResult.height,
+                secure_url: cloudinaryResult.secure_url,
               }
             : null,
         },
-        message: "Fichier joint uploadé avec succès",
+        message: cloudinaryResult
+          ? "Fichier joint uploadé avec succès sur Cloudinary"
+          : "Fichier joint uploadé avec succès",
       });
     } catch (error) {
       console.error("❌ Erreur uploadLessonFile:", error);
