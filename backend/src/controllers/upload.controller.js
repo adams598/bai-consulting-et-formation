@@ -1050,33 +1050,61 @@ export const uploadController = {
         cloudinaryUploaded: cloudinaryResult ? true : false,
       });
 
-      // IMPORTANT: S'assurer que fileUrl contient l'URL Cloudinary si l'upload a réussi
-      const responseFileUrl = cloudinaryResult?.secure_url || fileUrl;
+      // IMPORTANT: Utiliser fileUrl qui contient déjà l'URL Cloudinary construite si l'upload a réussi
+      // fileUrl contient soit l'URL Cloudinary (si upload réussi), soit le chemin local (si échec)
+      
+      // S'assurer que fileUrl est toujours défini
+      if (!fileUrl) {
+        console.error("❌ fileUrl est undefined, utilisation du chemin par défaut");
+        fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${finalFilename}`;
+      }
 
-      res.json({
+      // Préparer la réponse avec toutes les valeurs nécessaires
+      const responseData = {
         success: true,
         data: {
-          fileUrl: responseFileUrl, // URL Cloudinary prioritaire
+          fileUrl: fileUrl, // URL Cloudinary si upload réussi, sinon chemin local
           fileId: cloudinaryResult?.public_id || finalFilename,
           filename: finalFilename,
-          size,
-          mimetype: detectedMimeType,
-          contentType: contentType,
-          lessonPath,
+          size: size || 0,
+          mimetype: detectedMimeType || mimetype,
+          contentType: contentType || detectedMimeType || "video",
+          lessonPath: lessonPath || `uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}`,
           cloudinary: cloudinaryResult
             ? {
-                public_id: cloudinaryResult.public_id,
-                duration: cloudinaryResult.duration,
-                width: cloudinaryResult.width,
-                height: cloudinaryResult.height,
-                secure_url: cloudinaryResult.secure_url,
+                public_id: cloudinaryResult.public_id || "",
+                duration: cloudinaryResult.duration || 0,
+                width: cloudinaryResult.width || 0,
+                height: cloudinaryResult.height || 0,
+                secure_url: cloudinaryResult.secure_url || fileUrl,
               }
             : null,
         },
         message: cloudinaryResult
           ? "Fichier joint uploadé avec succès sur Cloudinary"
           : "Fichier joint uploadé avec succès",
+      };
+
+      console.log("📤 Envoi de la réponse:", {
+        success: responseData.success,
+        fileUrl: responseData.data.fileUrl,
+        hasCloudinary: !!responseData.data.cloudinary,
       });
+
+      // S'assurer que la réponse est toujours envoyée, même si la mise à jour de la base a échoué
+      try {
+        res.json(responseData);
+        console.log("✅ Réponse envoyée avec succès");
+      } catch (responseError) {
+        console.error("❌ Erreur lors de l'envoi de la réponse:", responseError);
+        // Si la réponse a déjà été envoyée, ne rien faire
+        if (!res.headersSent) {
+          res.status(500).json({
+            success: false,
+            message: "Erreur lors de l'envoi de la réponse",
+          });
+        }
+      }
     } catch (error) {
       console.error("❌ Erreur uploadLessonFile:", error);
       res.status(500).json({
