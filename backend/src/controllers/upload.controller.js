@@ -1004,8 +1004,13 @@ export const uploadController = {
         cloudinary: cloudinaryResult ? true : false,
       });
 
-      // Mettre à jour le type de la leçon en base de données
+      // Mettre à jour le type et le fileUrl de la leçon en base de données
       try {
+        console.log("🔍 Recherche de la leçon en base de données:", {
+          lessonTitle,
+          formationTitle,
+        });
+
         const lesson = await prisma.formationContent.findFirst({
           where: {
             title: lessonTitle,
@@ -1017,6 +1022,13 @@ export const uploadController = {
         });
 
         if (lesson) {
+          console.log("✅ Leçon trouvée en base:", {
+            id: lesson.id,
+            title: lesson.title,
+            currentFileUrl: lesson.fileUrl,
+            newFileUrl: fileUrl,
+          });
+
           await prisma.formationContent.update({
             where: { id: lesson.id },
             data: {
@@ -1026,14 +1038,22 @@ export const uploadController = {
           });
           console.log(`✅ Type de leçon mis à jour en base: ${contentType}`);
           console.log(`✅ fileUrl sauvegardé en base de données: ${fileUrl}`);
+          console.log(`   Ancien fileUrl: ${lesson.fileUrl || "Aucun"}`);
+          console.log(`   Nouveau fileUrl: ${fileUrl}`);
         } else {
-          console.log("⚠️ Leçon non trouvée en base pour mise à jour du type");
+          console.log("⚠️ Leçon non trouvée en base pour mise à jour");
+          console.log("   Critères de recherche:", {
+            lessonTitle,
+            formationTitle,
+            contentType: "LESSON",
+          });
+          console.log(
+            "   💡 La leçon doit être créée avant d'uploader un fichier"
+          );
         }
       } catch (dbError) {
-        console.error(
-          "❌ Erreur lors de la mise à jour du type de leçon:",
-          dbError
-        );
+        console.error("❌ Erreur lors de la mise à jour de la leçon:", dbError);
+        console.error("   Stack:", dbError.stack);
         // Ne pas faire échouer l'upload pour une erreur de base de données
       }
 
@@ -1052,10 +1072,12 @@ export const uploadController = {
 
       // IMPORTANT: Utiliser fileUrl qui contient déjà l'URL Cloudinary construite si l'upload a réussi
       // fileUrl contient soit l'URL Cloudinary (si upload réussi), soit le chemin local (si échec)
-      
+
       // S'assurer que fileUrl est toujours défini
       if (!fileUrl) {
-        console.error("❌ fileUrl est undefined, utilisation du chemin par défaut");
+        console.error(
+          "❌ fileUrl est undefined, utilisation du chemin par défaut"
+        );
         fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${finalFilename}`;
       }
 
@@ -1069,7 +1091,9 @@ export const uploadController = {
           size: size || 0,
           mimetype: detectedMimeType || mimetype,
           contentType: contentType || detectedMimeType || "video",
-          lessonPath: lessonPath || `uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}`,
+          lessonPath:
+            lessonPath ||
+            `uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}`,
           cloudinary: cloudinaryResult
             ? {
                 public_id: cloudinaryResult.public_id || "",
@@ -1096,7 +1120,10 @@ export const uploadController = {
         res.json(responseData);
         console.log("✅ Réponse envoyée avec succès");
       } catch (responseError) {
-        console.error("❌ Erreur lors de l'envoi de la réponse:", responseError);
+        console.error(
+          "❌ Erreur lors de l'envoi de la réponse:",
+          responseError
+        );
         // Si la réponse a déjà été envoyée, ne rien faire
         if (!res.headersSent) {
           res.status(500).json({
