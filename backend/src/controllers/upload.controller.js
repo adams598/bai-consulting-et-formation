@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import fs from "fs";
 import path from "path";
-import { hostingerUploadService } from "../services/hostinger-upload.service.js";
+import { cloudinaryService } from "../services/cloudinary.service.js";
 
 const prisma = new PrismaClient();
 
@@ -337,44 +337,139 @@ export const uploadController = {
         });
       }
 
-      // Déterminer le dossier de destination
-      let folderName, videoUrl;
+      // Upload vers Cloudinary si activé, sinon stockage local
+      let videoUrl;
+      let cloudinaryResult = null;
 
-      if (formationTitle) {
-        // Si un titre de formation est fourni, utiliser la structure formations
-        const sanitizedTitle = sanitizeTitle(formationTitle);
-        folderName = `formations/${sanitizedTitle}`;
-        videoUrl = `/uploads/${folderName}/video-${sanitizedTitle}.mp4`;
-      } else {
-        // Sinon, utiliser la structure utilisateur classique
-        const userFolderName = `${user.firstName}_${user.lastName}`.replace(
-          /[^a-zA-Z0-9_-]/g,
-          "_"
+      if (cloudinaryService.isEnabled()) {
+        console.log("☁️ Upload de la vidéo vers Cloudinary...");
+
+        // Construire le public_id pour Cloudinary
+        let publicId;
+        if (formationTitle) {
+          const sanitizedTitle =
+            cloudinaryService.sanitizePublicId(formationTitle);
+          publicId = `formations/${sanitizedTitle}/video`;
+        } else {
+          const userFolderName = `${user.firstName}_${user.lastName}`.replace(
+            /[^a-zA-Z0-9_-]/g,
+            "_"
+          );
+          publicId = `videos/${userFolderName}/${path.parse(filename).name}`;
+        }
+
+        // Upload vers Cloudinary
+        cloudinaryResult = await cloudinaryService.uploadVideo(
+          filePath,
+          publicId,
+          {
+            tags: formationTitle
+              ? [`formation-${formationTitle}`, "video"]
+              : ["video"],
+            context: {
+              formation: formationTitle || "",
+              uploaded_by: `${user.firstName} ${user.lastName}`,
+              uploaded_at: new Date().toISOString(),
+            },
+          }
         );
-        folderName = `videos/${userFolderName}`;
-        videoUrl = `/uploads/${folderName}/${filename}`;
+
+        if (cloudinaryResult && cloudinaryResult.secure_url) {
+          videoUrl = cloudinaryResult.secure_url;
+          console.log("✅ Vidéo uploadée avec succès sur Cloudinary");
+          console.log("📹 URL Cloudinary complète de la vidéo:");
+          if (formationTitle) {
+            console.log(`   Formation: ${formationTitle}`);
+          } else {
+            console.log(`   Utilisateur: ${user.firstName} ${user.lastName}`);
+          }
+          console.log(`   Public ID: ${cloudinaryResult.public_id}`);
+          console.log(`   URL complète: ${cloudinaryResult.secure_url}`);
+          console.log(
+            `   Durée: ${
+              cloudinaryResult.duration
+                ? `${Math.floor(cloudinaryResult.duration)}s`
+                : "N/A"
+            }`
+          );
+          console.log(
+            `   Résolution: ${cloudinaryResult.width}x${cloudinaryResult.height}`
+          );
+          console.log(
+            `   Taille: ${
+              cloudinaryResult.bytes
+                ? `${(cloudinaryResult.bytes / 1024 / 1024).toFixed(2)} MB`
+                : "N/A"
+            }`
+          );
+
+          // Supprimer le fichier local après upload réussi
+          try {
+            fs.unlinkSync(filePath);
+            console.log(`🗑️ Fichier local supprimé: ${filePath}`);
+          } catch (deleteError) {
+            console.warn(
+              `⚠️ Impossible de supprimer le fichier local: ${deleteError.message}`
+            );
+          }
+        } else {
+          console.warn(
+            "⚠️ Upload Cloudinary échoué, utilisation du stockage local"
+          );
+          // Fallback vers stockage local
+          if (formationTitle) {
+            const sanitizedTitle = sanitizeTitle(formationTitle);
+            videoUrl = `/uploads/formations/${sanitizedTitle}/video-${sanitizedTitle}.mp4`;
+          } else {
+            const userFolderName = `${user.firstName}_${user.lastName}`.replace(
+              /[^a-zA-Z0-9_-]/g,
+              "_"
+            );
+            videoUrl = `/uploads/videos/${userFolderName}/${filename}`;
+          }
+        }
+      } else {
+        // Stockage local si Cloudinary n'est pas activé
+        console.log("📁 Stockage local de la vidéo (Cloudinary non activé)");
+        if (formationTitle) {
+          const sanitizedTitle = sanitizeTitle(formationTitle);
+          videoUrl = `/uploads/formations/${sanitizedTitle}/video-${sanitizedTitle}.mp4`;
+        } else {
+          const userFolderName = `${user.firstName}_${user.lastName}`.replace(
+            /[^a-zA-Z0-9_-]/g,
+            "_"
+          );
+          videoUrl = `/uploads/videos/${userFolderName}/${filename}`;
+        }
       }
 
       console.log("🎥 Vidéo uploadée avec succès:", {
         filename,
-        filePath,
+        filePath: cloudinaryResult ? "Cloudinary" : filePath,
         mimetype,
         size,
         videoUrl,
         formationTitle,
         user: `${user.firstName} ${user.lastName}`,
-        folder: folderName,
+        cloudinary: cloudinaryResult ? true : false,
       });
 
       res.json({
         success: true,
         data: {
           videoUrl,
-          videoId: filename,
+          videoId: cloudinaryResult?.public_id || filename,
           filename,
           size,
           mimetype,
-          folder: folderName,
+          cloudinary: cloudinaryResult
+            ? {
+                public_id: cloudinaryResult.public_id,
+                duration: cloudinaryResult.duration,
+                width: cloudinaryResult.width,
+                height: cloudinaryResult.height,
+              }
+            : null,
         },
         message: "Vidéo uploadée avec succès",
       });
@@ -780,95 +875,84 @@ export const uploadController = {
         throw new Error("Fichier temporaire introuvable");
       }
 
-      // Upload automatique sur Hostinger en production uniquement
-      let fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${finalFilename}`;
-
-      // En production, uploader automatiquement sur Hostinger
-      if (
-        process.env.NODE_ENV === "production" &&
-        hostingerUploadService.isEnabled()
-      ) {
-        // S'assurer que le dossier de formation existe sur Hostinger
-        const formationDirPath = `uploads/formations/${sanitizedFormationTitle}`;
-        try {
-          const formationDirCreated =
-            await hostingerUploadService.ensureDirectory(formationDirPath);
-          if (formationDirCreated) {
-            console.log(
-              `✅ Dossier de formation créé/vérifié sur Hostinger: ${formationDirPath}`
-            );
-          }
-        } catch (dirError) {
-          console.error(
-            "❌ Erreur lors de la création du dossier de formation:",
-            dirError
-          );
-        }
-
-        // S'assurer que le dossier de leçon existe sur Hostinger
-        const lessonDirPath = `uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}`;
-        try {
-          const lessonDirCreated = await hostingerUploadService.ensureDirectory(
-            lessonDirPath
-          );
-          if (lessonDirCreated) {
-            console.log(
-              `✅ Dossier de leçon créé/vérifié sur Hostinger: ${lessonDirPath}`
-            );
-          }
-        } catch (dirError) {
-          console.error(
-            "❌ Erreur lors de la création du dossier de leçon:",
-            dirError
-          );
-        }
-
-        const remoteRelativePath = path.posix.join(
-          "uploads",
-          "formations",
-          sanitizedFormationTitle,
-          "lessons",
-          sanitizedLessonTitle,
-          finalFilename
-        );
-
-        try {
-          console.log("🚀 Upload automatique sur Hostinger en cours...");
-          const remoteUrl = await hostingerUploadService.upload(
-            finalFilePath,
-            remoteRelativePath
-          );
-
-          if (remoteUrl) {
-            fileUrl = remoteUrl;
-            console.log(
-              "✅ Fichier uploadé sur Hostinger avec succès:",
-              remoteUrl
-            );
-          } else {
-            console.warn(
-              "⚠️ Upload Hostinger retourné null, utilisation de l'URL locale"
-            );
-          }
-        } catch (hostingerError) {
-          console.error("❌ Upload Hostinger échoué:", hostingerError);
-          // En cas d'erreur, on continue avec l'URL locale
-          console.warn("⚠️ Utilisation de l'URL locale en cas d'erreur FTP");
-        }
-      } else {
-        if (process.env.NODE_ENV !== "production") {
-          console.log("ℹ️ Mode développement : upload Hostinger ignoré");
-        } else if (!hostingerUploadService.isEnabled()) {
-          console.warn(
-            "⚠️ Service Hostinger désactivé : variables FTP manquantes"
-          );
-        }
-      }
-
       // Déterminer le type de contenu basé sur le MIME type et l'extension
       // Utiliser le nom original pour détecter le type, mais le fichier final est video.mp4
       const detectedMimeType = getMimeType(filename);
       const contentType = getContentTypeFromMime(detectedMimeType, filename);
+      const isVideo =
+        detectedMimeType === "video" || mimetype.startsWith("video/");
+
+      // Upload vers Cloudinary si activé (pour les vidéos), sinon stockage local
+      let fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${finalFilename}`;
+      let cloudinaryResult = null;
+
+      // Si c'est une vidéo, utiliser Cloudinary
+      if (isVideo && cloudinaryService.isEnabled()) {
+        console.log("☁️ Upload de la vidéo de leçon vers Cloudinary...");
+
+        const publicId = `formations/${cloudinaryService.sanitizePublicId(
+          formationTitle
+        )}/lessons/${cloudinaryService.sanitizePublicId(lessonTitle)}/video`;
+
+        cloudinaryResult = await cloudinaryService.uploadVideo(
+          finalFilePath,
+          publicId,
+          {
+            tags: [
+              `formation-${formationTitle}`,
+              `lesson-${lessonTitle}`,
+              "video",
+              "lesson-video",
+            ],
+            context: {
+              formation: formationTitle,
+              lesson: lessonTitle,
+              uploaded_at: new Date().toISOString(),
+            },
+          }
+        );
+
+        if (cloudinaryResult && cloudinaryResult.secure_url) {
+          fileUrl = cloudinaryResult.secure_url;
+          console.log("✅ Vidéo de leçon uploadée avec succès sur Cloudinary");
+          console.log("📹 URL Cloudinary complète de la vidéo:");
+          console.log(`   Formation: ${formationTitle}`);
+          console.log(`   Leçon: ${lessonTitle}`);
+          console.log(`   Public ID: ${cloudinaryResult.public_id}`);
+          console.log(`   URL complète: ${cloudinaryResult.secure_url}`);
+          console.log(
+            `   Durée: ${
+              cloudinaryResult.duration
+                ? `${Math.floor(cloudinaryResult.duration)}s`
+                : "N/A"
+            }`
+          );
+          console.log(
+            `   Résolution: ${cloudinaryResult.width}x${cloudinaryResult.height}`
+          );
+          console.log(
+            `   Taille: ${
+              cloudinaryResult.bytes
+                ? `${(cloudinaryResult.bytes / 1024 / 1024).toFixed(2)} MB`
+                : "N/A"
+            }`
+          );
+
+          // Supprimer le fichier local après upload réussi
+          try {
+            fs.unlinkSync(finalFilePath);
+            console.log(`🗑️ Fichier local supprimé: ${finalFilePath}`);
+          } catch (deleteError) {
+            console.warn(
+              `⚠️ Impossible de supprimer le fichier local: ${deleteError.message}`
+            );
+          }
+        } else {
+          console.warn(
+            "⚠️ Upload Cloudinary échoué, utilisation du stockage local"
+          );
+        }
+      }
 
       console.log("🔍 Type de contenu détecté:", {
         originalFilename: filename,
@@ -876,6 +960,8 @@ export const uploadController = {
         detectedMimeType,
         contentType,
         originalMimeType: mimetype,
+        isVideo,
+        cloudinary: cloudinaryResult ? true : false,
       });
 
       // Mettre à jour le type de la leçon en base de données
@@ -926,12 +1012,20 @@ export const uploadController = {
         success: true,
         data: {
           fileUrl,
-          fileId: finalFilename,
+          fileId: cloudinaryResult?.public_id || finalFilename,
           filename: finalFilename,
           size,
           mimetype: detectedMimeType,
           contentType: contentType,
           lessonPath,
+          cloudinary: cloudinaryResult
+            ? {
+                public_id: cloudinaryResult.public_id,
+                duration: cloudinaryResult.duration,
+                width: cloudinaryResult.width,
+                height: cloudinaryResult.height,
+              }
+            : null,
         },
         message: "Fichier joint uploadé avec succès",
       });

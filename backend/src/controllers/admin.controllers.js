@@ -4,7 +4,6 @@ import { PrismaClient } from "@prisma/client";
 import { generatePassword } from "../utils/password.js";
 import { sendEmail } from "../services/email.service.js";
 import progressService from "../services/progress.service.js";
-import { hostingerUploadService } from "../services/hostinger-upload.service.js";
 
 const prisma = new PrismaClient();
 
@@ -115,9 +114,28 @@ export const authController = {
       });
     } catch (error) {
       console.error("Erreur de connexion:", error);
+
+      // Vérifier si c'est une erreur de connexion à la base de données
+      if (
+        error.code === "P1001" ||
+        error.message?.includes("Can't reach database server") ||
+        error.message?.includes("database server")
+      ) {
+        console.error("❌ Erreur de connexion à la base de données");
+        return res.status(503).json({
+          success: false,
+          message:
+            "Service de base de données indisponible. Veuillez vérifier votre connexion à la base de données.",
+          error:
+            process.env.NODE_ENV === "development" ? error.message : undefined,
+        });
+      }
+
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
+        error:
+          process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   },
@@ -1220,62 +1238,10 @@ export const formationsController = {
         .replace(/[_-]+/g, (match) => match[0]) // Remplacer les underscores/tirets multiples par un seul
         .replace(/^[_-]|[_-]$/g, ""); // Retirer les underscores/tirets en début/fin
 
-      const formationDirPath = `uploads/formations/${sanitizedFormationTitle}`;
-
-      // Vérifier si le service Hostinger est activé
-      const isHostingerEnabled = hostingerUploadService.isEnabled();
-      
       console.log("🚀 Création d'une nouvelle formation");
       console.log(`📝 Titre: ${title}`);
       console.log(`📁 Nom du dossier: ${sanitizedFormationTitle}`);
-      console.log(`🔧 Service Hostinger activé: ${isHostingerEnabled}`);
-
-      if (isHostingerEnabled) {
-        try {
-          console.log(`📂 Création du dossier sur Hostinger: ${formationDirPath}`);
-
-          const dirCreated = await hostingerUploadService.ensureDirectory(
-            formationDirPath
-          );
-
-          if (dirCreated) {
-            console.log(
-              `✅ Dossier de formation créé/vérifié sur Hostinger: ${formationDirPath}`
-            );
-          } else {
-            console.error(
-              `❌ ÉCHEC de la création du dossier sur Hostinger: ${formationDirPath}`
-            );
-            console.error(
-              "⚠️ Variables d'environnement FTP requises: HOSTINGER_FTP_HOST, HOSTINGER_FTP_USER, HOSTINGER_FTP_PASSWORD"
-            );
-            console.error(
-              "⚠️ Vérifiez que ces variables sont bien configurées dans votre environnement de production"
-            );
-          }
-        } catch (error) {
-          console.error(
-            "❌ ERREUR lors de la création du dossier sur Hostinger:"
-          );
-          console.error("📋 Message d'erreur:", error.message);
-          console.error("📋 Stack:", error.stack);
-          console.error(
-            "⚠️ Vérifiez les variables d'environnement FTP et la connexion au serveur Hostinger"
-          );
-          // Ne pas faire échouer la création de formation si l'upload FTP échoue
-        }
-      } else {
-        console.warn(
-          "⚠️ Service Hostinger désactivé - Le dossier ne sera PAS créé sur Hostinger"
-        );
-        console.warn(
-          "⚠️ Pour activer le service, configurez les variables d'environnement:"
-        );
-        console.warn("   - HOSTINGER_FTP_HOST");
-        console.warn("   - HOSTINGER_FTP_USER");
-        console.warn("   - HOSTINGER_FTP_PASSWORD");
-        console.warn(`⚠️ Dossier attendu: ${formationDirPath}`);
-      }
+      console.log("☁️ Les vidéos seront stockées sur Cloudinary");
 
       // Invalider le cache des formations
       const cacheService = (await import("../services/cache.service.js"))
