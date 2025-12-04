@@ -2642,6 +2642,15 @@ export const formationContentController = {
         }
       }
 
+      // Log pour debug
+      console.log("📝 Création d'une nouvelle leçon:", {
+        title,
+        formationId,
+        type,
+        fileUrl: fileUrl || "Aucun",
+        isCloudinaryUrl: fileUrl && fileUrl.includes('res.cloudinary.com'),
+      });
+
       const lesson = await prisma.formationContent.create({
         data: {
           formationId,
@@ -2653,9 +2662,16 @@ export const formationContentController = {
           order: order || 0,
           duration: duration ? parseInt(duration) : null,
           coverImage: coverImage || null,
-          fileUrl: fileUrl || null,
+          fileUrl: fileUrl || null, // URL Cloudinary si fournie lors de la création
           metadata: metadata || null,
         },
+      });
+
+      console.log("✅ Leçon créée avec succès:", {
+        id: lesson.id,
+        title: lesson.title,
+        fileUrl: lesson.fileUrl,
+        isCloudinaryUrl: lesson.fileUrl && lesson.fileUrl.includes('res.cloudinary.com'),
       });
 
       // Mettre à jour la durée totale de la formation
