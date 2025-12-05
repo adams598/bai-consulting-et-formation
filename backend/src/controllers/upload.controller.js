@@ -879,8 +879,18 @@ export const uploadController = {
       // Utiliser le nom original pour détecter le type, mais le fichier final est video.mp4
       const detectedMimeType = getMimeType(filename);
       const contentType = getContentTypeFromMime(detectedMimeType, filename);
+
+      // Détection vidéo : vérifier le MIME type détecté ET le MIME type du fichier uploadé
       const isVideo =
-        detectedMimeType === "video" || mimetype.startsWith("video/");
+        detectedMimeType.startsWith("video/") || mimetype.startsWith("video/");
+
+      console.log("🔍 Détection du type de fichier:", {
+        filename,
+        detectedMimeType,
+        mimetype, // MIME type du fichier uploadé (depuis multer)
+        contentType,
+        isVideo,
+      });
 
       // Upload vers Cloudinary si activé (pour les vidéos), sinon stockage local
       let fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${finalFilename}`;
@@ -992,6 +1002,17 @@ export const uploadController = {
         console.warn("⚠️ Vidéo détectée mais Cloudinary n'est pas activé");
         console.warn("⚠️ Variables Cloudinary manquantes ou incorrectes");
         console.warn("⚠️ La vidéo sera stockée localement");
+        console.warn("⚠️ Variables d'environnement requises:");
+        console.warn("   - CLOUDINARY_CLOUD_NAME");
+        console.warn("   - CLOUDINARY_API_KEY");
+        console.warn("   - CLOUDINARY_API_SECRET");
+      } else if (!isVideo) {
+        console.log("ℹ️ Fichier non-vidéo détecté, stockage local uniquement");
+        console.log("   Type détecté:", {
+          detectedMimeType,
+          mimetype,
+          contentType,
+        });
       }
 
       console.log("🔍 Type de contenu détecté:", {
@@ -1001,7 +1022,10 @@ export const uploadController = {
         contentType,
         originalMimeType: mimetype,
         isVideo,
+        isCloudinaryEnabled,
         cloudinary: cloudinaryResult ? true : false,
+        finalFileUrl: fileUrl,
+        isCloudinaryUrl: fileUrl && fileUrl.includes("res.cloudinary.com"),
       });
 
       // Mettre à jour le type et le fileUrl de la leçon en base de données
@@ -1025,7 +1049,9 @@ export const uploadController = {
 
         // Si pas trouvée, essayer avec le titre sanitizé
         if (!lesson) {
-          console.log("🔍 Leçon non trouvée avec le titre exact, recherche avec titre sanitizé...");
+          console.log(
+            "🔍 Leçon non trouvée avec le titre exact, recherche avec titre sanitizé..."
+          );
           const sanitizedLessonTitle = lessonTitle
             .toLowerCase()
             .normalize("NFD")
@@ -1071,9 +1097,9 @@ export const uploadController = {
           console.log(`✅ fileUrl sauvegardé en base de données: ${fileUrl}`);
           console.log(`   Ancien fileUrl: ${lesson.fileUrl || "Aucun"}`);
           console.log(`   Nouveau fileUrl: ${fileUrl}`);
-          
+
           // Vérifier que c'est bien une URL Cloudinary
-          if (fileUrl && fileUrl.includes('res.cloudinary.com')) {
+          if (fileUrl && fileUrl.includes("res.cloudinary.com")) {
             console.log(`   ☁️ URL Cloudinary confirmée et sauvegardée`);
           }
         } else {
@@ -1083,7 +1109,7 @@ export const uploadController = {
             formationTitle,
             contentType: "LESSON",
           });
-          
+
           // Lister toutes les leçons de la formation pour debug
           const allLessons = await prisma.formationContent.findMany({
             where: {
@@ -1097,8 +1123,11 @@ export const uploadController = {
               title: true,
             },
           });
-          console.log(`   📋 Leçons existantes dans la formation "${formationTitle}":`, allLessons.map(l => l.title));
-          
+          console.log(
+            `   📋 Leçons existantes dans la formation "${formationTitle}":`,
+            allLessons.map((l) => l.title)
+          );
+
           console.log(
             "   💡 La leçon doit être créée avant d'uploader un fichier"
           );
@@ -1139,8 +1168,11 @@ export const uploadController = {
       // IMPORTANT: S'assurer que fileUrl contient l'URL Cloudinary si l'upload a réussi
       // fileUrl a déjà été défini plus haut avec l'URL Cloudinary si cloudinaryResult existe
       console.log("🔗 URL finale à retourner:", fileUrl);
-      console.log("   Est Cloudinary:", fileUrl && fileUrl.includes('res.cloudinary.com'));
-      
+      console.log(
+        "   Est Cloudinary:",
+        fileUrl && fileUrl.includes("res.cloudinary.com")
+      );
+
       // Préparer la réponse avec toutes les valeurs nécessaires
       const responseData = {
         success: true,
@@ -1168,10 +1200,12 @@ export const uploadController = {
           ? "Fichier joint uploadé avec succès sur Cloudinary"
           : "Fichier joint uploadé avec succès",
       };
-      
+
       console.log("📤 Réponse finale envoyée au frontend:", {
         fileUrl: responseData.data.fileUrl,
-        isCloudinary: responseData.data.fileUrl && responseData.data.fileUrl.includes('res.cloudinary.com'),
+        isCloudinary:
+          responseData.data.fileUrl &&
+          responseData.data.fileUrl.includes("res.cloudinary.com"),
         cloudinaryUploaded: !!cloudinaryResult,
       });
 

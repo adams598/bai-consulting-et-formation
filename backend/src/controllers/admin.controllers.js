@@ -2648,7 +2648,7 @@ export const formationContentController = {
         formationId,
         type,
         fileUrl: fileUrl || "Aucun",
-        isCloudinaryUrl: fileUrl && fileUrl.includes('res.cloudinary.com'),
+        isCloudinaryUrl: fileUrl && fileUrl.includes("res.cloudinary.com"),
       });
 
       const lesson = await prisma.formationContent.create({
@@ -2671,7 +2671,8 @@ export const formationContentController = {
         id: lesson.id,
         title: lesson.title,
         fileUrl: lesson.fileUrl,
-        isCloudinaryUrl: lesson.fileUrl && lesson.fileUrl.includes('res.cloudinary.com'),
+        isCloudinaryUrl:
+          lesson.fileUrl && lesson.fileUrl.includes("res.cloudinary.com"),
       });
 
       // Mettre à jour la durée totale de la formation
