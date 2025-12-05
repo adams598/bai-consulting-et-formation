@@ -419,13 +419,13 @@ export const uploadController = {
           // Fallback vers stockage local
           if (formationTitle) {
             const sanitizedTitle = sanitizeTitle(formationTitle);
-            videoUrl = `/uploads/formations/${sanitizedTitle}/video-${sanitizedTitle}.mp4`;
+            videoUrl = `/upload/formations/${sanitizedTitle}/video-${sanitizedTitle}.mp4`;
           } else {
             const userFolderName = `${user.firstName}_${user.lastName}`.replace(
               /[^a-zA-Z0-9_-]/g,
               "_"
             );
-            videoUrl = `/uploads/videos/${userFolderName}/${filename}`;
+            videoUrl = `/upload/videos/${userFolderName}/${filename}`;
           }
         }
       } else {
@@ -433,13 +433,13 @@ export const uploadController = {
         console.log("📁 Stockage local de la vidéo (Cloudinary non activé)");
         if (formationTitle) {
           const sanitizedTitle = sanitizeTitle(formationTitle);
-          videoUrl = `/uploads/formations/${sanitizedTitle}/video-${sanitizedTitle}.mp4`;
+          videoUrl = `/upload/formations/${sanitizedTitle}/video-${sanitizedTitle}.mp4`;
         } else {
           const userFolderName = `${user.firstName}_${user.lastName}`.replace(
             /[^a-zA-Z0-9_-]/g,
             "_"
           );
-          videoUrl = `/uploads/videos/${userFolderName}/${filename}`;
+          videoUrl = `/upload/videos/${userFolderName}/${filename}`;
         }
       }
 
@@ -774,7 +774,7 @@ export const uploadController = {
       }
 
       // Générer une URL publique pour l'image
-      const imageUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${filename}`;
+      const imageUrl = `/upload/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${filename}`;
 
       console.log("📸 Image de couverture de leçon uploadée avec succès:", {
         filename,
@@ -893,7 +893,7 @@ export const uploadController = {
       });
 
       // Upload vers Cloudinary si activé (pour les vidéos), sinon stockage local
-      let fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${finalFilename}`;
+      let fileUrl = `/upload/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${finalFilename}`;
       let cloudinaryResult = null;
 
       // Vérifier si Cloudinary est activé
@@ -1162,7 +1162,7 @@ export const uploadController = {
         console.error(
           "❌ fileUrl est undefined, utilisation du chemin par défaut"
         );
-        fileUrl = `/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${finalFilename}`;
+        fileUrl = `/upload/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/${finalFilename}`;
       }
 
       // IMPORTANT: S'assurer que fileUrl contient l'URL Cloudinary si l'upload a réussi
