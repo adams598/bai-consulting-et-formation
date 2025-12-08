@@ -354,7 +354,8 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
           type: lessonData.type,
           duration: lessonData.duration || 30,
           order: selectedLesson.order,
-          coverImage: lessonData.coverImage
+          coverImage: lessonData.coverImage,
+          fileUrl: lessonData.fileUrl || undefined // Inclure l'URL Cloudinary si disponible
         });
         
         if (response.success) {
@@ -389,7 +390,8 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
           type: lessonData.type,
           duration: lessonData.duration || 30,
           order: lessons.length + 1,
-          coverImage: lessonData.coverImage
+          coverImage: lessonData.coverImage,
+          fileUrl: lessonData.fileUrl || undefined // Inclure l'URL Cloudinary si disponible
         });
         
         if (response.success) {

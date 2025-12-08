@@ -133,11 +133,22 @@ const LessonModal: React.FC<LessonModalProps> = ({
       return (hours || 0) * 60 + (minutes || 0);
     };
     
+    const fileUrlToSave = formData.contentFileUrl || formData.contentUrl || undefined;
+    
+    console.log('💾 Préparation des données de la leçon:', {
+      title: formData.title,
+      fileUrl: fileUrlToSave,
+      isCloudinaryUrl: fileUrlToSave && fileUrlToSave.includes('res.cloudinary.com'),
+      contentFileUrl: formData.contentFileUrl,
+      contentUrl: formData.contentUrl,
+    });
+    
     const lessonData = {
       ...formData,
       duration: convertTimeToMinutes(formData.duration as string), // Convertir en minutes
       sectionId: sectionId || undefined,
       coverImage: formData.coverImageUrl || formData.coverImage, // Utiliser l'URL permanente si disponible
+      fileUrl: fileUrlToSave, // Sauvegarder l'URL Cloudinary directement dans fileUrl
       metadata: JSON.stringify({
         contentUrl: formData.contentUrl || formData.contentFileUrl, // Utiliser l'URL du fichier joint si disponible
         learningObjectives: formData.learningObjectives,
@@ -145,6 +156,12 @@ const LessonModal: React.FC<LessonModalProps> = ({
         attachedFile: formData.contentFileUrl // Ajouter l'URL du fichier joint
       })
     };
+    
+    console.log('📤 Envoi des données de la leçon:', {
+      title: lessonData.title,
+      fileUrl: lessonData.fileUrl,
+      isCloudinaryUrl: lessonData.fileUrl && lessonData.fileUrl.includes('res.cloudinary.com'),
+    });
     
     onSave(lessonData);
   };
@@ -242,13 +259,17 @@ const LessonModal: React.FC<LessonModalProps> = ({
       // Upload du fichier joint avec la nouvelle structure
       const fileUrl = await uploadService.uploadLessonFile(file, formationTitle, formData.title);
       
+      console.log('✅ Fichier joint uploadé:', fileUrl);
+      console.log('   Est URL Cloudinary:', fileUrl && fileUrl.includes('res.cloudinary.com'));
+      console.log('   Sera sauvegardé dans formData.contentFileUrl');
+      
       setFormData(prev => ({
         ...prev,
         contentFile: file,
-        contentFileUrl: fileUrl
+        contentFileUrl: fileUrl // URL Cloudinary si upload réussi
       }));
       
-      console.log('✅ Fichier joint uploadé:', fileUrl);
+      console.log('✅ formData.contentFileUrl mis à jour:', fileUrl);
     } catch (error) {
       console.error('❌ Erreur upload fichier joint:', error);
         confirmation.showConfirmation({

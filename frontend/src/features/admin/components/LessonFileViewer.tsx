@@ -58,9 +58,12 @@ const LessonFileViewer: React.FC<LessonFileViewerProps> = ({
 
     try {
       // Construire l'URL de téléchargement (utilise automatiquement le fichier le plus récent)
+      // Utiliser l'URL Cloudinary si disponible, sinon construire l'URL locale
       const downloadUrl = getLessonFileUrl(
         formationTitle,
-        lesson.title
+        lesson.title,
+        undefined,
+        lesson.fileUrl // Passer l'URL Cloudinary si disponible
       );
 
       if (!downloadUrl) {
@@ -86,9 +89,12 @@ const LessonFileViewer: React.FC<LessonFileViewerProps> = ({
   // Gérer l'ouverture du fichier dans un nouvel onglet
   const handleOpenFile = () => {
     try {
+      // Utiliser l'URL Cloudinary si disponible, sinon construire l'URL locale
       const fileUrl = getLessonFileUrl(
         formationTitle,
-        lesson.title
+        lesson.title,
+        undefined,
+        lesson.fileUrl // Passer l'URL Cloudinary si disponible
       );
 
       if (fileUrl) {

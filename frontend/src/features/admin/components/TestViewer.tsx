@@ -429,30 +429,138 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   useEffect(() => {
     console.log('🔄 TestViewer - useEffect de chargement déclenché');
     console.log('🔄 TestViewer - fileUrl:', fileUrl);
+    console.log('🔄 TestViewer - lesson.fileUrl:', lesson.fileUrl);
     console.log('🔄 TestViewer - lesson.id:', lesson.id);
     
-    if (!fileUrl) {
-      console.log('🔍 TestViewer - Pas de fileUrl fourni, pas de chargement');
-      // Ne pas réinitialiser l'état ici, juste ne pas charger
+    // Déterminer l'URL à utiliser : priorité absolue à lesson.fileUrl si c'est une URL complète
+    let urlToUse = fileUrl;
+    
+    // PRIORITÉ 1: Si lesson.fileUrl existe et est une URL complète (http/https), l'utiliser en priorité
+    if (lesson.fileUrl && (lesson.fileUrl.startsWith('http://') || lesson.fileUrl.startsWith('https://'))) {
+      urlToUse = lesson.fileUrl;
+      const isCloudinary = lesson.fileUrl.includes('res.cloudinary.com');
+      console.log(`✅ TestViewer - Utilisation de lesson.fileUrl (${isCloudinary ? 'Cloudinary' : 'URL complète'}):`, urlToUse);
+    } else if (fileUrl && (fileUrl.startsWith('http://') || fileUrl.startsWith('https://'))) {
+      // PRIORITÉ 2: Si fileUrl est une URL complète, l'utiliser
+      urlToUse = fileUrl;
+      const isCloudinary = fileUrl.includes('res.cloudinary.com');
+      console.log(`✅ TestViewer - Utilisation de fileUrl (${isCloudinary ? 'Cloudinary' : 'URL complète'}):`, urlToUse);
+    } else if (lesson.fileUrl) {
+      // PRIORITÉ 3: Si lesson.fileUrl existe mais n'est pas une URL complète, l'utiliser quand même
+      urlToUse = lesson.fileUrl;
+      console.log('✅ TestViewer - Utilisation de lesson.fileUrl (chemin relatif):', urlToUse);
+    }
+    
+    if (!urlToUse) {
+      console.log('🔍 TestViewer - Pas d\'URL disponible, pas de chargement');
       return;
     }
 
     const loadFile = async () => {
-      console.log('🔄 TestViewer - Début du chargement du fichier:', fileUrl);
+      console.log('🔄 TestViewer - Début du chargement du fichier');
+      console.log('   urlToUse:', urlToUse);
+      console.log('   lesson.fileUrl:', lesson.fileUrl);
+      console.log('   fileUrl (prop):', fileUrl);
+      
       setIsLoading(true);
       setError(null);
       
       try {
+        // Si c'est une URL complète (Cloudinary, Hostinger, Render, etc.), l'utiliser directement sans fetch
+        // Le navigateur peut charger directement les URLs publiques
+        if (urlToUse && (urlToUse.startsWith('http://') || urlToUse.startsWith('https://'))) {
+          const isCloudinary = urlToUse.includes('res.cloudinary.com');
+          console.log(`☁️ TestViewer - URL complète détectée (${isCloudinary ? 'Cloudinary' : 'autre'}), chargement direct:`, urlToUse);
+          
+          // Détecter le type MIME depuis l'URL et le type de leçon
+          let detectedMimeType = '';
+          const urlLower = urlToUse.toLowerCase();
+          
+          // PRIORITÉ 1: Détection par le type de leçon
+          if (lesson.type === 'VIDEO' || lesson.type === 'PRESENTATION') {
+            // Pour les présentations, vérifier si c'est une vidéo ou un PDF
+            if (urlLower.includes('/video/') || urlLower.endsWith('.mp4') || urlLower.endsWith('/video.mp4')) {
+              detectedMimeType = 'video/mp4';
+            } else if (urlLower.endsWith('.pdf') || urlLower.includes('/image/')) {
+              detectedMimeType = lesson.type === 'VIDEO' ? 'video/mp4' : 'application/pdf';
+            } else {
+              // Par défaut pour PRESENTATION avec URL Cloudinary contenant /video/
+              detectedMimeType = 'video/mp4';
+            }
+          } else if (lesson.type === 'PDF') {
+            detectedMimeType = 'application/pdf';
+          } else if (lesson.type === 'IMAGE') {
+            detectedMimeType = 'image/jpeg';
+          } else if (lesson.type === 'AUDIO') {
+            detectedMimeType = 'audio/mpeg';
+          }
+          
+          // PRIORITÉ 2: Détection par extension ou chemin dans l'URL si pas encore détecté
+          if (!detectedMimeType) {
+            if (urlLower.includes('/video/') || urlLower.endsWith('.mp4') || urlLower.endsWith('/video.mp4')) {
+              detectedMimeType = 'video/mp4';
+            } else if (urlLower.endsWith('.webm')) {
+              detectedMimeType = 'video/webm';
+            } else if (urlLower.endsWith('.ogg') || urlLower.endsWith('.ogv')) {
+              detectedMimeType = 'video/ogg';
+            } else if (urlLower.endsWith('.avi')) {
+              detectedMimeType = 'video/avi';
+            } else if (urlLower.endsWith('.mov')) {
+              detectedMimeType = 'video/quicktime';
+            } else if (urlLower.endsWith('.wmv')) {
+              detectedMimeType = 'video/x-ms-wmv';
+            } else if (urlLower.includes('/image/') || urlLower.match(/\.(jpg|jpeg|png|gif|webp|svg)$/i)) {
+              detectedMimeType = 'image/jpeg';
+            } else if (urlLower.endsWith('.pdf')) {
+              detectedMimeType = 'application/pdf';
+            } else if (urlLower.endsWith('.mp3') || urlLower.endsWith('.wav') || urlLower.endsWith('.ogg')) {
+              detectedMimeType = 'audio/mpeg';
+            }
+          }
+          
+          console.log(`📄 TestViewer - Type MIME détecté:`, {
+            fromLessonType: lesson.type,
+            fromUrl: detectedMimeType,
+            final: detectedMimeType || 'Non détecté',
+            urlToUse: urlToUse
+          });
+          
+          // Si c'est Cloudinary, utiliser directement
+          // Si c'est une autre URL (Hostinger/Render), essayer quand même mais avec gestion d'erreur
+          setFullUrl(urlToUse);
+          setBlobUrl(urlToUse); // Utiliser directement l'URL
+          
+          // Toujours définir le mimeType, même si la détection n'a pas fonctionné
+          // Pour les URLs Cloudinary avec /video/, on assume que c'est une vidéo
+          if (detectedMimeType) {
+            setMimeType(detectedMimeType);
+            console.log(`✅ TestViewer - MimeType défini: ${detectedMimeType}`);
+          } else if (urlToUse.includes('/video/') || urlToUse.includes('/video.mp4')) {
+            // Fallback: si l'URL contient /video/, c'est probablement une vidéo
+            setMimeType('video/mp4');
+            console.log(`✅ TestViewer - MimeType défini par fallback (video): video/mp4`);
+          } else {
+            console.warn(`⚠️ TestViewer - MimeType non détecté pour l'URL: ${urlToUse}`);
+          }
+          
+          setIsLoading(false);
+          
+          // Pour les URLs non-Cloudinary, on laisse le navigateur essayer de charger
+          // Si ça échoue, l'erreur sera gérée par onError du <video>
+          return;
+        }
+        
+        // Pour les URLs locales, utiliser fetch avec authentification
         const token = localStorage.getItem('accessToken');
         const headers: Record<string, string> = {};
         if (token) {
           headers['Authorization'] = `Bearer ${token}`;
         }
         
-        const completeUrl = fileUrl.startsWith('http') ? fileUrl : `http://localhost:3000${fileUrl}`;
+        const completeUrl = urlToUse.startsWith('http') ? urlToUse : `http://localhost:3000${urlToUse}`;
         setFullUrl(completeUrl);
         
-        console.log('🔄 TestViewer - URL complète:', completeUrl);
+        console.log('🔄 TestViewer - URL complète (locale):', completeUrl);
         
         const response = await fetch(completeUrl, {
           method: "GET",
@@ -515,7 +623,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     };
 
     loadFile();
-  }, [fileUrl, lesson.id]); // Ajouter lesson.id comme dépendance
+  }, [fileUrl, lesson.fileUrl, lesson.id]); // Ajouter lesson.id comme dépendance
 
   // Effet pour charger la progression sauvegardée quand le PDF est chargé
   // SUPPRIMÉ - Le chargement se fait maintenant dans onLoadSuccess du Document
@@ -1107,7 +1215,9 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                 <p><strong>Debug info :</strong></p>
                 <p>Lesson ID: {lesson.id}</p>
                 <p>Lesson Title: {lesson.title}</p>
-                <p>FileUrl: {fileUrl}</p>
+                <p>FileUrl (prop): {fileUrl}</p>
+                <p>FileUrl (lesson): {lesson.fileUrl || 'Non défini'}</p>
+                <p>URL utilisée: {blobUrl || fullUrl || 'Aucune'}</p>
                 <p>MimeType: {mimeType}</p>
                 <p>FullUrl: {fullUrl}</p>
               </div>
@@ -1662,7 +1772,8 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
               )}
 
               {/* Autres fichiers */}
-              {!mimeType.startsWith("image/") && 
+              {mimeType && 
+               !mimeType.startsWith("image/") && 
                mimeType !== "application/pdf" && 
                mimeType !== "application/vnd.openxmlformats-officedocument.presentationml.presentation" &&
                !mimeType.startsWith("video/") &&

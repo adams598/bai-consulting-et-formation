@@ -205,26 +205,65 @@ class UploadService {
       formData.append('file', file);
       // formationTitle et lessonTitle sont maintenant dans l'URL
 
+      console.log('📤 Upload de fichier de leçon:', {
+        formationTitle,
+        lessonTitle,
+        fileName: file.name,
+        fileSize: file.size
+      });
+
       const response = await api.post<UploadResponse>(`/api/admin/upload/lesson-file/${encodeURIComponent(formationTitle)}/lessons/${encodeURIComponent(lessonTitle)}`, formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 300000, // 5 minutes pour les grandes vidéos
       });
 
-      if (response.data.success && response.data.data.fileUrl) {
-        // Solution temporaire : utiliser directement l'URL du backend
-        const fileUrl = response.data.data.fileUrl;
-        const backendUrl = 'http://localhost:3000';
-        const fullFileUrl = fileUrl.startsWith('/') ? `${backendUrl}${fileUrl}` : fileUrl;
-        
-        console.log('🔗 URL fichier de leçon générée:', fullFileUrl);
-        return fullFileUrl;
-      } else {
+      console.log('📥 Réponse du serveur:', response.data);
+
+      if (!response.data) {
+        throw new Error('Réponse vide du serveur');
+      }
+
+      if (!response.data.success) {
         throw new Error(response.data.message || 'Erreur lors de l\'upload du fichier de leçon');
       }
-    } catch (error) {
+
+      if (!response.data.data) {
+        throw new Error('Données manquantes dans la réponse');
+      }
+
+      const fileUrl = response.data.data.fileUrl;
+      
+      if (!fileUrl) {
+        console.error('❌ fileUrl manquant dans la réponse:', response.data);
+        throw new Error('URL du fichier manquante dans la réponse du serveur');
+      }
+      
+      // Si c'est une URL Cloudinary (commence par https://), l'utiliser directement
+      // Sinon, c'est un chemin relatif local, ajouter l'URL du backend
+      let fullFileUrl: string;
+      if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+        // URL Cloudinary ou URL absolue - utiliser directement
+        fullFileUrl = fileUrl;
+        console.log('✅ URL Cloudinary détectée:', fullFileUrl);
+      } else {
+        // Chemin relatif local - ajouter l'URL du backend
+        const backendUrl = 'https://res.cloudinary.com/dquu0nxcr/video';
+        fullFileUrl = fileUrl.startsWith('/') ? `${backendUrl}${fileUrl}` : `${backendUrl}/${fileUrl}`;
+        console.log('✅ URL construite:', fullFileUrl);
+      }
+      
+      return fullFileUrl;
+    } catch (error: any) {
       console.error('❌ Erreur uploadLessonFile:', error);
-      throw error;
+      console.error('   Message:', error.message);
+      console.error('   Response:', error.response?.data);
+      console.error('   Status:', error.response?.status);
+      
+      // Relancer l'erreur avec un message plus clair
+      const errorMessage = error.response?.data?.message || error.message || 'Erreur lors de l\'upload du fichier de leçon';
+      throw new Error(errorMessage);
     }
   }
 

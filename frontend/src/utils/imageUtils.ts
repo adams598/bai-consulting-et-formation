@@ -164,16 +164,25 @@ export const getLessonImageUrl = (lessonImage: string | null | undefined): strin
 /**
  * Construit l'URL de téléchargement d'un fichier de leçon
  * Tous les fichiers de leçon sont maintenant nommés "video.mp4" de manière uniforme
+ * Si la leçon a déjà une URL Cloudinary (fileUrl), elle est utilisée directement
  * @param formationTitle - Le titre de la formation
  * @param lessonTitle - Le titre de la leçon
  * @param filename - Paramètre optionnel ignoré (toujours "video.mp4")
- * @returns L'URL complète vers le fichier video.mp4 de la leçon
+ * @param lessonFileUrl - URL Cloudinary optionnelle de la leçon (prioritaire)
+ * @returns L'URL complète vers le fichier video.mp4 de la leçon ou l'URL Cloudinary
  */
 export const getLessonFileUrl = (
   formationTitle: string,
   lessonTitle: string,
-  filename?: string // Paramètre conservé pour compatibilité mais ignoré
+  filename?: string, // Paramètre conservé pour compatibilité mais ignoré
+  lessonFileUrl?: string | null // URL complète (Cloudinary ou autre) optionnelle
 ): string => {
+  // Si une URL complète est fournie (Cloudinary, Hostinger, Render, etc.), l'utiliser directement
+  if (lessonFileUrl && (lessonFileUrl.startsWith('http://') || lessonFileUrl.startsWith('https://'))) {
+    console.log('✅ getLessonFileUrl - Utilisation de l\'URL complète fournie:', lessonFileUrl);
+    return lessonFileUrl;
+  }
+  
   if (!formationTitle || !lessonTitle) return '';
   
   const sanitizedFormationTitle = formationTitle
@@ -193,7 +202,7 @@ export const getLessonFileUrl = (
     .replace(/^_|_$/g, '');
 
   // Toujours utiliser video.mp4 comme nom de fichier
-  return `${baseUrl}/uploads/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/video.mp4`;
+  return `https://res.cloudinary.com/dquu0nxcr/video/upload/formations/${sanitizedFormationTitle}/lessons/${sanitizedLessonTitle}/video.mp4`;
 };
 
 /**

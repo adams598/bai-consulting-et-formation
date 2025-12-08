@@ -661,9 +661,10 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     console.log('🔍 buildLessonFileUrl - lesson:', lesson);
     console.log('🔍 buildLessonFileUrl - formation.title:', formation.title);
     console.log('🔍 buildLessonFileUrl - lesson.title:', lesson.title);
+    console.log('🔍 buildLessonFileUrl - lesson.fileUrl:', lesson.fileUrl);
     
-    // Utiliser la fonction importée de imageUtils
-    const url = getLessonFileUrl(formation.title, lesson.title);
+    // Utiliser la fonction importée de imageUtils avec l'URL Cloudinary si disponible
+    const url = getLessonFileUrl(formation.title, lesson.title, undefined, lesson.fileUrl);
     console.log('🔍 buildLessonFileUrl - URL générée:', url);
     return url;
   };
@@ -708,7 +709,16 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     const fileType = getFileType(selectedLesson);
 
     // Utiliser TestViewer pour tous les types pour le moment
+    // buildLessonFileUrl utilise déjà lesson.fileUrl si c'est une URL Cloudinary
     const fileUrl = buildLessonFileUrl(selectedLesson);
+    
+    console.log('🎬 LessonPlayer - renderLessonContent:', {
+      lessonId: selectedLesson.id,
+      lessonTitle: selectedLesson.title,
+      lessonFileUrl: selectedLesson.fileUrl,
+      builtFileUrl: fileUrl,
+      isCloudinary: selectedLesson.fileUrl?.startsWith('https://res.cloudinary.com') || selectedLesson.fileUrl?.startsWith('http://res.cloudinary.com')
+    });
     
     return (
       <TestViewer
