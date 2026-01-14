@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { generatePassword } from "../utils/password.js";
 import { sendEmail } from "../services/email.service.js";
 import progressService from "../services/progress.service.js";
+// import { hostingerUploadService } from "../services/hostinger-upload.service.js";
 
 const prisma = new PrismaClient();
 
@@ -114,28 +115,9 @@ export const authController = {
       });
     } catch (error) {
       console.error("Erreur de connexion:", error);
-
-      // Vérifier si c'est une erreur de connexion à la base de données
-      if (
-        error.code === "P1001" ||
-        error.message?.includes("Can't reach database server") ||
-        error.message?.includes("database server")
-      ) {
-        console.error("❌ Erreur de connexion à la base de données");
-        return res.status(503).json({
-          success: false,
-          message:
-            "Service de base de données indisponible. Veuillez vérifier votre connexion à la base de données.",
-          error:
-            process.env.NODE_ENV === "development" ? error.message : undefined,
-        });
-      }
-
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
-        error:
-          process.env.NODE_ENV === "development" ? error.message : undefined,
       });
     }
   },
@@ -1227,21 +1209,55 @@ export const formationsController = {
         });
       }
 
-      // Créer le dossier de formation sur Hostinger automatiquement
-      // Sanitizer le titre de la formation (même logique que dans upload.controller.js)
-      const sanitizedFormationTitle = title
-        .toLowerCase()
-        .normalize("NFD")
-        .replace(/[\u0300-\u036f]/g, "") // Retirer les accents
-        .replace(/[^a-zA-Z0-9\s\-_]/g, "") // Préserver les underscores en plus des tirets
-        .replace(/\s+/g, "_") // Remplacer les espaces par des underscores
-        .replace(/[_-]+/g, (match) => match[0]) // Remplacer les underscores/tirets multiples par un seul
-        .replace(/^[_-]|[_-]$/g, ""); // Retirer les underscores/tirets en début/fin
+      // Créer le dossier de formation sur Hostinger en production
+      if (
+        process.env.NODE_ENV === "production"
+        // hostingerUploadService.isEnabled()
+      ) {
+        // Sanitizer le titre de la formation (même logique que dans upload.controller.js)
+        const sanitizedFormationTitle = title
+          .toLowerCase()
+          .replace(/[^a-zA-Z0-9_-]/g, "_")
+          .replace(/[_-]+/g, "_")
+          .replace(/^[_-]|[_-]$/g, "");
 
-      console.log("🚀 Création d'une nouvelle formation");
-      console.log(`📝 Titre: ${title}`);
-      console.log(`📁 Nom du dossier: ${sanitizedFormationTitle}`);
-      console.log("☁️ Les vidéos seront stockées sur Cloudinary");
+        const formationDirPath = `uploads/formations/${sanitizedFormationTitle}`;
+
+        // try {
+        //   console.log("🚀 Création du dossier de formation sur Hostinger...");
+        //   console.log(`📁 Chemin du dossier: ${formationDirPath}`);
+        //   console.log(
+        //     `🔧 Service Hostinger activé: ${hostingerUploadService.isEnabled()}`
+        //   );
+
+        //   const dirCreated = await hostingerUploadService.ensureDirectory(
+        //     formationDirPath
+        //   );
+
+        //   if (dirCreated) {
+        //     console.log(
+        //       `✅ Dossier de formation créé/vérifié sur Hostinger: ${formationDirPath}`
+        //     );
+        //   } else {
+        //     console.error(
+        //       `❌ Échec de la création du dossier sur Hostinger: ${formationDirPath}`
+        //     );
+        //     console.error(
+        //       "⚠️ Vérifiez les variables d'environnement FTP (HOSTINGER_FTP_HOST, HOSTINGER_FTP_USER, HOSTINGER_FTP_PASSWORD)"
+        //     );
+        //   }
+        // } catch (error) {
+        //   console.error(
+        //     "❌ Erreur lors de la création du dossier sur Hostinger:",
+        //     error
+        //   );
+        //   console.error("📋 Détails de l'erreur:", error.message);
+        //   console.error(
+        //     "⚠️ Vérifiez les variables d'environnement FTP et la connexion au serveur Hostinger"
+        //   );
+        //   // Ne pas faire échouer la création de formation si l'upload FTP échoue
+        // }
+      }
 
       // Invalider le cache des formations
       const cacheService = (await import("../services/cache.service.js"))
@@ -1638,6 +1654,7 @@ export const usersController = {
       res.status(201).json({
         success: true,
         data: user,
+        tempPassword: tempPassword,
         message: `Utilisateur créé avec succès. Mot de passe temporaire: ${tempPassword}`,
       });
     } catch (error) {
@@ -2642,15 +2659,6 @@ export const formationContentController = {
         }
       }
 
-      // Log pour debug
-      console.log("📝 Création d'une nouvelle leçon:", {
-        title,
-        formationId,
-        type,
-        fileUrl: fileUrl || "Aucun",
-        isCloudinaryUrl: fileUrl && fileUrl.includes("res.cloudinary.com"),
-      });
-
       const lesson = await prisma.formationContent.create({
         data: {
           formationId,
@@ -2662,17 +2670,9 @@ export const formationContentController = {
           order: order || 0,
           duration: duration ? parseInt(duration) : null,
           coverImage: coverImage || null,
-          fileUrl: fileUrl || null, // URL Cloudinary si fournie lors de la création
+          fileUrl: fileUrl || null,
           metadata: metadata || null,
         },
-      });
-
-      console.log("✅ Leçon créée avec succès:", {
-        id: lesson.id,
-        title: lesson.title,
-        fileUrl: lesson.fileUrl,
-        isCloudinaryUrl:
-          lesson.fileUrl && lesson.fileUrl.includes("res.cloudinary.com"),
       });
 
       // Mettre à jour la durée totale de la formation
