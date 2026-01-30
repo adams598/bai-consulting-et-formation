@@ -32,20 +32,20 @@ const BankDetailPage: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('🔍 useEffect déclenché avec bankId:', bankId);
+    // console.log('🔍 useEffect déclenché avec bankId:', bankId);
     if (bankId) {
       loadBankDetails();
     } else {
-      console.log('❌ Aucun bankId fourni dans les paramètres');
+      // console.log('❌ Aucun bankId fourni dans les paramètres');
     }
   }, [bankId]);
 
   const loadBankDetails = async () => {
     try {
-      console.log('🔍 loadBankDetails appelé avec bankId:', bankId);
+      // console.log('🔍 loadBankDetails appelé avec bankId:', bankId);
       setLoading(true);
       
-      console.log('📡 Appel des APIs...');
+      // console.log('📡 Appel des APIs...');
       const [bankResponse, usersResponse, formationsResponse, bankFormationsResponse] = await Promise.all([
         banksApi.getById(bankId!),
         usersApi.getAll(bankId!),
@@ -53,10 +53,10 @@ const BankDetailPage: React.FC = () => {
         bankFormationApi.getBankFormations(bankId!)
       ]);
 
-      console.log('📊 Réponse banque complète:', bankResponse);
-      console.log('👥 Réponse utilisateurs complète:', usersResponse);
-      console.log('📚 Réponse formations complète:', formationsResponse);
-      console.log('🔗 Réponse banque-formations complète:', bankFormationsResponse);
+      // console.log('📊 Réponse banque complète:', bankResponse);
+      // console.log('👥 Réponse utilisateurs complète:', usersResponse);
+      // console.log('📚 Réponse formations complète:', formationsResponse);
+      // console.log('🔗 Réponse banque-formations complète:', bankFormationsResponse);
 
       // Extraire les données des réponses Axios
       const bankData = bankResponse.data;
@@ -65,37 +65,37 @@ const BankDetailPage: React.FC = () => {
       // Les APIs bankFormation et userFormationAssignment retournent directement ApiResponse<T>
       const bankFormationsData = bankFormationsResponse;
 
-      console.log('📊 Données banque extraites:', bankData);
-      console.log('👥 Données utilisateurs extraites:', usersData);
-      console.log('📚 Données formations extraites:', formationsData);
-      console.log('🔗 Données banque-formations extraites:', bankFormationsData);
+      // console.log('📊 Données banque extraites:', bankData);
+      // console.log('👥 Données utilisateurs extraites:', usersData);
+      // console.log('📚 Données formations extraites:', formationsData);
+      // console.log('🔗 Données banque-formations extraites:', bankFormationsData);
 
       if (bankData.success) {
-        console.log('✅ Banque récupérée avec succès:', bankData.data);
+        // console.log('✅ Banque récupérée avec succès:', bankData.data);
         setBank(bankData.data);
       } else {
-        console.log('❌ Échec récupération banque:', bankData);
+        // console.log('❌ Échec récupération banque:', bankData);
       }
 
       if (usersData.success) {
-        console.log('✅ Utilisateurs récupérés avec succès:', usersData.data);
+        // console.log('✅ Utilisateurs récupérés avec succès:', usersData.data);
         setUsers(usersData.data || []);
       } else {
-        console.log('❌ Échec récupération utilisateurs:', usersData);
+        // console.log('❌ Échec récupération utilisateurs:', usersData);
       }
 
       if (formationsData.success) {
-        console.log('✅ Formations récupérées avec succès:', formationsData.data);
+        // console.log('✅ Formations récupérées avec succès:', formationsData.data);
         setFormations(formationsData.data || []);
       } else {
-        console.log('❌ Échec récupération formations:', formationsData);
+        // console.log('❌ Échec récupération formations:', formationsData);
       }
 
       if (bankFormationsData.success) {
-        console.log('✅ Banque-formations récupérées avec succès:', bankFormationsData.data);
+        // console.log('✅ Banque-formations récupérées avec succès:', bankFormationsData.data);
         setBankFormations(bankFormationsData.data || []);
       } else {
-        console.log('❌ Échec récupération banque-formations:', bankFormationsData);
+        // console.log('❌ Échec récupération banque-formations:', bankFormationsData);
       }
     } catch (error) {
       console.error('💥 Erreur lors du chargement des détails de la banque:', error);
@@ -118,14 +118,14 @@ const BankDetailPage: React.FC = () => {
     password: string;
   }) => {
     try {
-      console.log('📤 Données utilisateur envoyées:', userData);
+      // console.log('📤 Données utilisateur envoyées:', userData);
       
       const response = await usersApi.create({
         ...userData,
         bankId: bankId!
       } as any);
 
-      console.log('📥 Réponse de création utilisateur:', response);
+      // console.log('📥 Réponse de création utilisateur:', response);
 
       if (response.data.success) {
         toast({
@@ -134,9 +134,10 @@ const BankDetailPage: React.FC = () => {
         });
 
         // Afficher les identifiants
+        const generatedPassword = response.data.tempPassword || userData.password;
         setConfirmModalData({
           title: "Compte créé avec succès",
-          message: `Identifiants du collaborateur :\n\nEmail: ${userData.email}\nMot de passe: ${userData.password}\n\n⚠️ IMPORTANT : Ce mot de passe est temporaire et expire dans 5 jours.\nL'utilisateur devra le changer lors de sa première connexion.`,
+          message: `Identifiants du collaborateur :\n\nEmail: ${userData.email}\nMot de passe: ${generatedPassword}\n\n⚠️ IMPORTANT : Ce mot de passe est temporaire et expire dans 5 jours.\nL'utilisateur devra le changer lors de sa première connexion.`,
           onConfirm: () => {
             setShowConfirmModal(false);
             loadBankDetails();
@@ -259,10 +260,10 @@ const BankDetailPage: React.FC = () => {
     setShowConfirmModal(true);
   };
 
-  console.log('🔄 État du composant - loading:', loading, 'bank:', bank, 'bankId:', bankId);
+  // console.log('🔄 État du composant - loading:', loading, 'bank:', bank, 'bankId:', bankId);
   
   if (loading) {
-    console.log('⏳ Affichage du loader...');
+    // console.log('⏳ Affichage du loader...');
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -271,7 +272,7 @@ const BankDetailPage: React.FC = () => {
   }
 
   if (!bank) {
-    console.log('❌ Aucune banque trouvée, affichage du message d\'erreur');
+    // console.log('❌ Aucune banque trouvée, affichage du message d\'erreur');
     return (
       <div className="text-center py-8">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Banque non trouvée</h2>

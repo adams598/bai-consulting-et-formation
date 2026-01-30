@@ -973,7 +973,7 @@ const CalendarPage: React.FC = () => {
                       </label>
                     </div>
                     
-                    {eventForm.type === 'FORMATION' && (
+                    {/* {eventForm.type === 'FORMATION' && (
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Formation liée
@@ -991,7 +991,7 @@ const CalendarPage: React.FC = () => {
                           ))}
                         </select>
                       </div>
-                    )}
+                    )} */}
                     
                     <div className="flex justify-end space-x-3 pt-4">
                       <button

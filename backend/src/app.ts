@@ -1,6 +1,5 @@
 import express from 'express';
 import cors from 'cors';
-import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'path';
 import { PrismaClient } from '@prisma/client';
@@ -58,12 +57,12 @@ app.get('/api/images/:type/:userFolder/:filename(*)', (req, res) => {
   const { type, userFolder, filename } = req.params;
   const imagePath = path.join(__dirname, '..', 'uploads', type, userFolder, filename);
   
-  console.log('🔍 Route /api/images appelée:');
-  console.log('  - type:', type);
-  console.log('  - userFolder:', userFolder);
-  console.log('  - filename:', filename);
-  console.log('  - imagePath:', imagePath);
-  console.log('  - exists:', require('fs').existsSync(imagePath));
+  // console.log('🔍 Route /api/images appelée:');
+  // console.log('  - type:', type);
+  // console.log('  - userFolder:', userFolder);
+  // console.log('  - filename:', filename);
+  // console.log('  - imagePath:', imagePath);
+  // console.log('  - exists:', require('fs').existsSync(imagePath));
   
   // Ajouter les en-têtes CORS explicites
   res.header('Access-Control-Allow-Origin', '*');
@@ -92,12 +91,12 @@ app.get('/api/formations/:formationTitle/lessons/:lessonTitle/:filename', (req, 
   const { formationTitle, lessonTitle, filename } = req.params;
   const imagePath = path.join(__dirname, '..', 'uploads', 'formations', formationTitle, 'lessons', lessonTitle, filename);
   
-  console.log('🔍 Route /api/formations/lessons appelée:');
-  console.log('  - formationTitle:', formationTitle);
-  console.log('  - lessonTitle:', lessonTitle);
-  console.log('  - filename:', filename);
-  console.log('  - imagePath:', imagePath);
-  console.log('  - exists:', require('fs').existsSync(imagePath));
+  // console.log('🔍 Route /api/formations/lessons appelée:');
+  // console.log('  - formationTitle:', formationTitle);
+  // console.log('  - lessonTitle:', lessonTitle);
+  // console.log('  - filename:', filename);
+  // console.log('  - imagePath:', imagePath);
+  // console.log('  - exists:', require('fs').existsSync(imagePath));
   
   // Ajouter les en-têtes CORS explicites
   res.header('Access-Control-Allow-Origin', '*');
@@ -134,11 +133,11 @@ app.get('/api/formations/:formationTitle/:filename', (req, res) => {
   const { formationTitle, filename } = req.params;
   const imagePath = path.join(__dirname, '..', 'uploads', 'formations', formationTitle, filename);
   
-  console.log('🔍 Route /api/formations couverture appelée:');
-  console.log('  - formationTitle:', formationTitle);
-  console.log('  - filename:', filename);
-  console.log('  - imagePath:', imagePath);
-  console.log('  - exists:', require('fs').existsSync(imagePath));
+  // console.log('🔍 Route /api/formations couverture appelée:');
+  // console.log('  - formationTitle:', formationTitle);
+  // console.log('  - filename:', filename);
+  // console.log('  - imagePath:', imagePath);
+  // console.log('  - exists:', require('fs').existsSync(imagePath));
   
   // Ajouter les en-têtes CORS explicites et permissifs
   res.header('Access-Control-Allow-Origin', '*');
@@ -186,7 +185,7 @@ app.use((req, res) => {
 // Gestion de la connexion à la base de données
 prisma.$connect()
   .then(() => {
-    console.log('Connecté à la base de données');
+    // console.log('Connecté à la base de données');
   })
   .catch((error) => {
     console.error('Erreur de connexion à la base de données:', error);
@@ -196,7 +195,7 @@ prisma.$connect()
 // Gestion de la fermeture propre
 process.on('SIGINT', async () => {
   await prisma.$disconnect();
-  console.log('Déconnecté de la base de données');
+  // console.log('Déconnecté de la base de données');
   process.exit(0);
 });
 

@@ -105,21 +105,21 @@ const CreateBankModal: React.FC<CreateBankModalProps> = ({ isOpen, onClose, onSu
         
         // Étape 2: Assigner les utilisateurs sélectionnés à la nouvelle banque
         if (selectedUsers.length > 0) {
-          console.log('🔄 Assignation de', selectedUsers.length, 'utilisateurs à la banque', idBank);
+          // console.log('🔄 Assignation de', selectedUsers.length, 'utilisateurs à la banque', idBank);
           for (const userId of selectedUsers) {
             try {
-              console.log('📋 Récupération des données de l\'utilisateur:', userId);
+              // console.log('📋 Récupération des données de l\'utilisateur:', userId);
               // Récupérer les données de l'utilisateur existant
               const userResponse = await usersApi.getById(userId);
-              console.log('📋 Réponse getById:', userResponse);
+              // console.log('📋 Réponse getById:', userResponse);
               
               // Vérifier la structure de la réponse
-              console.log('📋 Structure de la réponse:', {
-                data: userResponse.data,
-                success: userResponse.data?.success,
-                hasData: !!userResponse.data?.data,
-                directData: userResponse.data
-              });
+              // console.log('📋 Structure de la réponse:', {
+              //   data: userResponse.data,
+              //   success: userResponse.data?.success,
+              //   hasData: !!userResponse.data?.data,
+              //   directData: userResponse.data
+              // });
               
               let existingUser;
               if (userResponse.data?.success && userResponse.data.data) {
@@ -131,17 +131,17 @@ const CreateBankModal: React.FC<CreateBankModalProps> = ({ isOpen, onClose, onSu
                 continue;
               }
               
-              console.log('👤 Utilisateur existant:', existingUser);
+              // console.log('👤 Utilisateur existant:', existingUser);
               
               // Mettre à jour avec les données existantes + nouveau bankId
               const updateData = { 
                 ...existingUser,
                 bankId: idBank 
               };
-              console.log('🔄 Données de mise à jour:', updateData);
+              // console.log('🔄 Données de mise à jour:', updateData);
               
               const updateResponse = await usersApi.update(userId, updateData);
-              console.log('✅ Réponse update:', updateResponse);
+              // console.log('✅ Réponse update:', updateResponse);
             } catch (error) {
               console.error('❌ Erreur lors de la mise à jour de l\'utilisateur', userId, ':', error);
             }
@@ -218,14 +218,14 @@ const CreateBankModal: React.FC<CreateBankModalProps> = ({ isOpen, onClose, onSu
     }
   }, [isOpen, showUserSelection, onClose]);
 
-  console.log('🔍 CreateBankModal - isOpen:', isOpen, 'showUserSelection:', showUserSelection);
+  // console.log('🔍 CreateBankModal - isOpen:', isOpen, 'showUserSelection:', showUserSelection);
   
   if (!isOpen) {
-    console.log('🔍 CreateBankModal - Pas de rendu car isOpen = false');
+    // console.log('🔍 CreateBankModal - Pas de rendu car isOpen = false');
     return null;
   }
 
-  console.log('🔍 CreateBankModal - Rendu de la modale');
+  // console.log('🔍 CreateBankModal - Rendu de la modale');
 
   return (
     <>
@@ -234,7 +234,7 @@ const CreateBankModal: React.FC<CreateBankModalProps> = ({ isOpen, onClose, onSu
         style={{ zIndex: 9999 }}
         onClick={(e) => {
           if (e.target === e.currentTarget) {
-            console.log('CreateBankModal - Fermeture via clic overlay');
+            // console.log('CreateBankModal - Fermeture via clic overlay');
             onClose();
           }
         }}
@@ -249,7 +249,7 @@ const CreateBankModal: React.FC<CreateBankModalProps> = ({ isOpen, onClose, onSu
              
               <button
                 onClick={() => {
-                  console.log('CreateBankModal - Fermeture via X');
+                  // console.log('CreateBankModal - Fermeture via X');
                   onClose();
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
@@ -386,7 +386,7 @@ const CreateBankModal: React.FC<CreateBankModalProps> = ({ isOpen, onClose, onSu
               <button
                 type="button"
                 onClick={() => {
-                  console.log('CreateBankModal - Fermeture via Annuler');
+                  // console.log('CreateBankModal - Fermeture via Annuler');
                   onClose();
                 }}
                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"

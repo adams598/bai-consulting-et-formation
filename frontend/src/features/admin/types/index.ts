@@ -113,6 +113,13 @@ export interface FormationAssignment {
   dueDate?: string;
   assignedAt: string;
   updatedAt: string;
+  formation?: {
+    id: string;
+    title: string;
+    description?: string;
+    duration: number;
+    universeId?: string;
+  };
 }
 
 export interface FormationContent {

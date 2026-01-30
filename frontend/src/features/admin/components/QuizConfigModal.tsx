@@ -87,11 +87,11 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   };
 
   const removeQuestion = (index: number) => {
-    console.log('removeQuestion appelé avec index:', index);
-    console.log('Questions avant suppression:', questions);
+    // console.log('removeQuestion appelé avec index:', index);
+    // console.log('Questions avant suppression:', questions);
     setQuestions(prev => {
       const newQuestions = prev.filter((_, i) => i !== index);
-      console.log('Questions après suppression:', newQuestions);
+      // console.log('Questions après suppression:', newQuestions);
       return newQuestions;
     });
     // Réorganiser l'ordre
@@ -145,12 +145,12 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   };
 
   const removeAnswer = (questionIndex: number, answerIndex: number) => {
-    console.log('removeAnswer appelé avec questionIndex:', questionIndex, 'answerIndex:', answerIndex);
-    console.log('Questions avant suppression de réponse:', questions);
+    // console.log('removeAnswer appelé avec questionIndex:', questionIndex, 'answerIndex:', answerIndex);
+    // console.log('Questions avant suppression de réponse:', questions);
     setQuestions(prev => prev.map((q, i) => {
       if (i === questionIndex) {
         const newAnswers = q.answers?.filter((_, ai) => ai !== answerIndex) || [];
-        console.log('Nouvelles réponses pour question', i, ':', newAnswers);
+        // console.log('Nouvelles réponses pour question', i, ':', newAnswers);
         // Réorganiser l'ordre des réponses
         return {
           ...q,

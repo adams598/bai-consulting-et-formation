@@ -6,8 +6,6 @@ import { AuthProvider } from './providers/auth-provider';
 import App from './App';
 import './index.css';
 
-console.log('main.tsx : démarrage du rendu React');
-
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
@@ -19,5 +17,3 @@ createRoot(document.getElementById('root')!).render(
     </BrowserRouter>
   </StrictMode>
 );
-
-console.log('main.tsx : rendu React lancé');

@@ -56,15 +56,15 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
   const loadBanks = async () => {
     try {
       setLoadingBanks(true);
-      console.log('🏦 Chargement des banques...');
+      // console.log('🏦 Chargement des banques...');
       const response = await banksApi.getAll();
-      console.log('🏦 Réponse banques:', response);
+      // console.log('🏦 Réponse banques:', response);
       
       if (response.data.success && response.data.data) {
         // Filtrer les banques actives
         const activeBanks = response.data.data.filter(bank => bank.isActive);
         setBanks(activeBanks);
-        console.log('✅ Banques actives chargées:', activeBanks);
+        // console.log('✅ Banques actives chargées:', activeBanks);
       } else {
         console.error('❌ Erreur dans la réponse banques:', response.data);
         // Fallback avec des données de test si pas de banques
@@ -73,7 +73,7 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
     } catch (error) {
       console.error('❌ Erreur lors du chargement des banques:', error);
       // En cas d'erreur, utiliser des données de test pour le développement
-      console.log('🧪 Utilisation des données de test...');
+      // console.log('🧪 Utilisation des données de test...');
       setBanks([
         {
           id: 'test-bank-1',
@@ -102,13 +102,13 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
     
     try {
       setLoadingUsers(true);
-      console.log('👥 Chargement des utilisateurs pour la banque:', selectedBank);
+      // console.log('👥 Chargement des utilisateurs pour la banque:', selectedBank);
       const response = await usersApi.getAll(selectedBank);
-      console.log('👥 Réponse utilisateurs:', response);
+      // console.log('👥 Réponse utilisateurs:', response);
       
       if (response.data.success && response.data.data) {
         setUsers(response.data.data);
-        console.log('✅ Utilisateurs chargés:', response.data.data);
+        // console.log('✅ Utilisateurs chargés:', response.data.data);
       } else {
         console.error('❌ Erreur dans la réponse utilisateurs:', response.data);
         setUsers([]);
@@ -116,7 +116,7 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
     } catch (error) {
       console.error('❌ Erreur lors du chargement des utilisateurs:', error);
       // En cas d'erreur, utiliser des données de test pour le développement
-      console.log('🧪 Utilisation des utilisateurs de test...');
+      // console.log('🧪 Utilisation des utilisateurs de test...');
       setUsers([
         {
           id: 'test-user-1',

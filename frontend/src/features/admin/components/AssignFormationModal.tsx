@@ -52,14 +52,14 @@ const AssignFormationModal: React.FC<AssignFormationModalProps> = ({
   const loadFormations = async () => {
     try {
       setLoading(true);
-      console.log('🔄 Chargement des formations...');
+      // console.log('🔄 Chargement des formations...');
       
       const response = await formationsApi.getAllFormations();
-      console.log('📡 Réponse API formations:', response);
+      // console.log('📡 Réponse API formations:', response);
       
       if (response.data?.success) {
         const formationsData = response.data.data || [];
-        console.log('✅ Formations chargées:', formationsData.length);
+        // console.log('✅ Formations chargées:', formationsData.length);
         setFormations(formationsData);
         setFilteredFormations(formationsData);
       } else {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, BookOpen, Clock, Database, Plus, Edit, Trash2, X, RefreshCw, Users, Play, Lock, GripVertical, ArrowUpDown, CheckCircle } from 'lucide-react';
+import { ArrowLeft, BookOpen, Clock, Database, Plus, Edit, Trash2, X, RefreshCw, Users, Play, Lock, GripVertical, ArrowUpDown, CheckCircle, Layers, User as UserIcon, Globe, Target, List } from 'lucide-react';
 import { Formation, FormationContent } from '../types';
 import { getFormationCoverImageUrl, getLessonImageUrl } from '../../../utils/imageUtils';
 import { formationContentApi, progressApi } from '../../../api/adminApi';
@@ -9,6 +9,7 @@ import { FormationModal } from './FormationModal';
 import BanksListView from './BanksListView';
 import LessonModal from './LessonModal';
 import LessonPlayer from './LessonPlayer';
+import { useAuth } from '../../../providers/auth-provider';
 import { 
   getFormationCode, 
   getFormationPedagogicalModality, 
@@ -53,6 +54,7 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
   // État pour vérifier le rôle de l'utilisateur
   const [userRole, setUserRole] = useState<string>('');
   const [isAdmin, setIsAdmin] = useState(false);
+  const { user } = useAuth();
   
   // Nouveaux états pour gérer les actions de formation
   const [showEditFormationModal, setShowEditFormationModal] = useState(false);
@@ -170,7 +172,7 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
         .sort((a: FormationContent, b: FormationContent) => (a.order || 0) - (b.order || 0));
       setLessons(lessonsOnly);
       
-      console.log('📚 Leçons chargées:', lessonsOnly.length);
+      // console.log('📚 Leçons chargées:', lessonsOnly.length);
       
     } catch (error) {
       console.error('Erreur lors du chargement des leçons:', error);
@@ -198,7 +200,7 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
     });
     
         setLessonProgress(progressMap);
-    console.log('📈 Progressions initialisées:', progressMap);
+    // console.log('📈 Progressions initialisées:', progressMap);
   };
 
   // Mettre à jour la progression d'une leçon avec vérification d'accessibilité
@@ -215,7 +217,7 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
     const isAccessible = isLessonAccessible(lessons[lessonIndex], lessonIndex);
     
     if (!isAccessible) {
-      console.log('🚫 Progression bloquée pour', lessons[lessonIndex].title, '- Leçon non accessible');
+      // console.log('🚫 Progression bloquée pour', lessons[lessonIndex].title, '- Leçon non accessible');
       return;
     }
 
@@ -227,7 +229,7 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
         ...progress
       }
     }));
-    console.log('📊 Progression mise à jour pour', lessonId, ':', progress);
+    // console.log('📊 Progression mise à jour pour', lessonId, ':', progress);
   };
 
   // Fonction de test pour simuler des progressions (à supprimer en production)
@@ -316,7 +318,7 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
       setLessons(updatedLessons);
       setShowReorderModal(false);
       
-      console.log('✅ Ordre des leçons mis à jour avec succès');
+      // console.log('✅ Ordre des leçons mis à jour avec succès');
     } catch (error) {
       console.error('❌ Erreur lors de la réorganisation:', error);
     }
@@ -341,7 +343,7 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
 
   const handleSaveLesson = async (lessonData: any) => {
     try {
-      console.log('💾 Sauvegarde de la leçon:', lessonData);
+      // console.log('💾 Sauvegarde de la leçon:', lessonData);
       
       setIsSubmitting(true);
       setError(null);
@@ -378,8 +380,8 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
           // Fermer le modal
           setShowLessonModal(false);
           
-          console.log('✏️ Leçon modifiée avec succès:', response.data);
-          console.log('⏱️ Nouvelle durée totale:', formatDuration(newTotalDuration));
+          // console.log('✏️ Leçon modifiée avec succès:', response.data);
+          // console.log('⏱️ Nouvelle durée totale:', formatDuration(newTotalDuration));
         }
         
       } else {
@@ -408,8 +410,8 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
           // Fermer le modal
           setShowLessonModal(false);
           
-          console.log('✅ Leçon créée avec succès:', response.data);
-          console.log('⏱️ Nouvelle durée totale:', formatDuration(newTotalDuration));
+          // console.log('✅ Leçon créée avec succès:', response.data);
+          // console.log('⏱️ Nouvelle durée totale:', formatDuration(newTotalDuration));
         }
       }
       
@@ -441,8 +443,8 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
           
           setShowConfirmModal(false);
           
-          console.log('🗑️ Leçon supprimée avec succès:', selectedLesson.title);
-          console.log('⏱️ Nouvelle durée totale:', formatDuration(newTotalDuration));
+          // console.log('🗑️ Leçon supprimée avec succès:', selectedLesson.title);
+          // console.log('⏱️ Nouvelle durée totale:', formatDuration(newTotalDuration));
         }
         
       } catch (error) {
@@ -492,26 +494,26 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
 
   // Fonction pour lancer la formation (affiche les leçons)
   const handleLaunchFormation = () => {
-    console.log('🚀 FormationDetailView - handleLaunchFormation appelé');
-    console.log('🚀 FormationDetailView - Formation:', localFormation.title);
+    // console.log('🚀 FormationDetailView - handleLaunchFormation appelé');
+    // console.log('🚀 FormationDetailView - Formation:', localFormation.title);
     
     // Afficher les leçons de la formation
     setShowLessons(true);
     
-    console.log('🚀 FormationDetailView - Leçons vont s\'afficher');
+    // console.log('🚀 FormationDetailView - Leçons vont s\'afficher');
   };
 
   // Fonction pour lancer une leçon (affiche l'interface de la leçon)
   const handleLaunchLesson = (lesson: FormationContent) => {
-    console.log('🚀 FormationDetailView - handleLaunchLesson appelé');
-    console.log('🚀 FormationDetailView - Leçon sélectionnée:', lesson.title);
-    console.log('🚀 FormationDetailView - Formation:', localFormation.title);
+    // console.log('🚀 FormationDetailView - handleLaunchLesson appelé');
+    // console.log('🚀 FormationDetailView - Leçon sélectionnée:', lesson.title);
+    // console.log('🚀 FormationDetailView - Formation:', localFormation.title);
     
     // Afficher le lecteur de leçon avec la leçon sélectionnée
     setSelectedLesson(lesson);
     setShowLessonPlayer(true);
     
-    console.log('🚀 FormationDetailView - LessonPlayer va s\'afficher avec la leçon:', lesson.title);
+    // console.log('🚀 FormationDetailView - LessonPlayer va s\'afficher avec la leçon:', lesson.title);
   };
 
   const formatDuration = (minutes: number) => {
@@ -654,7 +656,7 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
       
       await formationContentApi.reorderLessons(formation.id, lessonOrders);
       
-      console.log('✅ Ordre des leçons mis à jour');
+      // console.log('✅ Ordre des leçons mis à jour');
       
     } catch (error) {
       console.error('❌ Erreur lors de la réorganisation:', error);
@@ -1002,266 +1004,178 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
         </>
       ) : (
         <>
-          {/* En-tête avec bouton retour */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={onBack}
-              className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5 mr-2" />
-              Retour aux formations
-            </button>
-            
-            {isAdmin && (
-              <div className="flex space-x-3">
+          <div className="min-h-screen bg-[#fafafa] dark:bg-dark-bg-primary">
+           
+            <main className="max-w-7xl mx-auto px-12 py-12">
+              {/* Navigation retour */}
+              <nav className="mb-12">
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditFormation();
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
+                  onClick={onBack}
+                  className="inline-flex items-center text-sm font-medium text-[#64748b] dark:text-gray-400 hover:text-[#1e3a8a] dark:hover:text-blue-400 transition-colors group"
                 >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Modifier
+                  <ArrowLeft className="w-4 h-4 mr-2 transition-transform group-hover:-translate-x-1" />
+                  Retour aux formations
                 </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteFormation();
-                  }}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Supprimer
-                </button>
-              </div>
-            )}
-          </div>
+              </nav>
 
-          {/* Interface principale avec charte graphique du site */}
-          <div className="bg-white rounded-xl shadow-lg border border-stone-200 overflow-hidden">
-            <div className="flex min-h-[700px]">
-              {/* Sidebar gauche - Informations de la formation */}
-              <div className="w-80 bg-gradient-to-b from-stone-50 to-stone-100 p-8 border-r border-stone-200">
-                <div className="space-y-6">
-                  {/* Public concerné */}
-                  <div className="bg-white rounded-lg p-6 border border-stone-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div className="flex items-center mb-4">
-                      <div className="w-2.5 h-2.5 bg-blue-900 rounded-full mr-3 shadow-sm"></div>
-                      <h3 className="text-xs font-normal text-blue-900 uppercase tracking-wider">Public Concerné</h3>
-                    </div>
-                    <div className="space-y-3">
-                      {getFormationTargetAudience(localFormation).length > 0 ? (
-                        getFormationTargetAudience(localFormation).map((item, index) => (
-                          <div key={index} className="flex items-center group">
-                            <div className="w-1.5 h-1.5 bg-blue-900 rounded-full mr-3 group-hover:bg-blue-700 transition-colors duration-200"></div>
-                            <p className="text-sm text-gray-700 font-normal group-hover:text-gray-900 transition-colors duration-200">{item}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="flex items-center">
-                          <div className="w-1.5 h-1.5 bg-stone-400 rounded-full mr-3"></div>
-                          <p className="text-sm text-stone-500 italic">Non spécifié</p>
-                        </div>
-                      )}
-                    </div>
+              {/* Header Formation */}
+              <header className="text-center space-y-8 mb-16">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-center gap-3">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold tracking-widest uppercase border ${
+                      localFormation.isActive 
+                        ? 'bg-blue-50 text-[#1e3a8a] dark:bg-blue-900/30 dark:text-blue-400 border-blue-100 dark:border-blue-800' 
+                        : 'bg-gray-50 text-gray-600 dark:bg-gray-800 dark:text-gray-400 border-gray-100 dark:border-gray-700'
+                    }`}>
+                      {localFormation.isActive ? 'Actif' : 'Inactif'}
+                    </span>
                   </div>
+                  <h1 className="text-3xl md:text-4xl lg:text-5xl font-semibold text-slate-900 dark:text-gray-100 tracking-tight leading-snug max-w-4xl mx-auto">
+                    {localFormation.title}
+                  </h1>
+                  <p className="text-[#64748b] dark:text-gray-400 text-base font-light max-w-3xl mx-auto">
+                    {localFormation.description || "Une approche moderne pour développer vos compétences professionnelles."}
+                  </p>
                 </div>
-              </div>
-
-              {/* Contenu principal */}
-              <div className="flex-1 p-10">
-                <div className="max-w-4xl">
-                  {/* En-tête de la formation */}
-                  <div className="mb-12">
-                    <div className="flex items-start justify-between mb-8">
-                      <div className="flex-1">
-                        <h1 className="text-2xl font-normal text-gray-900 mb-4 leading-tight tracking-tight">{localFormation.title}</h1>
-                        <p className="text-base text-gray-600 leading-relaxed font-normal">{localFormation.description}</p>
-                      </div>
-                      <div className="ml-8">
-                        <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-normal shadow-sm ${
-                          localFormation.isActive 
-                            ? 'bg-gradient-to-r from-blue-50 to-blue-100 text-blue-900 border border-blue-200' 
-                            : 'bg-gradient-to-r from-red-50 to-red-100 text-red-700 border border-red-200'
-                        }`}>
-                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shadow-sm ${
-                            localFormation.isActive ? 'bg-blue-900' : 'bg-red-500'
-                          }`}></div>
-                          {localFormation.isActive ? 'ACTIF' : 'INACTIF'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Sections de contenu */}
-                  <div className="space-y-12">
-                    {/* Objectifs Pédagogiques */}
-                    <div className="group">
-                      <div className="flex items-center mb-6">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center mr-4 shadow-sm group-hover:shadow-md transition-shadow duration-200">
-                          <Clock className="h-5 w-5 text-blue-900" />
-                        </div>
-                        <h2 className="text-lg font-normal text-gray-900">Objectifs Pédagogiques</h2>
-                      </div>
-                      <div className="bg-gradient-to-br from-stone-50 to-white rounded-lg p-6 border border-stone-200 shadow-sm hover:shadow-md transition-all duration-200">
-                        <div className="space-y-3">
-                          {getFormationObjectives(localFormation).length > 0 ? (
-                            getFormationObjectives(localFormation).map((objective, index) => (
-                              <div key={index} className="flex items-start group/item">
-                                <div className="w-5 h-5 bg-gradient-to-br from-blue-900 to-blue-800 rounded-full flex items-center justify-center mr-4 mt-0.5 flex-shrink-0 shadow-sm group-hover/item:shadow-md transition-shadow duration-200">
-                                  <span className="text-white text-xs font-semibold">{index + 1}</span>
-                                </div>
-                                <p className="text-gray-700 leading-relaxed font-normal group-hover/item:text-gray-900 transition-colors duration-200">{objective}</p>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-center py-8">
-                              <p className="text-stone-500 italic">Aucun objectif pédagogique défini</p>
-                            </div>
-                          )}
+                
+                <div className="relative group">
+                  {localFormation.coverImage ? (
+                    <div className="aspect-[21/9] rounded-3xl overflow-hidden bg-[#002b45] relative">
+                      <img 
+                        alt="Course Cover" 
+                        className="w-full h-full object-cover opacity-60 blur-sm scale-105" 
+                        src={getFormationCoverImageUrl(localFormation.coverImage)}
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-lg border border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors">
+                          <Play className="text-white w-8 h-8" />
                         </div>
                       </div>
                     </div>
-
-                    {/* Prérequis */}
-                    <div className="group">
-                      <div className="flex items-center mb-6">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center mr-4 shadow-sm group-hover:shadow-md transition-shadow duration-200">
-                          <BookOpen className="h-5 w-5 text-blue-900" />
-                        </div>
-                        <h2 className="text-lg font-normal text-gray-900">Prérequis</h2>
-                      </div>
-                      <div className="bg-gradient-to-br from-stone-50 to-white rounded-lg p-6 border border-stone-200 shadow-sm hover:shadow-md transition-all duration-200">
-                        <div className="flex items-center group/item">
-                          <div className="w-6 h-6 bg-gradient-to-br from-blue-900 to-blue-800 rounded-full flex items-center justify-center mr-4 shadow-sm group-hover/item:shadow-md transition-shadow duration-200">
-                            <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
-                          <p className="text-gray-700 font-normal group-hover/item:text-gray-900 transition-colors duration-200">{getFormationPrerequisites(localFormation)}</p>
+                  ) : (
+                    <div className="aspect-[21/9] rounded-3xl overflow-hidden bg-gradient-to-br from-[#C7B299] to-[#8B7355] relative">
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="w-16 h-16 rounded-full bg-white/10 backdrop-blur-lg border border-white/20 flex items-center justify-center cursor-pointer hover:bg-white/20 transition-colors">
+                          <Play className="text-white w-8 h-8" />
                         </div>
                       </div>
                     </div>
-
-                    {/* Programme détaillé */}
-                    <div className="group">
-                      <div className="flex items-center mb-6">
-                        <div className="w-10 h-10 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center mr-4 shadow-sm group-hover:shadow-md transition-shadow duration-200">
-                          <BookOpen className="h-5 w-5 text-blue-900" />
-                        </div>
-                        <h2 className="text-lg font-normal text-gray-900">Programme Détaillé</h2>
-                      </div>
-                      <div className="bg-gradient-to-br from-stone-50 to-white rounded-lg p-6 border border-stone-200 shadow-sm hover:shadow-md transition-all duration-200">
-                        <div className="space-y-3">
-                          {getFormationDetailedProgram(localFormation).length > 0 ? (
-                            getFormationDetailedProgram(localFormation).map((module, index) => (
-                              <div key={index} className="flex items-center group/item">
-                                <div className="w-6 h-6 bg-gradient-to-br from-blue-900 to-blue-800 rounded-lg flex items-center justify-center mr-4 flex-shrink-0 shadow-sm group-hover/item:shadow-md transition-shadow duration-200">
-                                  <span className="text-white text-xs font-semibold">{index + 1}</span>
-                                </div>
-                                <p className="text-gray-700 font-normal group-hover/item:text-gray-900 transition-colors duration-200">{module}</p>
-                              </div>
-                            ))
-                          ) : (
-                            <div className="text-center py-8">
-                              <p className="text-stone-500 italic">Aucun programme détaillé défini</p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sidebar droite - Image et actions */}
-              <div className="w-96 bg-gradient-to-b from-stone-50 to-stone-100 p-8 border-l border-stone-200">
-                <div className="space-y-8">
-                  {/* Image de couverture avec bouton LANCER */}
-                  <div className="relative group">
-                    <div className="relative overflow-hidden rounded-xl border border-stone-200 shadow-sm group-hover:shadow-md transition-shadow duration-200">
-                      {localFormation.coverImage ? (
-                        <img
-                          src={getFormationCoverImageUrl(localFormation.coverImage)}
-                          alt={`Couverture de ${localFormation.title}`}
-                          className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-                          onError={(e) => {
-                            console.error('❌ Erreur de chargement de l\'image de couverture:', localFormation.coverImage);
-                            const target = e.target as HTMLImageElement;
-                            target.style.display = 'none';
-                            target.nextElementSibling?.classList.remove('hidden');
-                          }}
-                        />
-                      ) : null}
-                      
-                      {/* Fallback si pas d'image */}
-                      <div className={`w-full h-64 bg-gradient-to-br from-stone-100 to-stone-200 rounded-xl flex items-center justify-center ${localFormation.coverImage ? 'hidden' : ''}`}>
-                        <div className="text-center">
-                          <BookOpen className="h-16 w-16 text-stone-400 mx-auto mb-3" />
-                          <p className="text-sm text-stone-500 font-semibold">Image de couverture</p>
-                        </div>
-                      </div>
-                      
-                      {/* Bouton LANCER positionné en bas de l'image */}
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <button
-                          onClick={handleLaunchFormation}
-                          className="w-full bg-gradient-to-r from-blue-900 to-blue-800 hover:from-blue-800 hover:to-blue-700 text-white py-3 px-6 rounded-lg font-normal text-sm uppercase tracking-wider shadow-lg hover:shadow-xl transition-all duration-200 flex items-center justify-center transform hover:-translate-y-0.5"
-                        >
-                          <Play className="h-4 w-4 mr-2" />
-                          LANCER
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Statistiques rapides */}
-                  <div className="bg-white rounded-xl p-6 border border-stone-200 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <h3 className="text-xs font-normal text-blue-900 uppercase tracking-wider mb-5">Statistiques</h3>
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between group">
-                        <div className="flex items-center">
-                          <div className="w-7 h-7 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center mr-3 shadow-sm">
-                            <Clock className="h-4 w-4 text-blue-900" />
-                          </div>
-                          <span className="text-sm text-gray-600 font-normal">Durée totale</span>
-                        </div>
-                        <span className="text-sm font-normal text-gray-900">{formatDuration(getTotalDuration())}</span>
-                      </div>
-                      <div className="flex items-center justify-between group">
-                        <div className="flex items-center">
-                          <div className="w-7 h-7 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center mr-3 shadow-sm">
-                            <BookOpen className="h-4 w-4 text-blue-900" />
-                          </div>
-                          <span className="text-sm text-gray-600 font-normal">Leçons</span>
-                        </div>
-                        <span className="text-sm font-normal text-gray-900">{lessons.length}</span>
-                      </div>
-                      <div className="flex items-center justify-between group">
-                        <div className="flex items-center">
-                          <div className="w-7 h-7 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center mr-3 shadow-sm">
-                            <Users className="h-4 w-4 text-blue-900" />
-                          </div>
-                          <span className="text-sm text-gray-600 font-normal">Utilisateurs</span>
-                        </div>
-                        <span className="text-sm font-normal text-gray-900">{formationStats?.userCount || 0}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Boutons d'action */}
-                  {/* <div className="space-y-4">
-                    <button className="w-full border-2 border-stone-300 hover:border-stone-400 text-gray-700 hover:text-gray-900 hover:bg-white py-4 px-6 rounded-xl font-normal text-sm transition-all duration-200 flex items-center justify-center shadow-sm hover:shadow-md">
-                      <svg className="h-5 w-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                      Exporter PDF
+                  )}
+                  <div className="mt-8 flex justify-center">
+                    <button 
+                      onClick={handleLaunchFormation}
+                      className="bg-[#1e3a8a] dark:bg-blue-600 text-white px-10 py-4 rounded-full text-sm font-semibold tracking-wide hover:shadow-xl hover:shadow-blue-900/10 dark:hover:shadow-blue-900/20 transition-all transform hover:-translate-y-0.5"
+                    >
+                      LANCER LA FORMATION
                     </button>
-                  </div> */}
+                  </div>
+                </div>
+              </header>
+
+              {/* Statistiques */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-8 py-10 border-y border-slate-100 dark:border-gray-700 max-w-5xl mx-auto">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-slate-400 dark:text-gray-500" />
+                  <div>
+                    <p className="text-[10px] text-[#64748b] dark:text-gray-400 uppercase tracking-wider font-medium">Durée</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      {formatDuration(getTotalDuration())}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Layers className="w-5 h-5 text-slate-400 dark:text-gray-500" />
+                  <div>
+                    <p className="text-[10px] text-[#64748b] dark:text-gray-400 uppercase tracking-wider font-medium">Contenu</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      {lessons.length} leçons
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <UserIcon className="w-5 h-5 text-slate-400 dark:text-gray-500" />
+                  <div>
+                    <p className="text-[10px] text-[#64748b] dark:text-gray-400 uppercase tracking-wider font-medium">Public</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                      {getFormationTargetAudience(localFormation).length > 0 
+                        ? getFormationTargetAudience(localFormation)[0] || 'Tout niveau'
+                        : 'Tout niveau'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <Globe className="w-5 h-5 text-slate-400 dark:text-gray-500" />
+                  <div>
+                    <p className="text-[10px] text-[#64748b] dark:text-gray-400 uppercase tracking-wider font-medium">Langue</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Français</p>
+                  </div>
                 </div>
               </div>
-            </div>
+
+              {/* Contenu */}
+              <div className="space-y-16 mt-16">
+                {/* Objectifs Pédagogiques */}
+                {getFormationObjectives(localFormation).length > 0 && (
+                  <section className="max-w-4xl mx-auto">
+                    <div className="flex items-center gap-4 mb-6">
+                      <Target className="w-5 h-5 text-[#1e3a8a] dark:text-blue-400 opacity-50" />
+                      <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Objectifs Pédagogiques</h2>
+                    </div>
+                    <div className="space-y-4 text-slate-600 dark:text-gray-300 font-light leading-relaxed pl-10 border-l border-slate-100 dark:border-gray-700">
+                      {getFormationObjectives(localFormation).map((objective, index) => (
+                        <p key={index}>{objective}</p>
+                      ))}
+                    </div>
+                  </section>
+                )}
+
+                {/* Prérequis */}
+                <section className="max-w-4xl mx-auto">
+                  <div className="flex items-center gap-4 mb-6">
+                    <CheckCircle className="w-5 h-5 text-[#1e3a8a] dark:text-blue-400 opacity-50" />
+                    <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Prérequis</h2>
+                  </div>
+                  <div className="pl-10">
+                    <p className="text-slate-500 dark:text-gray-400 font-light italic">{getFormationPrerequisites(localFormation)}</p>
+                  </div>
+                </section>
+
+                {/* Programme de la formation */}
+                {getFormationDetailedProgram(localFormation).length > 0 && (
+                  <section className="max-w-4xl mx-auto">
+                    <div className="flex items-center gap-4 mb-8">
+                      <List className="w-5 h-5 text-[#1e3a8a] dark:text-blue-400 opacity-50" />
+                      <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">Programme de la formation</h2>
+                    </div>
+                    <div className="divide-y divide-slate-100 dark:divide-gray-700 pl-10">
+                      {getFormationDetailedProgram(localFormation).map((module, idx) => (
+                        <div 
+                          key={idx} 
+                          className="py-5 flex items-center justify-between group cursor-pointer"
+                        >
+                          <div className="flex items-center gap-6">
+                            <span className="text-xs font-medium text-slate-300 dark:text-gray-600 group-hover:text-[#1e3a8a] dark:group-hover:text-blue-400 transition-colors">
+                              {String(idx + 1).padStart(2, '0')}
+                            </span>
+                            <span className="text-sm text-slate-700 dark:text-gray-300 font-light">
+                              {module}
+                            </span>
+                          </div>
+                          <Play className="w-5 h-5 text-slate-300 dark:text-gray-600 group-hover:text-[#1e3a8a] dark:group-hover:text-blue-400 transition-colors" />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </div>
+
+              {/* Footer */}
+              <footer className="mt-32 pt-12 border-t border-slate-100 dark:border-gray-700 text-center">
+                <p className="text-[11px] text-slate-400 dark:text-gray-500 uppercase tracking-widest font-medium">
+                  © 2024 BAI Formation • L'excellence par le savoir
+                </p>
+              </footer>
+            </main>
           </div>
         </>
       )}
@@ -1330,7 +1244,7 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
                 lesson.id === updatedLesson.id ? updatedLesson : lesson
               )
             );
-            console.log('✅ Leçon mise à jour dans FormationDetailView:', updatedLesson);
+            // console.log('✅ Leçon mise à jour dans FormationDetailView:', updatedLesson);
           }}
         />
       )}

@@ -86,7 +86,6 @@ export const AdminSidebar: React.FC = () => {
   useEffect(() => {
     const initializeAdmin = async () => {
       try {
-        console.log('🔍 Initialisation AdminSidebar...');
         
         if (authService.isAuthenticated()) {
           const authUser = authService.getCurrentUser();
@@ -118,7 +117,7 @@ export const AdminSidebar: React.FC = () => {
   // Mettre à jour activeView quand l'URL change
   useEffect(() => {
     const path = location.pathname;
-    console.log('📍 URL changée:', path);
+    // console.log('📍 URL changée:', path);
     
     let newView = 'dashboard';
     
@@ -141,7 +140,7 @@ export const AdminSidebar: React.FC = () => {
     }
     
     if (newView !== activeView) {
-      console.log('🔄 Mise à jour activeView:', activeView, '->', newView);
+      // console.log('🔄 Mise à jour activeView:', activeView, '->', newView);
       setActiveView(newView);
     }
   }, [location.pathname, activeView]);
@@ -293,7 +292,7 @@ export const AdminSidebar: React.FC = () => {
                     key={item.id}
                     to={item.path}
                     onClick={() => {
-                      console.log('🖱️ Clic sur lien:', item.id, '-> navigation vers:', item.path);
+                      // console.log('🖱️ Clic sur lien:', item.id, '-> navigation vers:', item.path);
                     }}
                     className={`flex items-center ${isSidebarCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-2'} mt-2 text-blue-900 rounded-lg transition-colors no-underline ${
                       isActive

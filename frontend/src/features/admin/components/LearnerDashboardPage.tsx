@@ -390,7 +390,7 @@ const LearnerDashboardPage: React.FC = () => {
         {/* Activités récentes */}
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="admin-title-md admin-title-spacing">Activités récentes</h3>
+            <h4 className="admin-title-md admin-title-spacing">Activités récentes</h4>
             <div className="flex space-x-2">
               {/* Filtre par période */}
               <div className="relative">

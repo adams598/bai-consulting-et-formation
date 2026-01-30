@@ -183,7 +183,7 @@ export const assignmentsApi = {
     api.get<ApiResponse<FormationAssignment[]>>(`/api/admin/assignments?formationId=${formationId}`),
   
   // Créer une assignation
-  create: (data: Omit<FormationAssignment, 'id' | 'assignedAt' | 'updatedAt'>) => 
+  create: (data: { userId: string; formationId: string; isMandatory?: boolean; dueDate?: string }) => 
     api.post<ApiResponse<FormationAssignment>>('/api/admin/assignments', data),
   
   // Assigner une formation à plusieurs utilisateurs

@@ -158,7 +158,7 @@ export const FormationModal: React.FC<FormationModalProps> = ({
         return;
       }
       
-      console.log('🔍 handleCoverImageChange - Titre de la formation:', formData.title);
+      // console.log('🔍 handleCoverImageChange - Titre de la formation:', formData.title);
       
       setCoverImageFile(file);
       // Créer une URL temporaire pour l'aperçu
@@ -180,7 +180,7 @@ export const FormationModal: React.FC<FormationModalProps> = ({
         throw new Error('Le titre de la formation est requis avant l\'upload de l\'image');
       }
       
-      console.log('🔍 uploadCoverImage - Titre de la formation:', formData.title);
+      // console.log('🔍 uploadCoverImage - Titre de la formation:', formData.title);
       
       // Utiliser le service d'upload avec le titre de la formation
       const imageUrl = await imageUploadService.uploadFormationCoverImage(file, formData.title);

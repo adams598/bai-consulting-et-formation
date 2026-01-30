@@ -51,7 +51,7 @@ export const useLearnerFormationsCache = () => {
       setIsLoading(true);
       setError(null);
       
-      console.log('🔄 Chargement des données formations (Learner)...');
+      // console.log('🔄 Chargement des données formations (Learner)...');
       
       // Charger les formations et universes en parallèle avec les APIs learner
       const [formationsResponse, universesResponse] = await Promise.all([

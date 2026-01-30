@@ -297,7 +297,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   // Fonction pour sauvegarder le quiz
   const handleSaveQuiz = async (quizData: any) => {
     try {
-      console.log('💾 Sauvegarde du quiz:', quizData);
+      // console.log('💾 Sauvegarde du quiz:', quizData);
       
       if (quiz && quiz.id) {
         // Mise à jour du quiz existant
@@ -310,7 +310,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         });
         
         if (response.data.success) {
-          console.log('✅ Quiz mis à jour:', response.data.data);
+          // console.log('✅ Quiz mis à jour:', response.data.data);
           setQuiz(response.data.data);
           setSuccessMessage('Quiz mis à jour avec succès !');
           setTimeout(() => setSuccessMessage(null), 5000);
@@ -328,7 +328,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         });
         
         if (response.data.success) {
-          console.log('✅ Quiz créé:', response.data.data);
+          // console.log('✅ Quiz créé:', response.data.data);
           setQuiz(response.data.data);
           setSuccessMessage('Quiz créé avec succès !');
           setTimeout(() => setSuccessMessage(null), 5000);
@@ -346,7 +346,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
 
   // Fonction pour calculer la durée réelle de la vidéo
   const calculateVideoDuration = async (lessonId: string): Promise<number> => {
-    console.log('🔄 Calcul de la durée pour la leçon:', lessonId);
+    // console.log('🔄 Calcul de la durée pour la leçon:', lessonId);
     
     // Essayer d'abord l'API (même si elle n'existe pas encore)
     try {
@@ -361,7 +361,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
       if (response.ok) {
         const data = await response.json();
         const duration = data.duration || 0;
-        console.log('🎥 Durée calculée via l\'API:', duration, 'secondes');
+        // console.log('🎥 Durée calculée via l\'API:', duration, 'secondes');
         return duration;
       } else {
         console.log('⚠️ API non disponible (404), passage au fallback...');
@@ -372,10 +372,10 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     
     // Fallback: utiliser fetch authentifié pour récupérer la vidéo
     try {
-      console.log('🔄 Tentative avec fetch authentifié...');
+      // console.log('🔄 Tentative avec fetch authentifié...');
       
       const videoUrl = buildLessonFileUrl(selectedLesson!);
-      console.log('🎥 URL de la vidéo:', videoUrl);
+      // console.log('🎥 URL de la vidéo:', videoUrl);
       
       // Essayer de récupérer la vidéo avec authentification
       const videoResponse = await fetch(videoUrl, {
@@ -398,7 +398,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         
         video.onloadedmetadata = () => {
           const duration = Math.round(video.duration);
-          console.log('🎥 Durée calculée via blob:', duration, 'secondes');
+          // console.log('🎥 Durée calculée via blob:', duration, 'secondes');
           URL.revokeObjectURL(blobUrl); // Nettoyer le blob URL
           resolve(duration);
         };
@@ -421,7 +421,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   // Fonction pour recalculer la durée de la leçon
   const handleRecalculateDuration = async () => {
     if (!selectedLesson || !selectedLesson.fileUrl) {
-      console.log('❌ Aucune leçon sélectionnée ou pas de fichier vidéo');
+      // console.log('❌ Aucune leçon sélectionnée ou pas de fichier vidéo');
       return;
     }
 
@@ -429,17 +429,17 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     setSuccessMessage(null);
     
     try {
-      console.log('🔄 Calcul de la durée pour la leçon:', selectedLesson.title);
+      // console.log('🔄 Calcul de la durée pour la leçon:', selectedLesson.title);
       
       // Calculer la durée via l'API ou fallback
       const realDuration = await calculateVideoDuration(selectedLesson.id);
       
-      console.log('✅ Durée réelle calculée:', realDuration, 'secondes');
-      console.log('📊 Durée actuelle de la formation:', formation.duration, 'secondes');
+      // console.log('✅ Durée réelle calculée:', realDuration, 'secondes');
+      // console.log('📊 Durée actuelle de la formation:', formation.duration, 'secondes');
       
       // Mettre à jour la formation dans la base de données
       try {
-        console.log('💾 Mise à jour de la formation dans la BDD...');
+        // console.log('💾 Mise à jour de la formation dans la BDD...');
         
         const response = await fetch(`http://localhost:3000/api/admin/formations/${formation.id}`, {
           method: 'PUT',
@@ -455,7 +455,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         });
         
         if (response.ok) {
-          console.log('✅ Formation mise à jour dans la BDD avec la durée:', realDuration, 'secondes');
+          // console.log('✅ Formation mise à jour dans la BDD avec la durée:', realDuration, 'secondes');
           
           // Mettre à jour la leçon avec la durée réelle
           const updatedLesson = {
@@ -478,7 +478,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
             setSuccessMessage(null);
           }, 5000);
           
-          console.log('💾 Leçon mise à jour avec la durée réelle:', realDuration, 'secondes');
+          // console.log('💾 Leçon mise à jour avec la durée réelle:', realDuration, 'secondes');
           
         } else {
           throw new Error(`Erreur lors de la mise à jour de la formation: ${response.status}`);
@@ -525,7 +525,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         const userId = getCurrentUserId();
         const progress = progressService.getProgress(formation.id, userId, lessons);
         setLessonProgress(progress);
-        console.log('📊 Progressions chargées dans LessonPlayer:', progress);
+        // console.log('📊 Progressions chargées dans LessonPlayer:', progress);
       } catch (error) {
         console.error('❌ Erreur lors du chargement des progressions:', error);
       }
@@ -556,7 +556,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   // Effet de débogage pour surveiller l'état de la modal
   useEffect(() => {
     if (showQuizModal) {
-      console.log('📌 showQuizModal est maintenant true, la modal devrait s\'afficher');
+      // console.log('📌 showQuizModal est maintenant true, la modal devrait s\'afficher');
     }
   }, [showQuizModal]);
 
@@ -599,7 +599,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
       setIsQuizSelected(false); // Désélectionner le quiz si une leçon est sélectionnée
       setQuizResult(null);
     } else {
-      console.log('🚫 Sélection bloquée pour', lesson.title, '- Leçon non accessible');
+      // console.log('🚫 Sélection bloquée pour', lesson.title, '- Leçon non accessible');
     }
   };
 
@@ -612,7 +612,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     const isAccessible = isLessonAccessible(lessons[lessonIndex], lessonIndex);
     
     if (!isAccessible) {
-      console.log('🚫 Progression bloquée pour', lessons[lessonIndex].title, '- Leçon non accessible');
+      // console.log('🚫 Progression bloquée pour', lessons[lessonIndex].title, '- Leçon non accessible');
       return;
     }
 
@@ -658,14 +658,14 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
 
   // Fonction pour construire l'URL du fichier de la leçon
   const buildLessonFileUrl = (lesson: FormationContent) => {
-    console.log('🔍 buildLessonFileUrl - lesson:', lesson);
-    console.log('🔍 buildLessonFileUrl - formation.title:', formation.title);
-    console.log('🔍 buildLessonFileUrl - lesson.title:', lesson.title);
-    console.log('🔍 buildLessonFileUrl - lesson.fileUrl:', lesson.fileUrl);
+    // console.log('🔍 buildLessonFileUrl - lesson:', lesson);
+    // console.log('🔍 buildLessonFileUrl - formation.title:', formation.title);
+    // console.log('🔍 buildLessonFileUrl - lesson.title:', lesson.title);
+    // console.log('🔍 buildLessonFileUrl - lesson.fileUrl:', lesson.fileUrl);
     
     // Utiliser la fonction importée de imageUtils avec l'URL Cloudinary si disponible
     const url = getLessonFileUrl(formation.title, lesson.title, undefined, lesson.fileUrl);
-    console.log('🔍 buildLessonFileUrl - URL générée:', url);
+    // console.log('🔍 buildLessonFileUrl - URL générée:', url);
     return url;
   };
 
@@ -712,13 +712,13 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     // buildLessonFileUrl utilise déjà lesson.fileUrl si c'est une URL Cloudinary
     const fileUrl = buildLessonFileUrl(selectedLesson);
     
-    console.log('🎬 LessonPlayer - renderLessonContent:', {
-      lessonId: selectedLesson.id,
-      lessonTitle: selectedLesson.title,
-      lessonFileUrl: selectedLesson.fileUrl,
-      builtFileUrl: fileUrl,
-      isCloudinary: selectedLesson.fileUrl?.startsWith('https://res.cloudinary.com') || selectedLesson.fileUrl?.startsWith('http://res.cloudinary.com')
-    });
+    // console.log('🎬 LessonPlayer - renderLessonContent:', {
+    //   lessonId: selectedLesson.id,
+    //   lessonTitle: selectedLesson.title,
+    //   lessonFileUrl: selectedLesson.fileUrl,
+    //   builtFileUrl: fileUrl,
+    //   isCloudinary: selectedLesson.fileUrl?.startsWith('https://res.cloudinary.com') || selectedLesson.fileUrl?.startsWith('http://res.cloudinary.com')
+    // });
     
     return (
       <TestViewer
@@ -974,7 +974,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         });
 
         if (response.data.success) {
-          console.log('✅ Résultats sauvegardés:', response.data.data);
+          // console.log('✅ Résultats sauvegardés:', response.data.data);
         }
       } catch (error) {
         console.error('❌ Erreur lors de la sauvegarde des résultats:', error);
@@ -1426,7 +1426,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                               onClick={(e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
-                                console.log('🔍 MODIFIER - Clic détecté !');
+                                // console.log('🔍 MODIFIER - Clic détecté !');
                                 setShowLessonModal(true);
                               }}
                               className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -1527,9 +1527,9 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                       e.stopPropagation();
                       if (!quiz) {
                         // Si pas de quiz, ouvrir la modal de configuration
-                        console.log('🎯 Clic sur la carte Quiz - ouverture de la modal, showQuizModal:', showQuizModal);
+                        // console.log('🎯 Clic sur la carte Quiz - ouverture de la modal, showQuizModal:', showQuizModal);
                         setShowQuizModal(true);
-                        console.log('✅ showQuizModal mis à true');
+                        // console.log('✅ showQuizModal mis à true');
                       }
                       // Ne pas jouer automatiquement au clic sur la carte, utiliser les boutons
                     }}
@@ -1876,7 +1876,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
               </button>
               <button
                 onClick={() => {
-                  console.log('💾 Sauvegarde de la leçon:', selectedLesson);
+                  // console.log('💾 Sauvegarde de la leçon:', selectedLesson);
                   setShowLessonModal(false);
                   // TODO: Implémenter la sauvegarde
                 }}

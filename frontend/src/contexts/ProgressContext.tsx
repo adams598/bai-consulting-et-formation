@@ -41,7 +41,7 @@ export const ProgressProvider: React.FC<ProgressProviderProps> = ({
         const userId = progressService.getCurrentUserId();
         const progress = progressService.getProgress(formationId, userId, currentLessons);
         setLessonProgress(progress);
-        console.log('📊 Progressions chargées depuis le localStorage:', progress);
+        // console.log('📊 Progressions chargées depuis le localStorage:', progress);
       } catch (error) {
         console.error('❌ Erreur lors du chargement des progressions:', error);
       } finally {

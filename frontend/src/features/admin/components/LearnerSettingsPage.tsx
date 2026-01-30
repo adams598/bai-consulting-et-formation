@@ -13,16 +13,12 @@ import {
   Check,
   X,
   Calendar as CalendarIcon,
-  AlertCircle,
   Shield,
   Lock,
-  Globe,
-  Palette
 } from 'lucide-react';
 import { useToast } from '../../../components/ui/use-toast';
 import { authService } from '../../../services/authService';
 import { LearnerProfile } from '../../learner/types';
-import { ApiResponse } from '../../admin/types';
 
 // Utiliser directement LearnerProfile au lieu de redéfinir
 
@@ -234,57 +230,57 @@ const LearnerSettingsPage: React.FC = () => {
     }
   };
 
-  const handleNotificationSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // const handleNotificationSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
     
-    try {
-      setSaving(true);
+  //   try {
+  //     setSaving(true);
       
-      // Pour l'instant, simuler la sauvegarde des notifications
-      // TODO: Implémenter l'API de mise à jour des notifications
-      toast({
-        title: "Préférences sauvegardées",
-        description: "Vos préférences de notification ont été mises à jour"
-      });
+  //     // Pour l'instant, simuler la sauvegarde des notifications
+  //     // TODO: Implémenter l'API de mise à jour des notifications
+  //     toast({
+  //       title: "Préférences sauvegardées",
+  //       description: "Vos préférences de notification ont été mises à jour"
+  //     });
       
-      console.log('✅ Notifications sauvegardées:', notificationSettings);
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde des notifications:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de sauvegarder vos préférences",
-        variant: "destructive"
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+  //     console.log('✅ Notifications sauvegardées:', notificationSettings);
+  //   } catch (error) {
+  //     console.error('Erreur lors de la sauvegarde des notifications:', error);
+  //     toast({
+  //       title: "Erreur",
+  //       description: "Impossible de sauvegarder vos préférences",
+  //       variant: "destructive"
+  //     });
+  //   } finally {
+  //     setSaving(false);
+  //   }
+  // };
 
-  const handlePreferencesSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // const handlePreferencesSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
     
-    try {
-      setSaving(true);
+  //   try {
+  //     setSaving(true);
       
-      // Pour l'instant, simuler la sauvegarde des préférences
-      // TODO: Implémenter l'API de mise à jour des préférences
-      toast({
-        title: "Préférences sauvegardées",
-        description: "Vos préférences ont été mises à jour"
-      });
+  //     // Pour l'instant, simuler la sauvegarde des préférences
+  //     // TODO: Implémenter l'API de mise à jour des préférences
+  //     toast({
+  //       title: "Préférences sauvegardées",
+  //       description: "Vos préférences ont été mises à jour"
+  //     });
       
-      console.log('✅ Préférences sauvegardées:', preferences);
-    } catch (error) {
-      console.error('Erreur lors de la sauvegarde des préférences:', error);
-      toast({
-        title: "Erreur",
-        description: "Impossible de sauvegarder vos préférences",
-        variant: "destructive"
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
+  //     console.log('✅ Préférences sauvegardées:', preferences);
+  //   } catch (error) {
+  //     console.error('Erreur lors de la sauvegarde des préférences:', error);
+  //     toast({
+  //       title: "Erreur",
+  //       description: "Impossible de sauvegarder vos préférences",
+  //       variant: "destructive"
+  //     });
+  //   } finally {
+  //     setSaving(false);
+  //   }
+  // };
 
   // Fonction pour gérer le changement de photo de profil
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -612,274 +608,7 @@ const LearnerSettingsPage: React.FC = () => {
     </form>
   );
 
-  const renderNotificationsTab = () => (
-    <form onSubmit={handleNotificationSubmit} className="space-y-6">
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <Bell className="h-5 w-5 text-blue-600 mt-0.5" />
-          <div>
-            <h3 className="text-sm font-medium text-blue-800">
-              Gestion des notifications
-            </h3>
-            <p className="text-sm text-blue-700 mt-1">
-              Choisissez les types de notifications que vous souhaitez recevoir pour rester informé de votre progression.
-            </p>
-          </div>
-        </div>
-      </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">Notifications par email</h4>
-            <p className="text-sm text-gray-600">Recevoir les notifications importantes par email</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={notificationSettings.emailNotifications}
-              onChange={(e) => setNotificationSettings(prev => ({ ...prev, emailNotifications: e.target.checked }))}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">Rappels de formation</h4>
-            <p className="text-sm text-gray-600">Être rappelé des formations à terminer</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={notificationSettings.formationReminders}
-              onChange={(e) => setNotificationSettings(prev => ({ ...prev, formationReminders: e.target.checked }))}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">Mises à jour de progression</h4>
-            <p className="text-sm text-gray-600">Recevoir des notifications sur vos progrès</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={notificationSettings.progressUpdates}
-              onChange={(e) => setNotificationSettings(prev => ({ ...prev, progressUpdates: e.target.checked }))}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">Alertes de certificat</h4>
-            <p className="text-sm text-gray-600">Être notifié lors de l'obtention de certificats</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={notificationSettings.certificateAlerts}
-              onChange={(e) => setNotificationSettings(prev => ({ ...prev, certificateAlerts: e.target.checked }))}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">Rapports hebdomadaires</h4>
-            <p className="text-sm text-gray-600">Recevoir un résumé de votre activité chaque semaine</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={notificationSettings.weeklyReports}
-              onChange={(e) => setNotificationSettings(prev => ({ ...prev, weeklyReports: e.target.checked }))}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">Notifications push</h4>
-            <p className="text-sm text-gray-600">Recevoir des notifications push dans le navigateur</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={notificationSettings.pushNotifications}
-              onChange={(e) => setNotificationSettings(prev => ({ ...prev, pushNotifications: e.target.checked }))}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">Notifications SMS</h4>
-            <p className="text-sm text-gray-600">Recevoir des notifications par SMS (si numéro fourni)</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={notificationSettings.smsNotifications}
-              onChange={(e) => setNotificationSettings(prev => ({ ...prev, smsNotifications: e.target.checked }))}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={saving}
-          className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-        >
-          <Save className="h-4 w-4" />
-          <span>{saving ? 'Sauvegarde...' : 'Sauvegarder les préférences'}</span>
-        </button>
-      </div>
-    </form>
-  );
-
-  const renderPreferencesTab = () => (
-    <form onSubmit={handlePreferencesSubmit} className="space-y-6">
-      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-        <div className="flex items-start space-x-3">
-          <Palette className="h-5 w-5 text-green-600 mt-0.5" />
-          <div>
-            <h3 className="text-sm font-medium text-green-800">
-              Préférences d'interface
-            </h3>
-            <p className="text-sm text-green-700 mt-1">
-              Personnalisez l'apparence et le comportement de votre interface.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Langue
-          </label>
-          <select
-            value={preferences.language}
-            onChange={(e) => setPreferences(prev => ({ ...prev, language: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="fr">Français</option>
-            <option value="en">English</option>
-            <option value="es">Español</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Fuseau horaire
-          </label>
-          <select
-            value={preferences.timezone}
-            onChange={(e) => setPreferences(prev => ({ ...prev, timezone: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="Europe/Paris">Europe/Paris (UTC+1)</option>
-            <option value="Europe/London">Europe/London (UTC+0)</option>
-            <option value="America/New_York">America/New_York (UTC-5)</option>
-            <option value="Asia/Tokyo">Asia/Tokyo (UTC+9)</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Format de date
-          </label>
-          <select
-            value={preferences.dateFormat}
-            onChange={(e) => setPreferences(prev => ({ ...prev, dateFormat: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-            <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-            <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Thème
-          </label>
-          <select
-            value={preferences.theme}
-            onChange={(e) => setPreferences(prev => ({ ...prev, theme: e.target.value }))}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-          >
-            <option value="light">Clair</option>
-            <option value="dark">Sombre</option>
-            <option value="auto">Automatique</option>
-          </select>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">Sauvegarde automatique</h4>
-            <p className="text-sm text-gray-600">Sauvegarder automatiquement les modifications</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={preferences.autoSave}
-              onChange={(e) => setPreferences(prev => ({ ...prev, autoSave: e.target.checked }))}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-
-        <div className="flex items-center justify-between p-4 bg-white border border-gray-200 rounded-lg">
-          <div>
-            <h4 className="text-sm font-medium text-gray-900">Tutoriels</h4>
-            <p className="text-sm text-gray-600">Afficher les tutoriels et conseils d'utilisation</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              checked={preferences.showTutorials}
-              onChange={(e) => setPreferences(prev => ({ ...prev, showTutorials: e.target.checked }))}
-              className="sr-only peer"
-            />
-            <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-          </label>
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={saving}
-          className="flex items-center space-x-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
-        >
-          <Save className="h-4 w-4" />
-          <span>{saving ? 'Sauvegarde...' : 'Sauvegarder les préférences'}</span>
-        </button>
-      </div>
-    </form>
-  );
 
   if (loading) {
     return (
@@ -923,28 +652,7 @@ const LearnerSettingsPage: React.FC = () => {
             <Shield className="h-4 w-4 inline mr-2" />
             Sécurité
           </button>
-          {/* <button
-            onClick={() => setActiveTab('notifications')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'notifications'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <Bell className="h-4 w-4 inline mr-2" />
-            Notifications
-          </button>
-          <button
-            onClick={() => setActiveTab('preferences')}
-            className={`py-2 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'preferences'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <Palette className="h-4 w-4 inline mr-2" />
-            Préférences
-          </button> */}
+          
         </nav>
       </div>
 

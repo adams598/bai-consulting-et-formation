@@ -3,8 +3,9 @@ import { X, Search, BookOpen, Clock, Users, CheckCircle, Trash2, AlertCircle } f
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { useToast } from '../../../components/ui/use-toast';
-import { formationsApi, assignmentsApi, userFormationAssignmentApi } from '../../../api/adminApi';
-import { Formation, User, FormationAssignment } from '../types';
+import { formationsApi, assignmentsApi, userFormationAssignmentApi, universesApi } from '../../../api/adminApi';
+import { Formation, User, FormationAssignment, Universe } from '../types';
+import ConfirmationModal from './ConfirmationModal';
 
 interface UserFormationAssignmentModalProps {
   isOpen: boolean;
@@ -29,8 +30,10 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
   const [formations, setFormations] = useState<Formation[]>([]);
   const [filteredFormations, setFilteredFormations] = useState<Formation[]>([]);
   const [assignedFormations, setAssignedFormations] = useState<FormationAssignment[]>([]);
+  const [universes, setUniverses] = useState<Universe[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFormations, setSelectedFormations] = useState<string[]>([]);
+  const [selectedAssignments, setSelectedAssignments] = useState<string[]>([]);
   const [assignmentConfig, setAssignmentConfig] = useState<{
     isMandatory: boolean;
     dueDate: string;
@@ -41,6 +44,9 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
   const [isLoading, setIsLoading] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [isLoadingAssigned, setIsLoadingAssigned] = useState(false);
+  const [showUnassignConfirm, setShowUnassignConfirm] = useState(false);
+  const [unassignData, setUnassignData] = useState<{ assignmentId: string; formationTitle: string } | null>(null);
+  const [isUnassigning, setIsUnassigning] = useState(false);
 
   const { toast } = useToast();
 
@@ -48,8 +54,10 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
     if (isOpen) {
       loadFormations();
       loadAssignedFormations();
+      loadUniverses();
       // Réinitialiser l'état
       setSelectedFormations([]);
+      setSelectedAssignments([]);
       setSearchTerm('');
       setAssignmentConfig({ isMandatory: true, dueDate: '' });
       setActiveTab('assign');
@@ -57,17 +65,27 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
   }, [isOpen]);
 
   useEffect(() => {
+    // Obtenir les IDs des formations déjà assignées
+    const assignedFormationIds = assignedFormations.map(assignment => 
+      assignment.formation?.id || assignment.formationId
+    );
+
+    // Filtrer les formations pour exclure celles déjà assignées
+    const availableFormations = formations.filter(
+      formation => !assignedFormationIds.includes(formation.id)
+    );
+
     // Filtrer les formations basé sur le terme de recherche
     if (!searchTerm.trim()) {
-      setFilteredFormations(formations);
+      setFilteredFormations(availableFormations);
     } else {
-      const filtered = formations.filter(formation =>
+      const filtered = availableFormations.filter(formation =>
         formation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         formation.description?.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredFormations(filtered);
     }
-  }, [formations, searchTerm]);
+  }, [formations, assignedFormations, searchTerm]);
 
   const loadFormations = async () => {
     try {
@@ -113,6 +131,36 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
     } finally {
       setIsLoadingAssigned(false);
     }
+  };
+
+  const loadUniverses = async () => {
+    try {
+      const response = await universesApi.getAll();
+      if (response.data?.success) {
+        setUniverses(response.data.data || []);
+      }
+    } catch (error) {
+      console.error('Erreur lors du chargement des univers:', error);
+    }
+  };
+
+  const getUniverseName = (assignment: FormationAssignment): string => {
+    // Essayer d'abord depuis l'assignation (si l'API retourne universeId)
+    const universeId = assignment.formation?.universeId;
+    
+    if (!universeId) {
+      // Fallback : chercher dans la liste des formations chargées
+      const formation = formations.find(f => f.id === assignment.formationId);
+      if (formation?.universeId) {
+        const universe = universes.find(u => u.id === formation.universeId);
+        return universe?.name || 'Aucun univers';
+      }
+      return 'Aucun univers';
+    }
+    
+    // Trouver l'univers correspondant
+    const universe = universes.find(u => u.id === universeId);
+    return universe?.name || 'Aucun univers';
   };
 
   const handleFormationToggle = (formationId: string) => {
@@ -192,21 +240,76 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
     }
   };
 
-  const handleUnassignFormation = async (assignmentId: string, formationTitle: string) => {
-    if (!confirm(`Êtes-vous sûr de vouloir dé-assigner la formation "${formationTitle}" de ${user.firstName} ${user.lastName} ?`)) {
+  const handleAssignmentToggle = (assignmentId: string) => {
+    setSelectedAssignments(prev => {
+      if (prev.includes(assignmentId)) {
+        return prev.filter(id => id !== assignmentId);
+      } else {
+        return [...prev, assignmentId];
+      }
+    });
+  };
+
+  const handleSelectAllAssignments = () => {
+    if (selectedAssignments.length === assignedFormations.length) {
+      setSelectedAssignments([]);
+    } else {
+      setSelectedAssignments(assignedFormations.map(a => a.id));
+    }
+  };
+
+  const handleUnassignFormations = () => {
+    if (selectedAssignments.length === 0) {
+      toast({
+        title: "Attention",
+        description: "Veuillez sélectionner au moins une formation à dé-assigner",
+        variant: "destructive",
+      });
       return;
     }
 
+    // Préparer les données pour la modale de confirmation
+    const assignmentsToUnassign = assignedFormations.filter(a => selectedAssignments.includes(a.id));
+    const formationTitles = assignmentsToUnassign.map(a => a.formation?.title || 'Formation sans titre').join(', ');
+    
+    setUnassignData({ 
+      assignmentId: selectedAssignments.join(','), // Utiliser une chaîne séparée par des virgules
+      formationTitle: formationTitles 
+    });
+    setShowUnassignConfirm(true);
+  };
+
+  const confirmUnassignFormation = async () => {
+    if (!unassignData) return;
+
     try {
-      await assignmentsApi.delete(assignmentId);
+      setIsUnassigning(true);
       
+      // Si plusieurs assignments, les supprimer un par un
+      const assignmentIds = unassignData.assignmentId.split(',');
+      
+      for (const assignmentId of assignmentIds) {
+        await assignmentsApi.delete(assignmentId);
+      }
+      
+      const count = assignmentIds.length;
       toast({
         title: "Succès",
-        description: `Formation "${formationTitle}" dé-assignée avec succès`,
+        description: `${count} formation(s) dé-assignée(s) avec succès`,
       });
 
-      // Recharger les formations assignées
-      await loadAssignedFormations();
+      // Recharger les formations assignées ET les formations disponibles
+      await Promise.all([
+        loadAssignedFormations(),
+        loadFormations()
+      ]);
+      
+      // Réinitialiser la sélection
+      setSelectedAssignments([]);
+      
+      // Fermer la modale de confirmation
+      setShowUnassignConfirm(false);
+      setUnassignData(null);
       
       // Notifier le parent
       onAssigned();
@@ -215,9 +318,11 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
       console.error('Erreur lors de la dé-assignation:', error);
       toast({
         title: "Erreur",
-        description: error.response?.data?.message || "Erreur lors de la dé-assignation de la formation",
+        description: error.response?.data?.message || "Erreur lors de la dé-assignation des formations",
         variant: "destructive",
       });
+    } finally {
+      setIsUnassigning(false);
     }
   };
 
@@ -233,8 +338,10 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+    <>
+      {/* Modale principale */}
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
@@ -431,58 +538,108 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {assignedFormations.map((assignment) => (
-                    <div
-                      key={assignment.id}
-                      className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 transition-colors"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h4 className="font-medium text-gray-900 mb-1">
-                            {assignment.formation?.title || 'Formation sans titre'}
-                          </h4>
-                          {assignment.formation?.description && (
-                            <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                              {assignment.formation.description}
-                            </p>
-                          )}
-                          <div className="flex items-center space-x-4 text-xs text-gray-500">
-                            {assignment.formation?.duration && (
-                              <div className="flex items-center">
-                                <Clock className="w-3 h-3 mr-1" />
-                                {formatDuration(assignment.formation.duration)}
+                <>
+                  {/* Barre d'actions pour la sélection multiple */}
+                  <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                    <div className="flex items-center space-x-4">
+                      <span className="text-sm text-gray-600">
+                        {selectedAssignments.length} / {assignedFormations.length} sélectionnée(s)
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSelectAllAssignments}
+                        disabled={assignedFormations.length === 0}
+                      >
+                        {selectedAssignments.length === assignedFormations.length ? 'Tout désélectionner' : 'Tout sélectionner'}
+                      </Button>
+                    </div>
+                    {selectedAssignments.length > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleUnassignFormations}
+                        className="border-red-200 text-red-600 hover:text-red-700 hover:border-red-300 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Dé-assigner ({selectedAssignments.length})
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Liste des formations assignées */}
+                  <div className="space-y-3">
+                    {assignedFormations.map((assignment) => {
+                      const universeName = getUniverseName(assignment);
+                      
+                      return (
+                        <div
+                          key={assignment.id}
+                          className={`p-4 border rounded-lg transition-colors ${
+                            selectedAssignments.includes(assignment.id)
+                              ? 'border-blue-500 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-start space-x-3 flex-1">
+                              <input
+                                type="checkbox"
+                                checked={selectedAssignments.includes(assignment.id)}
+                                onChange={() => handleAssignmentToggle(assignment.id)}
+                                className="mt-1 rounded border-gray-300"
+                              />
+                              <div className="flex-1">
+                                <h4 className="font-medium text-gray-900 mb-1">
+                                  {assignment.formation?.title || 'Formation sans titre'}
+                                </h4>
+                                <p className="text-sm text-gray-600 mb-2">
+                                  <span className="font-medium">Univers:</span> {universeName}
+                                </p>
+                                <div className="flex items-center space-x-4 text-xs text-gray-500">
+                                  {assignment.formation?.duration && (
+                                    <div className="flex items-center">
+                                      <Clock className="w-3 h-3 mr-1" />
+                                      {formatDuration(assignment.formation.duration)}
+                                    </div>
+                                  )}
+                                  <div className="flex items-center">
+                                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                      assignment.isMandatory
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-green-100 text-green-700'
+                                    }`}>
+                                      {assignment.isMandatory ? 'Obligatoire' : 'Optionnelle'}
+                                    </span>
+                                  </div>
+                                  {assignment.dueDate && (
+                                    <div className="flex items-center text-xs text-gray-500">
+                                      Échéance: {new Date(assignment.dueDate).toLocaleDateString('fr-FR')}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                            )}
-                            <div className="flex items-center">
-                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                assignment.isMandatory
-                                  ? 'bg-red-100 text-red-700'
-                                  : 'bg-green-100 text-green-700'
-                              }`}>
-                                {assignment.isMandatory ? 'Obligatoire' : 'Optionnelle'}
-                              </span>
                             </div>
-                            {assignment.dueDate && (
-                              <div className="flex items-center text-xs text-gray-500">
-                                Échéance: {new Date(assignment.dueDate).toLocaleDateString('fr-FR')}
-                              </div>
+                            {selectedAssignments.length === 0 && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedAssignments([assignment.id]);
+                                  handleUnassignFormations();
+                                }}
+                                className="ml-4 border-red-200 text-red-600 hover:text-red-700 hover:border-red-300 hover:bg-red-50"
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Dé-assigner
+                              </Button>
                             )}
                           </div>
                         </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleUnassignFormation(assignment.id, assignment.formation?.title || 'cette formation')}
-                          className="ml-4 border-red-200 text-red-600 hover:text-red-700 hover:border-red-300 hover:bg-red-50"
-                        >
-                          <Trash2 className="w-4 h-4 mr-1" />
-                          Dé-assigner
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                      );
+                    })}
+                  </div>
+                </>
               )}
             </div>
           )}
@@ -523,8 +680,31 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
             </Button>
           )}
         </div>
+        </div>
       </div>
-    </div>
+
+      {/* Modale de confirmation pour la dé-assignation */}
+      {showUnassignConfirm && unassignData && (
+        <ConfirmationModal
+          isOpen={showUnassignConfirm}
+          onClose={() => {
+            setShowUnassignConfirm(false);
+            setUnassignData(null);
+          }}
+          onConfirm={confirmUnassignFormation}
+          title="Confirmer la dé-assignation"
+          message={
+            unassignData.assignmentId.includes(',')
+              ? `Êtes-vous sûr de vouloir dé-assigner ${unassignData.assignmentId.split(',').length} formation(s) de ${user.firstName} ${user.lastName} ?`
+              : `Êtes-vous sûr de vouloir dé-assigner la formation "${unassignData.formationTitle}" de ${user.firstName} ${user.lastName} ?`
+          }
+          confirmText="Dé-assigner"
+          cancelText="Annuler"
+          type="warning"
+          isLoading={isUnassigning}
+        />
+      )}
+    </>
   );
 };
 

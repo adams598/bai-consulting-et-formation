@@ -51,7 +51,7 @@ export const useFormationsCache = () => {
       setIsLoading(true);
       setError(null);
       
-      console.log('🔄 Chargement des données formations...');
+      // console.log('🔄 Chargement des données formations...');
       
       // Charger les formations et universes en parallèle
       const [formationsResponse, universesResponse] = await Promise.all([
@@ -85,7 +85,7 @@ export const useFormationsCache = () => {
       
       const universes = universesWithCounts;
 
-      console.log(`📊 Chargement des statistiques pour ${formationsWithOpportunity.length} formations...`);
+      // console.log(`📊 Chargement des statistiques pour ${formationsWithOpportunity.length} formations...`);
       
       // Charger toutes les statistiques en une seule requête
       const statsResponse = await bankFormationApi.getAllFormationsStats();

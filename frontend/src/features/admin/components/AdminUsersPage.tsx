@@ -6,6 +6,7 @@ import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { useToast } from '../../../components/ui/use-toast';
 import ConfirmationModal from './ConfirmationModal';
+import ConfirmModal from './ConfirmModal';
 import { useConfirmation } from '../../../hooks/useConfirmation';
 import UserProgressModal from './UserProgressModal';
 import UserFormationAssignmentModal from './UserFormationAssignmentModal';
@@ -203,6 +204,12 @@ export default function AdminUsersPage() {
   const [selectedUserForProgress, setSelectedUserForProgress] = useState<UserType | null>(null);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
   const [selectedUserForAssignment, setSelectedUserForAssignment] = useState<UserType | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmModalData, setConfirmModalData] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   const { toast } = useToast();
   
@@ -355,6 +362,17 @@ export default function AdminUsersPage() {
           title: "Succès",
           description: "Utilisateur créé avec succès",
         });
+
+        // Afficher les identifiants avec le mot de passe généré
+        const generatedPassword = response.data.tempPassword || createData.password;
+        setConfirmModalData({
+          title: "Compte créé avec succès",
+          message: `Identifiants de l'utilisateur :\n\nEmail: ${createData.email}\nMot de passe: ${generatedPassword}\n\n⚠️ IMPORTANT : Ce mot de passe est temporaire et expire dans 5 jours.\nL'utilisateur devra le changer lors de sa première connexion.`,
+          onConfirm: () => {
+            setShowConfirmModal(false);
+          }
+        });
+        setShowConfirmModal(true);
       }
     } catch (error: any) {
       // En cas d'erreur, recharger les données pour restaurer l'état correct
@@ -910,6 +928,16 @@ export default function AdminUsersPage() {
         type={confirmation.options?.type}
         isLoading={confirmation.isLoading}
       />
+
+      {/* Modal de confirmation avec mot de passe */}
+      {showConfirmModal && confirmModalData && (
+        <ConfirmModal
+          title={confirmModalData.title}
+          message={confirmModalData.message}
+          onConfirm={confirmModalData.onConfirm}
+          onCancel={() => setShowConfirmModal(false)}
+        />
+      )}
 
       {/* Modal de suivi de progression */}
       {selectedUserForProgress && (

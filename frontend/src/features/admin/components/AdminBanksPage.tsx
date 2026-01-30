@@ -30,8 +30,6 @@ interface BankWithStats extends Bank {
 }
 
 const AdminBanksPage: React.FC = () => {
-  console.log('🔍 AdminBanksPage - Composant rendu');
-  
   const [banks, setBanks] = useState<BankWithStats[]>([]);
   const [filteredBanks, setFilteredBanks] = useState<BankWithStats[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,11 +43,7 @@ const AdminBanksPage: React.FC = () => {
 
   // Debug: Log de l'état de la modale
   useEffect(() => {
-    console.log('🔍 AdminBanksPage - showCreateModal changed:', showCreateModal);
-    console.log('🔍 AdminBanksPage - showEditModal changed:', showEditModal);
-    if (showCreateModal) {
-      console.log('🎉 AdminBanksPage - MODALE DOIT S\'OUVRIR !');
-    }
+    
   }, [showCreateModal, showEditModal]);
   
   const { toast } = useToast();
@@ -229,7 +223,7 @@ const AdminBanksPage: React.FC = () => {
   };
 
   const handleViewBankDetails = (bank: BankWithStats) => {
-    console.log('Voir détails:', bank);
+    // console.log('Voir détails:', bank);
     toast({
       title: "Détails",
       description: `Affichage des détails de ${bank.name}`,
@@ -278,10 +272,7 @@ const AdminBanksPage: React.FC = () => {
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                console.log('🚀 AdminBanksPage - CLIC DÉTECTÉ sur Nouvelle Banque');
-                console.log('🚀 AdminBanksPage - showCreateModal avant:', showCreateModal);
                 setShowCreateModal(true);
-                console.log('🚀 AdminBanksPage - setShowCreateModal(true) appelé');
               }}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
               style={{ zIndex: 1000 }}
@@ -580,11 +571,9 @@ const AdminBanksPage: React.FC = () => {
       <CreateBankModal
         isOpen={showCreateModal}
         onClose={() => {
-          console.log('❌ AdminBanksPage - Fermeture modale, showCreateModal:', showCreateModal);
           setShowCreateModal(false);
         }}
         onSuccess={() => {
-          console.log('✅ AdminBanksPage - Succès création, fermeture modale');
           loadBanks();
           setShowCreateModal(false);
         }}

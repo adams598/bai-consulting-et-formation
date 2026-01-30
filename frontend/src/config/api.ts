@@ -29,7 +29,7 @@ api.interceptors.request.use(
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
-      console.log('🔑 Token envoyé dans la requête:', config.url);
+      // console.log('🔑 Token envoyé dans la requête:', config.url);
     } else {
       console.warn('⚠️ Aucun token trouvé pour la requête:', config.url);
     }

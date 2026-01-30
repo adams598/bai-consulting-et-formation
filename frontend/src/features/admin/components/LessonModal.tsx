@@ -135,13 +135,13 @@ const LessonModal: React.FC<LessonModalProps> = ({
     
     const fileUrlToSave = formData.contentFileUrl || formData.contentUrl || undefined;
     
-    console.log('💾 Préparation des données de la leçon:', {
-      title: formData.title,
-      fileUrl: fileUrlToSave,
-      isCloudinaryUrl: fileUrlToSave && fileUrlToSave.includes('res.cloudinary.com'),
-      contentFileUrl: formData.contentFileUrl,
-      contentUrl: formData.contentUrl,
-    });
+    // // console.log('💾 Préparation des données de la leçon:', {
+    //   title: formData.title,
+    //   fileUrl: fileUrlToSave,
+    //   isCloudinaryUrl: fileUrlToSave && fileUrlToSave.includes('res.cloudinary.com'),
+    //   contentFileUrl: formData.contentFileUrl,
+    //   contentUrl: formData.contentUrl,
+    // });
     
     const lessonData = {
       ...formData,
@@ -157,11 +157,11 @@ const LessonModal: React.FC<LessonModalProps> = ({
       })
     };
     
-    console.log('📤 Envoi des données de la leçon:', {
-      title: lessonData.title,
-      fileUrl: lessonData.fileUrl,
-      isCloudinaryUrl: lessonData.fileUrl && lessonData.fileUrl.includes('res.cloudinary.com'),
-    });
+    // console.log('📤 Envoi des données de la leçon:', {
+    //   title: lessonData.title,
+    //   fileUrl: lessonData.fileUrl,
+    //   isCloudinaryUrl: lessonData.fileUrl && lessonData.fileUrl.includes('res.cloudinary.com'),
+    // });
     
     onSave(lessonData);
   };
@@ -190,9 +190,9 @@ const LessonModal: React.FC<LessonModalProps> = ({
       }
       
       try {
-        console.log('📸 Début de l\'upload de l\'image:', file.name, file.size, file.type);
-        console.log('🔍 Upload image - Titre leçon:', formData.title);
-        console.log('🔍 Upload image - Formation:', formationTitle);
+        // console.log('📸 Début de l\'upload de l\'image:', file.name, file.size, file.type);
+        // console.log('🔍 Upload image - Titre leçon:', formData.title);
+        // console.log('🔍 Upload image - Formation:', formationTitle);
         
         setIsUploadingImage(true);
         setFormData({ ...formData, coverImageFile: file });
@@ -234,8 +234,8 @@ const LessonModal: React.FC<LessonModalProps> = ({
         return;
       }
       
-      console.log('🔍 Upload fichier joint - Titre leçon:', formData.title);
-      console.log('🔍 Upload fichier joint - Formation:', formationTitle);
+      // console.log('🔍 Upload fichier joint - Titre leçon:', formData.title);
+      // console.log('🔍 Upload fichier joint - Formation:', formationTitle);
       
       // Vérifier s'il y a des fichiers existants
       if (existingFiles.length > 0) {
@@ -253,15 +253,15 @@ const LessonModal: React.FC<LessonModalProps> = ({
   // Fonction pour uploader un fichier
   const uploadFile = async (file: File) => {
     try {
-      console.log('🔍 Upload fichier joint - Titre leçon:', formData.title);
-      console.log('🔍 Upload fichier joint - Formation:', formationTitle);
+      // console.log('🔍 Upload fichier joint - Titre leçon:', formData.title);
+      // console.log('🔍 Upload fichier joint - Formation:', formationTitle);
       
       // Upload du fichier joint avec la nouvelle structure
       const fileUrl = await uploadService.uploadLessonFile(file, formationTitle, formData.title);
       
-      console.log('✅ Fichier joint uploadé:', fileUrl);
-      console.log('   Est URL Cloudinary:', fileUrl && fileUrl.includes('res.cloudinary.com'));
-      console.log('   Sera sauvegardé dans formData.contentFileUrl');
+      // console.log('✅ Fichier joint uploadé:', fileUrl);
+      // console.log('   Est URL Cloudinary:', fileUrl && fileUrl.includes('res.cloudinary.com'));
+      // console.log('   Sera sauvegardé dans formData.contentFileUrl');
       
       setFormData(prev => ({
         ...prev,
@@ -269,7 +269,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
         contentFileUrl: fileUrl // URL Cloudinary si upload réussi
       }));
       
-      console.log('✅ formData.contentFileUrl mis à jour:', fileUrl);
+      // console.log('✅ formData.contentFileUrl mis à jour:', fileUrl);
     } catch (error) {
       console.error('❌ Erreur upload fichier joint:', error);
         confirmation.showConfirmation({
@@ -330,9 +330,9 @@ const LessonModal: React.FC<LessonModalProps> = ({
   const uploadImageInBackground = async (file: File, previewUrl: string) => {
     try {
       // Upload de l'image et récupération de l'URL permanente
-      console.log('🚀 Upload vers le serveur...');
+      // console.log('🚀 Upload vers le serveur...');
       const permanentImageUrl = await uploadService.uploadLessonCoverImage(file, formationTitle, formData.title);
-      console.log('✅ Image uploadée avec succès, URL permanente:', permanentImageUrl);
+      // console.log('✅ Image uploadée avec succès, URL permanente:', permanentImageUrl);
       
       // Stocker l'URL permanente séparément, garder l'aperçu visible
       setFormData(prev => ({ 
@@ -341,7 +341,7 @@ const LessonModal: React.FC<LessonModalProps> = ({
         coverImageUrl: permanentImageUrl // Stocker l'URL permanente séparément
       }));
       
-      console.log('🖼️ Aperçu temporaire gardé pour l\'affichage, URL permanente stockée');
+      // console.log('🖼️ Aperçu temporaire gardé pour l\'affichage, URL permanente stockée');
     } catch (error) {
       console.error('❌ Erreur lors de l\'upload en arrière-plan:', error);
     }

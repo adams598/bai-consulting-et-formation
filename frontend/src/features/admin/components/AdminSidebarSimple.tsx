@@ -134,7 +134,7 @@ export const AdminSidebarSimple: React.FC = () => {
                   key={item.id}
                   to={item.path}
                   onClick={() => {
-                    console.log('🖱️ TEST - Clic sur:', item.label, '-> vers:', item.path);
+                    // console.log('🖱️ TEST - Clic sur:', item.label, '-> vers:', item.path);
                   }}
                   className={`flex items-center ${isSidebarCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-2'} mt-2 text-blue-900 rounded-lg transition-colors no-underline ${
                     isActive

@@ -157,7 +157,7 @@ const AdminFormationsPage: React.FC = () => {
           grouped['mes-formations'] = [];
         }
         grouped['mes-formations'].push(...orphanFormations);
-        console.log('✅ Formations orphelines assignées à "Mes Formations"');
+        // console.log('✅ Formations orphelines assignées à "Mes Formations"');
       }
     }
     
@@ -198,19 +198,13 @@ const AdminFormationsPage: React.FC = () => {
     }
   };
 
-  // Fonctions utilitaires pour les mises à jour optimistes des univers
-  const addUniverseOptimistically = (newUniverse: Universe) => {
-    // Pour l'ajout d'univers, on peut éviter le rechargement complet
-    console.log('✅ Univers ajouté - rechargement léger uniquement');
-    // On ne recharge que si nécessaire
-  };
+
 
   const updateUniverseOptimistically = (updatedUniverse: Universe) => {
     // Mise à jour locale sans rechargement complet
     if (selectedUniverse?.id === updatedUniverse.id) {
       setSelectedUniverse(updatedUniverse);
     }
-    console.log('✅ Univers mis à jour - pas de rechargement nécessaire');
   };
 
   const removeUniverseOptimistically = (universeId: string) => {
@@ -218,30 +212,24 @@ const AdminFormationsPage: React.FC = () => {
     if (selectedUniverse?.id === universeId) {
       setSelectedUniverse(null);
     }
-    console.log('✅ Univers supprimé - pas de rechargement nécessaire');
+    // console.log('✅ Univers supprimé - pas de rechargement nécessaire');
   };
 
   // Fonction de filtrage mémorisée
   const filterFormations = useCallback(() => {
-    console.log('🔍 filterFormations - Formations originales:', formations.length);
-    console.log('🔍 filterFormations - Terme de recherche:', searchTerm);
-    
     if (!searchTerm.trim()) {
-      console.log('🔍 filterFormations - Pas de terme de recherche, formations:', formations.length);
       setFilteredFormations(formations);
     } else {
       const filtered = formations.filter(formation =>
         formation.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         formation.description.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      console.log('🔍 filterFormations - Avec terme de recherche:', searchTerm, 'résultats:', filtered.length);
       setFilteredFormations(filtered);
     }
   }, [formations, searchTerm]);
 
   useEffect(() => {
     // Chargement une seule fois au montage du composant
-    console.log('🔍 AdminFormationsPage - Chargement initial, isAdminUser:', isAdminUser);
     if (isAdminUser) {
       loadData();
     } else {
@@ -252,22 +240,22 @@ const AdminFormationsPage: React.FC = () => {
 
   // Debug: afficher les données chargées
   useEffect(() => {
-    console.log('📊 AdminFormationsPage - Données mises à jour:');
-    console.log('  - formations:', formations.length);
-    console.log('  - universes:', universes.length);
-    console.log('  - isLoading:', isLoading);
-    console.log('  - selectedUniverse:', selectedUniverse ? selectedUniverse.name : 'null');
-    console.log('  - viewMode:', viewMode);
-    console.log('  - cacheData:', cacheData);
+    // console.log('📊 AdminFormationsPage - Données mises à jour:');
+    // console.log('  - formations:', formations.length);
+    // console.log('  - universes:', universes.length);
+    // console.log('  - isLoading:', isLoading);
+    // console.log('  - selectedUniverse:', selectedUniverse ? selectedUniverse.name : 'null');
+    // console.log('  - viewMode:', viewMode);
+    // console.log('  - cacheData:', cacheData);
     
     // Debug: afficher les premières formations pour voir leur structure
     if (formations.length > 0) {
-      console.log('🔍 Toutes les formations chargées:', formations.length);
-      console.log('🔍 Première formation:', formations[0]);
-      console.log('🔍 Deuxième formation:', formations[1] || 'Pas de deuxième formation');
-      console.log('🔍 Formations avec isOpportunity:', formations.filter(f => f.isOpportunity).length);
-      console.log('🔍 Formations avec universeId:', formations.filter(f => f.universeId).length);
-      console.log('🔍 Formations sans universeId:', formations.filter(f => !f.universeId).length);
+      // console.log('🔍 Toutes les formations chargées:', formations.length);
+      // console.log('🔍 Première formation:', formations[0]);
+      // console.log('🔍 Deuxième formation:', formations[1] || 'Pas de deuxième formation');
+      // console.log('🔍 Formations avec isOpportunity:', formations.filter(f => f.isOpportunity).length);
+      // console.log('🔍 Formations avec universeId:', formations.filter(f => f.universeId).length);
+      // console.log('🔍 Formations sans universeId:', formations.filter(f => !f.universeId).length);
     }
   }, [formations, universes, isLoading, cacheData, selectedUniverse, viewMode]);
 
@@ -321,21 +309,21 @@ const AdminFormationsPage: React.FC = () => {
   }, []);
 
   // Fonction pour formater la description des formations (mémorisée)
-  const formatFormationDescription = useCallback((description: string | undefined): string => {
-    const defaultDescription = "Aucune description disponible pour cette formation.";
-    const maxLength = 80; // Limite de caractères pour l'alignement
+  // const formatFormationDescription = useCallback((description: string | undefined): string => {
+  //   const defaultDescription = "Aucune description disponible pour cette formation.";
+  //   const maxLength = 80; // Limite de caractères pour l'alignement
     
-    if (!description || description.trim() === '') {
-      return defaultDescription;
-    }
+  //   if (!description || description.trim() === '') {
+  //     return defaultDescription;
+  //   }
     
-    if (description.length <= maxLength) {
-      return description;
-    }
+  //   if (description.length <= maxLength) {
+  //     return description;
+  //   }
     
-    // Tronquer à la limite et ajouter des points de suspension
-    return description.substring(0, maxLength).trim() + '...';
-  }, []);
+  //   // Tronquer à la limite et ajouter des points de suspension
+  //   return description.substring(0, maxLength).trim() + '...';
+  // }, []);
 
   // Fonction de chargement simple pour les COLLABORATOR
   const loadSimpleFormations = async () => {
@@ -500,36 +488,36 @@ const AdminFormationsPage: React.FC = () => {
   };
 
   // Fonction pour recharger les leçons d'une formation
-  const loadLessonsForFormation = async (formation: Formation) => {
-    try {
-      console.log('🔄 Rechargement des leçons pour:', formation.title);
+  // const loadLessonsForFormation = async (formation: Formation) => {
+  //   try {
+  //     console.log('🔄 Rechargement des leçons pour:', formation.title);
       
-      // Charger les leçons de la formation
-      const response = await formationContentApi.getByFormation(formation.id);
+  //     // Charger les leçons de la formation
+  //     const response = await formationContentApi.getByFormation(formation.id);
       
-      // Filtrer seulement les leçons (pas les sections) et trier par ordre
-      const lessonsOnly = response.data
-        .filter((content: any) => content.contentType === 'LESSON')
-        .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
+  //     // Filtrer seulement les leçons (pas les sections) et trier par ordre
+  //     const lessonsOnly = response.data
+  //       .filter((content: any) => content.contentType === 'LESSON')
+  //       .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
       
-      setLessons(lessonsOnly);
+  //     setLessons(lessonsOnly);
       
-      console.log('📚 Leçons rechargées:', lessonsOnly.length);
-    } catch (error) {
-      console.error('❌ Erreur lors du rechargement des leçons:', error);
-    }
-  };
+  //     console.log('📚 Leçons rechargées:', lessonsOnly.length);
+  //   } catch (error) {
+  //     console.error('❌ Erreur lors du rechargement des leçons:', error);
+  //   }
+  // };
 
   const handleFormationClick = async (formation: Formation) => {
-    console.log('🖱️ Clic sur formation:', formation.title);
-    console.log('🖱️ isOpportunity:', formation.isOpportunity);
-    console.log('🖱️ universeId:', formation.universeId);
-    console.log('🖱️ Formation complète:', formation);
+    // console.log('🖱️ Clic sur formation:', formation.title);
+    // console.log('🖱️ isOpportunity:', formation.isOpportunity);
+    // console.log('🖱️ universeId:', formation.universeId);
+    // console.log('🖱️ Formation complète:', formation);
     setSelectedFormation(formation);
     
     // Si c'est une formation d'opportunités commerciales, ouvrir directement le viewer vidéo
     if (formation.isOpportunity || formation.universeId === 'opportunites-commerciales') {
-      console.log('🎥 Ouverture du viewer vidéo pour formation opportunité:', formation.id);
+      // console.log('🎥 Ouverture du viewer vidéo pour formation opportunité:', formation.id);
       
       try {
         setIsLoadingLessons(true);
@@ -544,7 +532,7 @@ const AdminFormationsPage: React.FC = () => {
         
         setLessons(lessonsOnly);
         
-        console.log('📚 Leçons chargées:', lessonsOnly.length);
+        // console.log('📚 Leçons chargées:', lessonsOnly.length);
         
         // Ouvrir le viewer (même si pas de leçons)
         setShowLessonPlayer(true);
@@ -560,7 +548,7 @@ const AdminFormationsPage: React.FC = () => {
       }
     } else {
       // Comportement normal pour les formations d'univers
-      console.log('📋 Ouverture FormationDetailView pour admin:', formation.title);
+      // console.log('📋 Ouverture FormationDetailView pour admin:', formation.title);
       setShowFormationDetail(true);
       setIsCollapsed(true);
     }
@@ -758,7 +746,7 @@ const AdminFormationsPage: React.FC = () => {
       setShowBulkMoveModal(false);
       setShowBulkActions(false);
       
-      console.log(`🔄 Déplacement en lot de ${selectedFormations.length} formations vers l'univers ${targetUniverseId || 'FSU'}`);
+      // console.log(`🔄 Déplacement en lot de ${selectedFormations.length} formations vers l'univers ${targetUniverseId || 'FSU'}`);
       
       // Mise à jour optimiste : mettre à jour toutes les formations sélectionnées
       const formationsToUpdate = formations.filter(f => selectedFormations.includes(f.id));
@@ -782,7 +770,7 @@ const AdminFormationsPage: React.FC = () => {
         )
       );
       
-      console.log('✅ Déplacement en lot réussi - pas de rechargement nécessaire');
+      // console.log('✅ Déplacement en lot réussi - pas de rechargement nécessaire');
       
     } catch (error) {
       console.error('❌ Erreur lors du déplacement en lot:', error);
@@ -808,7 +796,7 @@ const AdminFormationsPage: React.FC = () => {
         dueDate: assignments[0]?.dueDate || null,
       });
       
-      console.log('Assignation en lot réussie:', result);
+      // console.log('Assignation en lot réussie:', result);
       
       // Recharger les formations et réinitialiser la sélection
       await refreshData();
@@ -871,7 +859,7 @@ const AdminFormationsPage: React.FC = () => {
 
   const handleSaveUniverse = async (universeData: Partial<Universe>) => {
     try {
-      console.log('💾 Création de l\'univers:', universeData);
+      // console.log('💾 Création de l\'univers:', universeData);
       
       // Fermer le modal immédiatement pour une meilleure UX
       setShowUniverseModal(false);
@@ -879,7 +867,7 @@ const AdminFormationsPage: React.FC = () => {
       // Appel API pour créer l'univers
       const response = await universesApi.create(universeData as Omit<Universe, 'id' | 'createdAt' | 'updatedAt' | 'formationCount'>);
       
-      console.log('✅ Univers créé:', response.data);
+      // console.log('✅ Univers créé:', response.data);
       
       toast({
         title: "Succès",
@@ -965,12 +953,12 @@ const AdminFormationsPage: React.FC = () => {
       };
       updateFormationOptimistically(updatedFormation);
       
-      console.log(`🔄 Déplacement de la formation ${formationToMove.id} vers l'univers ${newUniverseId || 'FSU'}`);
+      // console.log(`🔄 Déplacement de la formation ${formationToMove.id} vers l'univers ${newUniverseId || 'FSU'}`);
       
       // Un seul appel API pour déplacer la formation
       await universesApi.moveFormation(formationToMove.id, newUniverseId);
       
-      console.log('✅ Déplacement réussi - pas de rechargement nécessaire');
+      // console.log('✅ Déplacement réussi - pas de rechargement nécessaire');
       
     } catch (error) {
       console.error('❌ Erreur lors du déplacement:', error);
@@ -1012,11 +1000,11 @@ const AdminFormationsPage: React.FC = () => {
     if (selectedUniverse) {
       // Si on est dans un univers spécifique, afficher ses formations
       const universeFormations = formationsByUniverse[selectedUniverse.id] || [];
-      console.log(`🔍 getFormationsToDisplay - Univers sélectionné "${selectedUniverse.name}":`, universeFormations.length, 'formations');
+      // console.log(`🔍 getFormationsToDisplay - Univers sélectionné "${selectedUniverse.name}":`, universeFormations.length, 'formations');
       return universeFormations;
     } else {
       // Sinon, afficher toutes les formations
-      console.log('🔍 getFormationsToDisplay - Aucun univers sélectionné, filteredFormations:', filteredFormations.length);
+      // console.log('🔍 getFormationsToDisplay - Aucun univers sélectionné, filteredFormations:', filteredFormations.length);
       return filteredFormations;
     }
   }, [selectedUniverse, formationsByUniverse, filteredFormations]);
@@ -1025,9 +1013,9 @@ const AdminFormationsPage: React.FC = () => {
   const getFormationsGroupedByUniverse = () => {
     const grouped: { universe: Universe; formations: Formation[] }[] = [];
     
-    console.log('🔍 getFormationsGroupedByUniverse - filteredFormations:', filteredFormations.length);
-    console.log('🔍 getFormationsGroupedByUniverse - universes:', universes.length);
-    console.log('🔍 getFormationsGroupedByUniverse - Détail filteredFormations:', filteredFormations.map(f => ({ id: f.id, title: f.title, universeId: f.universeId, isOpportunity: f.isOpportunity })));
+    // console.log('🔍 getFormationsGroupedByUniverse - filteredFormations:', filteredFormations.length);
+    // console.log('🔍 getFormationsGroupedByUniverse - universes:', universes.length);
+    // console.log('🔍 getFormationsGroupedByUniverse - Détail filteredFormations:', filteredFormations.map(f => ({ id: f.id, title: f.title, universeId: f.universeId, isOpportunity: f.isOpportunity })));
     
     // 1. Grouper toutes les formations par univers (y compris les opportunités)
     const formationsByUniverseMap: { [universeId: string]: Formation[] } = {};
@@ -1057,7 +1045,7 @@ const AdminFormationsPage: React.FC = () => {
       }
     });
     
-    console.log('🔍 getFormationsGroupedByUniverse - formationsByUniverseMap:', Object.keys(formationsByUniverseMap).length, 'univers');
+    // console.log('🔍 getFormationsGroupedByUniverse - formationsByUniverseMap:', Object.keys(formationsByUniverseMap).length, 'univers');
     
     // 2. Créer les sections pour chaque univers qui existe en base de données
     Object.entries(formationsByUniverseMap).forEach(([universeId, universeFormations]) => {
@@ -1066,7 +1054,7 @@ const AdminFormationsPage: React.FC = () => {
       
       // Ne traiter que les univers qui existent réellement en base de données
       if (universe) {
-        console.log(`🔍 getFormationsGroupedByUniverse - Univers "${universe.name}":`, universeFormations.length, 'formations');
+        // console.log(`🔍 getFormationsGroupedByUniverse - Univers "${universe.name}":`, universeFormations.length, 'formations');
         
         grouped.push({ 
           universe: universe, 
@@ -1084,7 +1072,7 @@ const AdminFormationsPage: React.FC = () => {
       return a.universe.name.localeCompare(b.universe.name);
     });
     
-    console.log('🔍 getFormationsGroupedByUniverse - Groupes finaux:', grouped.length);
+    // console.log('🔍 getFormationsGroupedByUniverse - Groupes finaux:', grouped.length);
     return grouped;
   };
 
@@ -1144,7 +1132,7 @@ const AdminFormationsPage: React.FC = () => {
           setIsCollapsed(false);
         }}
         onProgressUpdate={(lessonId, progress) => {
-          console.log('📊 Progression mise à jour:', lessonId, progress);
+          // console.log('📊 Progression mise à jour:', lessonId, progress);
         }}
         onLessonUpdate={(updatedLesson) => {
           // Mettre à jour la leçon dans la liste locale
@@ -1153,7 +1141,7 @@ const AdminFormationsPage: React.FC = () => {
               lesson.id === updatedLesson.id ? updatedLesson : lesson
             )
           );
-          console.log('✅ Leçon mise à jour dans AdminFormationsPage:', updatedLesson);
+          // console.log('✅ Leçon mise à jour dans AdminFormationsPage:', updatedLesson);
         }}
       />
     );
@@ -1161,9 +1149,9 @@ const AdminFormationsPage: React.FC = () => {
 
   // Afficher la vue détaillée de la formation
   if (showFormationDetail && selectedFormation) {
-    console.log('📋 Affichage FormationDetailView pour:', selectedFormation.title);
-    console.log('📋 showFormationDetail:', showFormationDetail);
-    console.log('📋 selectedFormation:', selectedFormation);
+    // console.log('📋 Affichage FormationDetailView pour:', selectedFormation.title);
+    // console.log('📋 showFormationDetail:', showFormationDetail);
+    // console.log('📋 selectedFormation:', selectedFormation);
     return (
       <FormationDetailView
         formation={selectedFormation}

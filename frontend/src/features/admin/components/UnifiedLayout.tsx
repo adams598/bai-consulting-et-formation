@@ -37,7 +37,6 @@ import { EnhancedDashboardPage } from './EnhancedDashboardPage';
 import AdminFormationsPage from './AdminFormationsPage';
 import AdminBanksPage from './AdminBanksPage';
 import AdminUsersPage from './AdminUsersPage';
-import AdminStatsPage from './AdminStatsPage';
 import AdminSettingsPage from './AdminSettingsPage';
 import BankDetailPage from './BankDetailPage';
 
@@ -185,14 +184,14 @@ const UnifiedLayoutContent: React.FC = () => {
   useEffect(() => {
     const initializeUser = async () => {
       try {
-        console.log('🔍 Initialisation UnifiedLayout...');
-        console.log('🔑 authService.isAuthenticated():', authService.isAuthenticated());
-        console.log('👤 authService.getCurrentUser():', authService.getCurrentUser());
+        // console.log('🔍 Initialisation UnifiedLayout...');
+        // console.log('🔑 authService.isAuthenticated():', authService.isAuthenticated());
+        // console.log('👤 authService.getCurrentUser():', authService.getCurrentUser());
         
         // Vérifier l'authentification via le service
         if (authService.isAuthenticated()) {
           const authUser = authService.getCurrentUser();
-          console.log('✅ Utilisateur authentifié:', authUser);
+          // console.log('✅ Utilisateur authentifié:', authUser);
           if (authUser) {
             // Convertir AuthUser en User compatible
             const user: UserType = {
@@ -204,7 +203,7 @@ const UnifiedLayoutContent: React.FC = () => {
             };
             setCurrentUser(user);
             setIsLoading(false);
-            console.log('✅ UnifiedLayout initialisé avec succès');
+            // console.log('✅ UnifiedLayout initialisé avec succès');
           } else {
             console.log('❌ Utilisateur non trouvé, redirection vers login');
             // Utilisateur non trouvé, rediriger vers login
@@ -242,7 +241,7 @@ const UnifiedLayoutContent: React.FC = () => {
   // Mettre à jour activeView quand l'URL change
   useEffect(() => {
     const path = location.pathname;
-    console.log('📍 URL changée:', path, 'activeView actuel:', activeView);
+    // console.log('📍 URL changée:', path, 'activeView actuel:', activeView);
     
     let newView = activeView;
     
@@ -272,7 +271,7 @@ const UnifiedLayoutContent: React.FC = () => {
     
     // Mettre à jour seulement si la vue a changé
     if (newView !== activeView) {
-      console.log('🔄 Mise à jour activeView:', activeView, '->', newView);
+      // console.log('🔄 Mise à jour activeView:', activeView, '->', newView);
       setActiveView(newView);
     }
   }, [location.pathname, params.bankId, activeView]);
@@ -294,11 +293,11 @@ const UnifiedLayoutContent: React.FC = () => {
 
   // Fonction pour changer de vue
   const handleViewChange = useCallback((viewId: string) => {
-    console.log('🔄 Changement de vue:', viewId, 'depuis:', location.pathname);
+    // console.log('🔄 Changement de vue:', viewId, 'depuis:', location.pathname);
     
     // Éviter les changements inutiles
     if (activeView === viewId) {
-      console.log('⚠️ Vue déjà active, pas de changement');
+      // console.log('⚠️ Vue déjà active, pas de changement');
       return;
     }
     
@@ -308,7 +307,7 @@ const UnifiedLayoutContent: React.FC = () => {
     const targetPath = `/admin/${viewId}`;
     
     if (location.pathname !== targetPath) {
-      console.log('🚀 Navigation vers:', targetPath);
+      // console.log('🚀 Navigation vers:', targetPath);
       navigate(targetPath, { replace: true });
     }
   }, [activeView, location.pathname, navigate, isLearner]);
@@ -430,7 +429,7 @@ const UnifiedLayoutContent: React.FC = () => {
 
   // Fonction pour éditer le profil
   const handleEditProfile = () => {
-    console.log('handleEditProfile - currentUser:', currentUser);
+    // console.log('handleEditProfile - currentUser:', currentUser);
     setShowProfileModal(true);
     setShowProfileMenu(false);
   };
@@ -439,12 +438,12 @@ const UnifiedLayoutContent: React.FC = () => {
   const handleSaveProfile = async (updatedUser: Partial<UserType>) => {
     try {
       const response = await profileApi.updateProfile(updatedUser);
-      console.log('handleSaveProfile - API response:', response);
-      console.log('handleSaveProfile - response.data:', response.data);
+      // console.log('handleSaveProfile - API response:', response);
+      // console.log('handleSaveProfile - response.data:', response.data);
       
       // Le backend retourne { success: true, data: {...} }
       const userData = response.data.data || response.data;
-      console.log('handleSaveProfile - userData to set:', userData);
+      // console.log('handleSaveProfile - userData to set:', userData);
       
       setCurrentUser(userData);
       authService.updateUser(userData);
@@ -766,7 +765,7 @@ const UnifiedLayoutContent: React.FC = () => {
                     <button
                       key={item.id}
                       onClick={() => {
-                        console.log('🖱️ Clic sur bouton:', item.id);
+                        // console.log('🖱️ Clic sur bouton:', item.id);
                         handleViewChange(item.id);
                       }}
                       className={`flex items-center ${isSidebarCollapsed ? 'px-3 py-3 justify-center' : 'px-4 py-2'} mt-2 text-blue-900 rounded-lg transition-colors ${

@@ -84,6 +84,7 @@ export const formationAssignmentsController = {
               title: true,
               description: true,
               duration: true,
+              universeId: true,
             },
           },
           assignedByUser: {
@@ -139,6 +140,7 @@ export const formationAssignmentsController = {
               title: true,
               description: true,
               duration: true,
+              universeId: true,
             },
           },
           assignedByUser: {
@@ -189,6 +191,7 @@ export const formationAssignmentsController = {
               title: true,
               description: true,
               duration: true,
+              universeId: true,
             },
           },
           assignedByUser: {
@@ -261,6 +264,7 @@ export const formationAssignmentsController = {
               title: true,
               description: true,
               duration: true,
+              universeId: true,
             },
           },
         },

@@ -2,24 +2,12 @@ import { Routes, Route, Link, useLocation } from 'react-router-dom';
 import { BookOpen, Home, Mail, Presentation, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import React, { useEffect, Suspense, lazy } from 'react';
 import { motion } from "framer-motion";
-import { Toaster } from "./components/ui/toaster";
-import { toast } from "./components/ui/use-toast";
 import RootLayout from './layouts/RootLayout';
 import Loader from "./components/ui/loader";
 import { useTheme } from "./contexts/ThemeContext";
-import { ProgressProvider } from "./contexts/ProgressContext";
 
 // Import des pages admin
 import AdminLoginPage from './app/admin/login/page';
-import AdminDashboardPage from './app/admin/dashboard/page';
-
-import AdminBanksPage from './app/admin/banks/page';
-import AdminUsersPage from './app/admin/users/page';
-import AdminFormationsPage from './features/admin/components/AdminFormationsPage';
-// import AdminOpportunitiesPage from './features/admin/components/AdminOpportunitiesPage';
-import AdminStatsPage from './app/admin/stats/page';
-import AdminSettingsPage from './app/admin/settings/page';
-import BankDetailPage from './features/admin/components/BankDetailPage';
 import { UnifiedLayout } from './features/admin/components/UnifiedLayout';
 import { IntranetGuard } from './components/guards/IntranetGuard';
 
@@ -218,7 +206,6 @@ function App() {
     );
   }
 
-  console.log('App.tsx : composant App monté');
   return (
     <RootLayout>
       <ScrollToAnchor />
@@ -242,47 +229,6 @@ function App() {
               <DashboardPage />
             </IntranetGuard>
           } />
-          <Route path="/apprenant" element={
-            <IntranetGuard allowedRoles={['COLLABORATOR']}>
-              <DashboardPage />
-            </IntranetGuard>
-          } />
-          <Route path="/apprenant/courses" element={
-            <IntranetGuard allowedRoles={['COLLABORATOR']}>
-              <CoursesPage />
-            </IntranetGuard>
-          } />
-          <Route path="/apprenant/courses/:id" element={
-            <IntranetGuard allowedRoles={['COLLABORATOR']}>
-              <CourseDetailPage />
-            </IntranetGuard>
-          } />
-          <Route path="/apprenant/certificates" element={
-            <IntranetGuard allowedRoles={['COLLABORATOR']}>
-              <CertificatesPage />
-            </IntranetGuard>
-          } />
-          <Route path="/apprenant/parametres" element={
-            <IntranetGuard allowedRoles={['COLLABORATOR']}>
-              <SettingsPage />
-            </IntranetGuard>
-          } />
-          <Route path="/apprenant/progression" element={
-            <IntranetGuard allowedRoles={['COLLABORATOR']}>
-              <ProgressionPage />
-            </IntranetGuard>
-          } />
-          <Route path="/apprenant/opportunities" element={
-            <IntranetGuard allowedRoles={['COLLABORATOR']}>
-              <OpportunitiesPage />
-            </IntranetGuard>
-          } />
-          <Route path="/apprenant/agenda" element={
-            <IntranetGuard allowedRoles={['COLLABORATOR']}>
-              <CalendarPage />
-            </IntranetGuard>
-          } />
-          
           {/* Routes Publiques */}
           <Route path="/" element={<HomePage />} />
           <Route path="/contact" element={<ContactPage />} />
@@ -297,7 +243,6 @@ function App() {
 }
 
 function HomePage() {
-  console.log('App.tsx : composant HomePage monté');
   const { theme } = useTheme();
   const [current, setCurrent] = React.useState(0);
   const [isSliding, setIsSliding] = React.useState(false);
@@ -332,16 +277,6 @@ function HomePage() {
   return (
     <div className={`flex flex-col min-h-screen font-sans ${theme === 'dark' ? 'bg-[#23211E]' : 'bg-gradient-to-b from-white to-[#c4b69b]'} overflow-x-hidden`}>
       <main className="flex-1">
-        {/* Bouton de test pour le toast */}
-        {/* <div className="fixed top-4 right-4 z-[9999]">
-          <button
-            onClick={() => toast({ title: "Test de notification", description: "Le système de toast fonctionne !" })}
-            className="bg-brand-blue text-white px-4 py-2 rounded shadow hover:bg-brand-blue/90"
-          >
-            Tester la notification
-          </button>
-        </div> */}
-        {/* Diaporama d'images thématiques */}
         <section className="relative w-full left-1/2 right-1/2 -mx-[50vw] max-w-none" style={{ position: 'relative', left: '50%', right: '50%', width: '100vw', marginLeft: '-50vw', marginRight: '-50vw' }}>
           <div className="w-full h-72 sm:h-80 md:h-[420px] relative flex items-center justify-center overflow-hidden bg-black/80">
             {/* Slides coulissantes */}
@@ -461,19 +396,8 @@ function HomePage() {
         </section>
         {/* Mini bandeau séparateur bleu foncé avec dégradé vers le beige */}
         <div className="w-full h-6 sm:h-8 bg-gradient-to-r from-[#15344B] via-[#15344B] to-[#C7B299]" />
-        {/* Titre avant la vidéo de présentation */}
-        {/* <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-center text-brand-beige mt-8 sm:mt-12 mb-4 sm:mb-6 break-words whitespace-normal">Découvrez l'expérience BAI Consulting en vidéo</h2> */}
-        {/* Section vidéo de présentation avec image détourée */}
-        {/*
-        <section className="max-w-6xl mx-auto flex flex-col md:flex-row items-center gap-8 md:gap-16 py-10 md:py-20 px-2 sm:px-4">
-          <img
-            src="/images/accueil.png"
-            alt="Homme souriant en costume pointant"
-            className="w-full max-w-[700px] sm:max-w-[36rem] md:max-w-[44rem] h-auto object-contain mb-6 md:mb-0 md:mr-20"
-            style={{ background: 'none' }}
-          />
-        </section>
-        */}
+
+       
         <section className="py-10 sm:py-16 bg-gray-50 dark:bg-dark-bg-primary">
           <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-8 lg:px-12">
             <div className="text-center mb-10 sm:mb-16">
@@ -670,26 +594,10 @@ function HomePage() {
                     Nos solutions
                   </Link>
                 </li>
-                {/* <li>
-                  <Link to="/contact" className="text-gray-400 hover:text-white transition-colors">
-                    Contact
-                  </Link>
-                </li> */}
+           
               </ul>
             </div>
-            {/* <div>
-              <h3 className="text-lg font-semibold mb-4">Contact</h3>
-              <ul className="space-y-2 text-gray-400">
-                <li className="flex items-center">
-                  <Home className="h-5 w-5 mr-2" />
-                  12 rue de la Formation, 75001 Paris
-                </li>
-                <li className="flex items-center">
-                  <Mail className="h-5 w-5 mr-2" />
-                  contact@bai-consulting.com
-                </li>
-              </ul>
-            </div> */}
+    
           </div>
           <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
             <p>&copy; {new Date().getFullYear()} BAI Formation Consulting. Tous droits réservés.</p>

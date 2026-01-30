@@ -33,6 +33,7 @@ import calendarApi from '../../../api/calendarApi';
 import { formationContentApi } from '../../../api/adminApi';
 import LessonPlayer from './LessonPlayer';
 import SearchSuggestions from '../../../components/SearchSuggestions';
+import { ProBadge } from './ProBadge';
 
 interface LearnerFormation {
   id: string;
@@ -144,7 +145,7 @@ const LearnerFormationsPage: React.FC = () => {
         
         const plannedIds = new Set<string>(formationIds);
         setPlannedFormationIds(plannedIds);
-        console.log('📅 Formations déjà planifiées:', plannedIds.size);
+        // console.log('📅 Formations déjà planifiées:', plannedIds.size);
       }
     } catch (error) {
       console.warn('Aucun événement trouvé, calendrier vide');
@@ -158,26 +159,26 @@ const LearnerFormationsPage: React.FC = () => {
       const response = await formationsApi.getAllFormationsWithAssignment();
       const formationsData = response.data;
       
-      console.log('📊 Formations chargées avec assignation:', formationsData.length);
+      // console.log('📊 Formations chargées avec assignation:', formationsData.length);
       
       // Debug: Afficher les données brutes de l'API
-      console.log('🔍 Données brutes de l\'API (première formation):', formationsData[0]);
-      console.log('🔍 Champs de la première formation:', {
-        title: formationsData[0]?.title,
-        pedagogicalModality: formationsData[0]?.pedagogicalModality,
-        organization: formationsData[0]?.organization,
-        code: formationsData[0]?.code
-      });
+      // console.log('🔍 Données brutes de l\'API (première formation):', formationsData[0]);
+      // console.log('🔍 Champs de la première formation:', {
+      //   title: formationsData[0]?.title,
+      //   pedagogicalModality: formationsData[0]?.pedagogicalModality,
+      //   organization: formationsData[0]?.organization,
+      //   code: formationsData[0]?.code
+      // });
       
       // Extraire les univers uniques des formations
       const uniqueUniverses = new Map();
       formationsData.forEach((formation: any) => {
-        console.log(`🔍 Formation "${formation.title}":`, {
-          id: formation.id,
-          universeId: formation.universeId,
-          universe: formation.universe,
-          isOpportunity: formation.isOpportunity
-        });
+        // console.log(`🔍 Formation "${formation.title}":`, {
+        //   id: formation.id,
+        //   universeId: formation.universeId,
+        //   universe: formation.universe,
+        //   isOpportunity: formation.isOpportunity
+        // });
         
         if (formation.universe && formation.universeId) {
           uniqueUniverses.set(formation.universeId, formation.universe);
@@ -187,15 +188,17 @@ const LearnerFormationsPage: React.FC = () => {
       // Stocker les univers récupérés via l'API
       setApiUniverses(Array.from(uniqueUniverses.values()));
       
-      console.log('🌍 Univers récupérés via l\'API:', Array.from(uniqueUniverses.values()));
+      // console.log('🌍 Univers récupérés via l\'API:', Array.from(uniqueUniverses.values()));
 
       // Transformer les données de l'API
       const transformedFormations: LearnerFormation[] = formationsData.map((formation: any) => {
-        console.log(`🔄 Transformation formation "${formation.title}":`, {
-          pedagogicalModality: formation.pedagogicalModality,
-          organization: formation.organization,
-          code: formation.code
-        });
+        // S'assurer que isAssigned est bien défini (true ou false, jamais undefined)
+        const isAssigned = formation.isAssigned === true;
+        
+        // Debug: Log les formations avec isAssigned undefined/null
+        if (formation.isAssigned === undefined || formation.isAssigned === null) {
+          console.warn(`⚠️ Formation "${formation.title}" (ID: ${formation.id}) a isAssigned=${formation.isAssigned}, considérée comme NON assignée`);
+        }
         
         return {
           id: formation.id,
@@ -238,17 +241,23 @@ const LearnerFormationsPage: React.FC = () => {
       setAllFormations(transformedFormations);
       
       // Extraire les IDs des formations assignées
+      // Utiliser une vérification explicite pour éviter les problèmes avec undefined/null
       const assignedIds = new Set(
         formationsData
-          .filter((f: any) => f.isAssigned)
+          .filter((f: any) => f.isAssigned === true)
           .map((f: any) => f.id)
       );
+      
+      // Debug: Log pour vérifier les formations non assignées
+      const nonAssignedFormations = formationsData.filter((f: any) => f.isAssigned !== true);
+      console.log('🔒 Formations NON assignées:', nonAssignedFormations.map((f: any) => ({ id: f.id, title: f.title, isAssigned: f.isAssigned })));
+      
       setAssignedFormationIds(assignedIds);
       
       setFilteredFormations(transformedFormations);
       
-      console.log('✅ Formations transformées:', transformedFormations.length);
-      console.log('🔒 Formations assignées:', assignedIds.size);
+      // console.log('✅ Formations transformées:', transformedFormations.length);
+      // console.log('🔒 Formations assignées:', assignedIds.size);
       
     } catch (error) {
       console.error('❌ Erreur lors du chargement des formations:', error);
@@ -290,7 +299,7 @@ const LearnerFormationsPage: React.FC = () => {
   const filterFormations = () => {
     // Cette fonction n'est plus nécessaire car les formations sont déjà filtrées
     // via le hook useLearnerFormationsCache
-    console.log('📊 Formations filtrées:', filteredFormations.length);
+    // console.log('📊 Formations filtrées:', filteredFormations.length);
   };
 
   // Fonctions utilitaires mémorisées
@@ -388,7 +397,19 @@ const LearnerFormationsPage: React.FC = () => {
 
   // Fonction pour vérifier si une formation est assignée
   const isFormationAssigned = (formationId: string): boolean => {
-    return assignedFormationIds.has(formationId);
+    // Vérification explicite : une formation est assignée uniquement si son ID est dans le Set
+    const isAssigned = assignedFormationIds.has(formationId);
+    
+    // Debug: Log pour les formations non assignées
+    if (!isAssigned && formationId) {
+      // Vérifier si la formation existe dans allFormations
+      const formation = allFormations.find(f => f.id === formationId);
+      if (formation) {
+        console.log(`⚠️ Formation "${formation.title}" (ID: ${formationId}) n'est PAS dans assignedFormationIds`);
+      }
+    }
+    
+    return isAssigned;
   };
 
   // Fonction pour vérifier si une formation est déjà planifiée
@@ -412,34 +433,34 @@ const LearnerFormationsPage: React.FC = () => {
     
     // Si c'est une formation d'opportunités commerciales, ouvrir directement le viewer vidéo
     if (formation.isOpportunity || formation.universeId === 'opportunites-commerciales') {
-      console.log('🎥 Ouverture du viewer vidéo pour formation opportunité:', formation.id);
+      // console.log('🎥 Ouverture du viewer vidéo pour formation opportunité:', formation.id);
       
       try {
         setIsLoadingLessons(true);
         
         // Charger les leçons de la formation
         const response = await formationContentApi.getByFormation(formation.id);
-        console.log('📦 [COLLABORATOR] Réponse brute de l\'API:', response);
-        console.log('📦 [COLLABORATOR] Type de response.data:', typeof response.data);
+        // console.log('📦 [COLLABORATOR] Réponse brute de l\'API:', response);
+        // console.log('📦 [COLLABORATOR] Type de response.data:', typeof response.data);
         
         // Vérifier la structure de la réponse
         let lessonsData = response.data;
         
         // Si response.data contient success/data, extraire le bon niveau
         if (response.data && response.data.success && response.data.data) {
-          console.log('📦 [COLLABORATOR] Structure API avec success/data détectée');
+          // console.log('📦 [COLLABORATOR] Structure API avec success/data détectée');
           lessonsData = response.data.data;
         }
         
-        console.log('📦 [COLLABORATOR] Données de leçons avant filtrage:', lessonsData);
+        // console.log('📦 [COLLABORATOR] Données de leçons avant filtrage:', lessonsData);
         
         // Filtrer seulement les leçons (pas les sections) et trier par ordre
         const lessonsOnly = (Array.isArray(lessonsData) ? lessonsData : [])
           .filter((content: any) => content.contentType === 'LESSON')
           .sort((a: any, b: any) => (a.order || 0) - (b.order || 0));
         
-        console.log('📚 [COLLABORATOR] Leçons filtrées:', lessonsOnly);
-        console.log('📚 [COLLABORATOR] Nombre de leçons:', lessonsOnly.length);
+        // console.log('📚 [COLLABORATOR] Leçons filtrées:', lessonsOnly);
+        // console.log('📚 [COLLABORATOR] Nombre de leçons:', lessonsOnly.length);
         
         setLessons(lessonsOnly);
         
@@ -496,7 +517,7 @@ const LearnerFormationsPage: React.FC = () => {
 
   const handleStartFormation = (formation: LearnerFormation) => {
     // TODO: Implémenter la logique pour démarrer une formation
-    console.log('Démarrer la formation:', formation.id);
+    // console.log('Démarrer la formation:', formation.id);
     toast({
       title: "Formation démarrée",
       description: `Vous avez commencé la formation "${formation.title}"`,
@@ -505,12 +526,12 @@ const LearnerFormationsPage: React.FC = () => {
 
   const handleContinueFormation = (formation: LearnerFormation) => {
     // TODO: Implémenter la logique pour continuer une formation
-    console.log('Continuer la formation:', formation.id);
+    // console.log('Continuer la formation:', formation.id);
   };
 
   const handleDownloadCertificate = (formation: LearnerFormation) => {
     // TODO: Implémenter le téléchargement du certificat
-    console.log('Télécharger le certificat pour:', formation.id);
+    // console.log('Télécharger le certificat pour:', formation.id);
     toast({
       title: "Téléchargement",
       description: `Téléchargement du certificat pour "${formation.title}"`,
@@ -563,11 +584,11 @@ const LearnerFormationsPage: React.FC = () => {
           setLessons([]);
         }}
         onProgressUpdate={(lessonId, progress) => {
-          console.log('📊 Progression mise à jour:', lessonId, progress);
+          // console.log('📊 Progression mise à jour:', lessonId, progress);
         }}
         onLessonUpdate={() => {
           // Les apprenants ne peuvent pas modifier les leçons
-          console.log('📚 Modification de leçon non autorisée pour les apprenants');
+          // console.log('📚 Modification de leçon non autorisée pour les apprenants');
         }}
       />
     );
@@ -659,7 +680,7 @@ const LearnerFormationsPage: React.FC = () => {
 
 
       {/* Contenu principal */}
-      <div className="bg-gray-200 shadow-md p-6">
+      <div className="bg-neutral-50 shadow-md p-6">
         
 
         {allFormations.length === 0 ? (
@@ -696,11 +717,16 @@ const LearnerFormationsPage: React.FC = () => {
 
               // Rendu des univers
               const universeSections = Object.entries(formationsByUniverse)
-                .sort(([a], [b]) => {
+                .sort(([aId, aFormations], [bId, bFormations]) => {
                   // Mettre 'opportunites-commerciales' en premier
-                  if (a === 'opportunites-commerciales') return -1;
-                  if (b === 'opportunites-commerciales') return 1;
-                  return 0;
+                  if (aId === 'opportunites-commerciales') return -1;
+                  if (bId === 'opportunites-commerciales') return 1;
+                  
+                  // Pour les autres univers, trier par nombre de formations décroissant
+                  const aCount = Array.isArray(aFormations) ? aFormations.length : 0;
+                  const bCount = Array.isArray(bFormations) ? bFormations.length : 0;
+                  
+                  return bCount - aCount;
                 })
                 .map(([universeId, formations]) => {
                   // Trouver l'univers correspondant dans les univers de l'API
@@ -717,11 +743,11 @@ const LearnerFormationsPage: React.FC = () => {
                     {/* Barre de séparation grise et discrète */}
                     <div className="flex items-center gap-4">
                       <div className="flex-1 h-px bg-gray-300"></div>
-                      <div className="flex items-center gap-2 px-3 py-1 bg-gray-100 rounded-full">
-                        <div 
-                          className="w-3 h-3 rounded-full"
+                      <div className="flex items-center gap-2 px-3 py-1 bg-gray-50">
+                        {/* <div 
+                          className="w-3 h-3"
                           style={{ backgroundColor: universe.color || '#6B7280' }}
-                        ></div>
+                        ></div> */}
                         <span className="text-2xl font-medium text-gray-700 uppercase mb-2">
                           {universe.name}
                         </span>
@@ -734,12 +760,10 @@ const LearnerFormationsPage: React.FC = () => {
                       {formations.map((formation, index) => {
                         const isAssigned = isFormationAssigned(formation.id);
                         
-                        // Debug: Afficher pedagogicalModality dans la console
-                        console.log(`📚 Formation "${formation.title}":`, {
-                          pedagogicalModality: formation.pedagogicalModality,
-                          code: formation.code,
-                          organization: formation.organization
-                        });
+                        // Debug: Vérifier les formations non assignées
+                        // if (!isAssigned) {
+                        //   console.log(`🔒 Formation NON assignée détectée: "${formation.title}" (ID: ${formation.id})`);
+                        // }
                         
                         return (
                         <div
@@ -802,6 +826,17 @@ const LearnerFormationsPage: React.FC = () => {
                                 </div>
                               </div>
                             )}
+                            
+                            {/* Badge code de la formation */}
+                            {formation.code && formation.code.trim() !== '' && (
+                              <div className="absolute top-3 left-3">
+                                <div className="px-3 py-1.5 rounded-full border-2 border-white bg-transparent backdrop-blur-sm">
+                                  <span className="text-brand-beige font-bold text-sm tracking-wide">
+                                    {(formation.code || '').toString().trim().toUpperCase()}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
                           </div>
 
                           {/* Section inférieure - Fond blanc */}
@@ -858,12 +893,10 @@ const LearnerFormationsPage: React.FC = () => {
                     {formationsWithoutUniverse.map((formation, index) => {
                       const isAssigned = isFormationAssigned(formation.id);
                       
-                      // Debug: Afficher pedagogicalModality dans la console
-                      console.log(`📚 Formation sans univers "${formation.title}":`, {
-                        pedagogicalModality: formation.pedagogicalModality,
-                        code: formation.code,
-                        organization: formation.organization
-                      });
+                      // Debug: Vérifier les formations non assignées
+                      // if (!isAssigned) {
+                      //   console.log(`🔒 Formation sans univers NON assignée: "${formation.title}" (ID: ${formation.id})`);
+                      // }
                       
                       return (
                       <div
@@ -873,7 +906,7 @@ const LearnerFormationsPage: React.FC = () => {
                             ? 'cursor-pointer hover:scale-105' 
                             : 'cursor-not-allowed'
                         }`}
-                        onClick={() => isAssigned && handleFormationClick(formation)}
+                        onClick={() => handleFormationClick(formation)}
                       >
                         {/* Section supérieure - Fond brand-blue avec logo BAI (70% de la hauteur) */}
                         <div className="h-[70%] bg-brand-blue rounded-t-lg transition-all duration-300 group-hover:shadow-2xl">

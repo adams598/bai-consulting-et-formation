@@ -45,19 +45,8 @@ const FormationContentManager: React.FC<FormationContentManagerProps> = ({
       setIsLoading(true);
       const response = await formationContentApi.getByFormation(formation.id);
       const contentData = response.data.data || [];
-      console.log('📚 Contenu chargé:', contentData);
-      
-      // Log des images de couverture
-      contentData.forEach((item, index) => {
-        if (item.contentType === 'LESSON') {
-          console.log(`📖 Leçon ${index + 1}:`, {
-            title: item.title,
-            coverImage: item.coverImage,
-            hasCoverImage: !!item.coverImage,
-            type: item.type
-          });
-        }
-      });
+      // console.log('📚 Contenu chargé:', contentData);
+  
       
       setContent(contentData);
     } catch (error) {

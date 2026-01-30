@@ -249,7 +249,7 @@ export const EnhancedDashboardPage: React.FC = () => {
 
   const loadAllData = async () => {
     try {
-      console.log('📊 Chargement des données depuis les APIs...');
+      // console.log('📊 Chargement des données depuis les APIs...');
       
       // Charger les APIs qui fonctionnent
       const [statsResponse, bankStatsResponse, alertsResponse] = await Promise.all([
@@ -258,11 +258,11 @@ export const EnhancedDashboardPage: React.FC = () => {
         dashboardApi.getAlerts()
       ]);
 
-      console.log('📊 Réponses API reçues:', {
-        stats: statsResponse.data,
-        bankStats: bankStatsResponse.data,
-        alerts: alertsResponse.data
-      });
+      // console.log('📊 Réponses API reçues:', {
+      //   stats: statsResponse.data,
+      //   bankStats: bankStatsResponse.data,
+      //   alerts: alertsResponse.data
+      // });
 
       setStats(statsResponse.data);
       setBankStats(bankStatsResponse.data);

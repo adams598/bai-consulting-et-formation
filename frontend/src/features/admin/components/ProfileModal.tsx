@@ -38,7 +38,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose, onSav
 
   // Mettre à jour le state quand les données de l'utilisateur changent
   useEffect(() => {
-    console.log('ProfileModal - user data:', user);
+    // console.log('ProfileModal - user data:', user);
     if (user) {
       const newFormData = {
         firstName: user.firstName || '',
@@ -48,7 +48,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ user, onClose, onSav
         phone: user.phone || '',
         avatar: user.avatar || ''
       };
-      console.log('ProfileModal - setting formData:', newFormData);
+      // console.log('ProfileModal - setting formData:', newFormData);
       setFormData(newFormData);
     }
   }, [user]);

@@ -31,13 +31,13 @@ if (typeof window !== 'undefined') {
   try {
     // Essayer d'abord le worker local
     pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-    console.log('✅ Worker PDF configuré avec worker local');
+    // console.log('✅ Worker PDF configuré avec worker local');
   } catch (error) {
     console.error('❌ Erreur lors de la configuration du worker PDF local:', error);
     try {
       // Fallback vers le CDN
       pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-      console.log('✅ Worker PDF configuré avec CDN');
+      // console.log('✅ Worker PDF configuré avec CDN');
     } catch (cdnError) {
       console.error('❌ Erreur lors de la configuration du worker PDF CDN:', cdnError);
     }
@@ -60,17 +60,17 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   // Utiliser le service de progression directement
   const getCurrentUserId = () => {
     if (userId) {
-      console.log('🔍 getCurrentUserId - Utilisation du userId passé en prop:', userId);
+      // console.log('🔍 getCurrentUserId - Utilisation du userId passé en prop:', userId);
       return userId;
     }
     const serviceUserId = progressService.getCurrentUserId();
-    console.log('🔍 getCurrentUserId - Utilisation du service:', serviceUserId);
+    // console.log('🔍 getCurrentUserId - Utilisation du service:', serviceUserId);
     
     // Vérifier le localStorage pour debug
     const userInfo = localStorage.getItem('userInfo');
     const accessToken = localStorage.getItem('accessToken');
-    console.log('🔍 getCurrentUserId - userInfo dans localStorage:', userInfo);
-    console.log('🔍 getCurrentUserId - accessToken dans localStorage:', accessToken ? 'présent' : 'absent');
+    // console.log('🔍 getCurrentUserId - userInfo dans localStorage:', userInfo);
+    // console.log('🔍 getCurrentUserId - accessToken dans localStorage:', accessToken ? 'présent' : 'absent');
     
     return serviceUserId;
   };
@@ -86,18 +86,18 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
         console.warn('⚠️ Worker PDF non configuré, tentative de configuration...');
         try {
           pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-          console.log('✅ Worker PDF configuré avec worker local');
+          // console.log('✅ Worker PDF configuré avec worker local');
         } catch (error) {
           console.error('❌ Erreur worker local, tentative CDN:', error);
           try {
             pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-            console.log('✅ Worker PDF configuré avec CDN');
+            // console.log('✅ Worker PDF configuré avec CDN');
           } catch (cdnError) {
             console.error('❌ Erreur lors de la configuration du worker PDF:', cdnError);
           }
         }
       }
-      console.log('🔍 État du worker PDF:', pdfjs.GlobalWorkerOptions.workerSrc);
+      // console.log('🔍 État du worker PDF:', pdfjs.GlobalWorkerOptions.workerSrc);
     }
   }, []);
   const [error, setError] = useState<string | null>(null);
@@ -323,9 +323,16 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     };
   }, []);
 
+  // Effet pour maintenir la vitesse de lecture à 0.85
+  useEffect(() => {
+    if (videoRef.current && mimeType.startsWith("video/")) {
+      videoRef.current.playbackRate = 0.85;
+    }
+  }, [mimeType, videoRef.current]);
+
   // Effet pour réinitialiser l'état quand la leçon change
   useEffect(() => {
-    console.log('🔄 TestViewer - Changement de leçon détecté:', lesson.id);
+    // console.log('🔄 TestViewer - Changement de leçon détecté:', lesson.id);
     
     // Vérifier la progression en base de données pour cette leçon
     if (formationId && userId) {
@@ -365,7 +372,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     setTotalSlides(0);
     setIsPresentationLoading(false);
     
-    console.log('✅ TestViewer - État réinitialisé pour nouvelle leçon');
+    // console.log('✅ TestViewer - État réinitialisé pour nouvelle leçon');
   }, [lesson.id]); // Seulement quand lesson.id change
 
      // Fonction pour réinitialiser le worker PDF
@@ -374,7 +381,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
        try {
          // Essayer d'abord le worker local
          pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-         console.log('🔄 Worker PDF réinitialisé avec worker local');
+         // console.log('🔄 Worker PDF réinitialisé avec worker local');
          setPdfError(false);
          setRetryCount(0);
        } catch (error) {
@@ -382,7 +389,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
          try {
            // Fallback vers le CDN
            pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-           console.log('🔄 Worker PDF réinitialisé avec CDN');
+           // console.log('🔄 Worker PDF réinitialisé avec CDN');
            setPdfError(false);
            setRetryCount(0);
          } catch (cdnError) {
@@ -397,23 +404,23 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
      if (!formationId) return;
     
      const currentUserId = getCurrentUserId();
-     console.log('🔍 Vérification de la progression...');
-      console.log('🔍 Lesson ID:', lesson.id);
-      console.log('🔍 Formation ID:', formationId);
-     console.log('🔍 User ID:', currentUserId);
+     // console.log('🔍 Vérification de la progression...');
+      // console.log('🔍 Lesson ID:', lesson.id);
+      // console.log('🔍 Formation ID:', formationId);
+     // console.log('🔍 User ID:', currentUserId);
      
      try {
        const savedProgress = progressService.getProgress(formationId, currentUserId, [])[lesson.id];
-       console.log('🔍 Progression trouvée:', savedProgress);
+       // console.log('🔍 Progression trouvée:', savedProgress);
        
        if (savedProgress && savedProgress.progress > 0) {
-         console.log('📊 Progression trouvée:', {
-          lessonId: lesson.id,
-          lessonTitle: lesson.title,
-          progress: savedProgress.progress + '%',
-          completed: savedProgress.completed ? 'Oui' : 'Non',
-           lastUpdated: savedProgress.lastUpdated
-        });
+        //  console.log('📊 Progression trouvée:', {
+        //   lessonId: lesson.id,
+        //   lessonTitle: lesson.title,
+        //   progress: savedProgress.progress + '%',
+        //   completed: savedProgress.completed ? 'Oui' : 'Non',
+        //    lastUpdated: savedProgress.lastUpdated
+        // });
       } else {
          console.log('📊 Aucune progression trouvée pour:', {
           lessonId: lesson.id,
@@ -427,10 +434,10 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
 
   // Effet pour charger le fichier
   useEffect(() => {
-    console.log('🔄 TestViewer - useEffect de chargement déclenché');
-    console.log('🔄 TestViewer - fileUrl:', fileUrl);
-    console.log('🔄 TestViewer - lesson.fileUrl:', lesson.fileUrl);
-    console.log('🔄 TestViewer - lesson.id:', lesson.id);
+    // console.log('🔄 TestViewer - useEffect de chargement déclenché');
+    // console.log('🔄 TestViewer - fileUrl:', fileUrl);
+    // console.log('🔄 TestViewer - lesson.fileUrl:', lesson.fileUrl);
+    // console.log('🔄 TestViewer - lesson.id:', lesson.id);
     
     // Déterminer l'URL à utiliser : priorité absolue à lesson.fileUrl si c'est une URL complète
     let urlToUse = fileUrl;
@@ -448,7 +455,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     } else if (lesson.fileUrl) {
       // PRIORITÉ 3: Si lesson.fileUrl existe mais n'est pas une URL complète, l'utiliser quand même
       urlToUse = lesson.fileUrl;
-      console.log('✅ TestViewer - Utilisation de lesson.fileUrl (chemin relatif):', urlToUse);
+      // console.log('✅ TestViewer - Utilisation de lesson.fileUrl (chemin relatif):', urlToUse);
     }
     
     if (!urlToUse) {
@@ -457,10 +464,10 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     }
 
     const loadFile = async () => {
-      console.log('🔄 TestViewer - Début du chargement du fichier');
-      console.log('   urlToUse:', urlToUse);
-      console.log('   lesson.fileUrl:', lesson.fileUrl);
-      console.log('   fileUrl (prop):', fileUrl);
+      // console.log('🔄 TestViewer - Début du chargement du fichier');
+      // console.log('   urlToUse:', urlToUse);
+      // console.log('   lesson.fileUrl:', lesson.fileUrl);
+      // console.log('   fileUrl (prop):', fileUrl);
       
       setIsLoading(true);
       setError(null);
@@ -560,7 +567,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
         const completeUrl = urlToUse.startsWith('http') ? urlToUse : `http://localhost:3000${urlToUse}`;
         setFullUrl(completeUrl);
         
-        console.log('🔄 TestViewer - URL complète (locale):', completeUrl);
+        // console.log('🔄 TestViewer - URL complète (locale):', completeUrl);
         
         const response = await fetch(completeUrl, {
           method: "GET",
@@ -575,10 +582,10 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
         }
 
         const blob = await response.blob();
-        console.log('✅ TestViewer - Blob reçu:', {
-          size: blob.size,
-          type: blob.type
-        });
+        // console.log('✅ TestViewer - Blob reçu:', {
+        //   size: blob.size,
+        //   type: blob.type
+        // });
         
         let detectedMimeType = blob.type;
         if (blob.type === 'application/octet-stream' || blob.type === '') {
@@ -604,12 +611,12 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
          
          // Pour les PDFs, react-pdf gère tout automatiquement
          if (detectedMimeType === "application/pdf") {
-           console.log('✅ PDF détecté - react-pdf va gérer le chargement');
+           // console.log('✅ PDF détecté - react-pdf va gérer le chargement');
          }
          
          // Pour les présentations PowerPoint
          if (detectedMimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation") {
-           console.log('✅ Présentation PowerPoint détectée - chargement avec pptx-preview');
+           // console.log('✅ Présentation PowerPoint détectée - chargement avec pptx-preview');
            loadPresentation(blob);
          }
 
@@ -656,7 +663,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   // Fonction pour rendre toutes les pages en canvas
   const renderAllPages = async (pdf: any) => {
     try {
-      console.log('🔍 renderAllPages - Début du rendu de', pdf.numPages, 'pages');
+      // console.log('🔍 renderAllPages - Début du rendu de', pdf.numPages, 'pages');
       
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
         const page = await pdf.getPage(pageNum);
@@ -695,7 +702,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
         }
       }
       
-      console.log('🔍 renderAllPages - Toutes les pages rendues avec succès');
+      // console.log('🔍 renderAllPages - Toutes les pages rendues avec succès');
     } catch (error) {
       console.error('❌ renderAllPages - Erreur lors du rendu des pages:', error);
     }
@@ -707,25 +714,25 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
      
      // Ne pas utiliser d'intervalle pour les PDFs, la progression sera gérée par les événements de page
      if (mimeType === "application/pdf") {
-       console.log('📊 Suivi de progression PDF activé (événements de page)');
+       // console.log('📊 Suivi de progression PDF activé (événements de page)');
        setIsTrackingProgress(true);
        return;
      }
      
      // Pour les vidéos et audios, vérifier que les données sont disponibles
      if ((mimeType.startsWith("video/") || mimeType.startsWith("audio/")) && totalTime <= 0) {
-       console.log('🎬 startProgressTracking - Suivi différé - totalTime non disponible');
+       // console.log('🎬 startProgressTracking - Suivi différé - totalTime non disponible');
        console.log(`🎬 startProgressTracking - État actuel: totalTime=${totalTime}, currentTime=${currentTime}, mimeType=${mimeType}`);
        return;
      }
      
      if (isTrackingProgress) {
-       console.log('🎬 startProgressTracking - Suivi déjà actif, ignoré');
+       // console.log('🎬 startProgressTracking - Suivi déjà actif, ignoré');
        return;
      }
      
      setIsTrackingProgress(true);
-     console.log('🎬 Suivi de progression média activé (intervalle 2s)');
+     // console.log('🎬 Suivi de progression média activé (intervalle 2s)');
      console.log(`🎬 État final - totalTime: ${totalTime}, currentTime: ${currentTime}, isTrackingProgress: true`);
      
      progressUpdateInterval.current = setInterval(() => {
@@ -787,7 +794,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   const loadPresentation = async (blob: Blob) => {
     try {
       setIsPresentationLoading(true);
-      console.log('📊 Chargement de la présentation PowerPoint...');
+      // console.log('📊 Chargement de la présentation PowerPoint...');
       
       // Pour l'instant, nous simulons une présentation avec des informations de base
       // Dans une version future, nous pourrions intégrer une vraie bibliothèque de lecture
@@ -797,14 +804,14 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
         { id: '3', title: 'Diapositive 3', content: 'Contenu de la troisième diapositive' }
       ];
       
-      console.log('✅ Présentation simulée chargée:', mockSlides);
+      // console.log('✅ Présentation simulée chargée:', mockSlides);
       setPresentationSlides(mockSlides);
       setTotalSlides(mockSlides.length);
       setCurrentSlide(0);
       
       // Charger la progression sauvegardée
       if (formationId && userId) {
-        console.log('📊 Chargement de la progression présentation après chargement...');
+        // console.log('📊 Chargement de la progression présentation après chargement...');
         loadSavedProgress();
       }
       
@@ -987,7 +994,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
            timeSpent = currentTime; // Utiliser le temps réel en secondes
              console.log(`🎬 saveLocalProgress - Progression calculée: ${currentTime}s/${totalTime}s = ${finalProgress}%`);
            } else {
-             console.log('🎬 Temps non disponibles ou invalides, sauvegarde différée');
+             // console.log('🎬 Temps non disponibles ou invalides, sauvegarde différée');
              console.log(`🎬 Détails - totalTime: ${totalTime}, currentTime: ${currentTime}, conditions: totalTime>0=${totalTime > 0}, currentTime>=0=${currentTime >= 0}`);
              return; // Ne pas sauvegarder si les temps ne sont pas encore disponibles
            }
@@ -1022,20 +1029,20 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
      const currentUserId = getCurrentUserId();
      try {
        const allProgress = progressService.getProgress(formationId, currentUserId, []);
-       console.log('📊 loadSavedProgress - Toutes les progressions:', allProgress);
+       // console.log('📊 loadSavedProgress - Toutes les progressions:', allProgress);
        
        const savedProgress = allProgress[lesson.id];
-       console.log('📊 loadSavedProgress - Progression récupérée pour la leçon:', savedProgress);
-       console.log('📊 loadSavedProgress - LessonId:', lesson.id);
-       console.log('📊 loadSavedProgress - FormationId:', formationId);
-       console.log('📊 loadSavedProgress - UserId:', currentUserId);
+       // console.log('📊 loadSavedProgress - Progression récupérée pour la leçon:', savedProgress);
+       // console.log('📊 loadSavedProgress - LessonId:', lesson.id);
+       // console.log('📊 loadSavedProgress - FormationId:', formationId);
+       // console.log('📊 loadSavedProgress - UserId:', currentUserId);
        
        if (savedProgress && savedProgress.progress > 0 && !hasShownResumeModal) {
-           console.log('📊 Progression chargée:', savedProgress);
+           // console.log('📊 Progression chargée:', savedProgress);
            
          // Afficher la modal de reprise pour les vidéos/audios avec progression significative
          if ((mimeType.startsWith("video/") || mimeType.startsWith("audio/")) && savedProgress.progress > 5) {
-           console.log('🎬 Affichage de la modal de reprise - Progression:', savedProgress.progress + '%');
+           // console.log('🎬 Affichage de la modal de reprise - Progression:', savedProgress.progress + '%');
            setShowResumeModal(true);
            setHasShownResumeModal(true);
            
@@ -1132,7 +1139,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
 
    // Fonctions pour gérer la modal de reprise
    const handleResumePlayback = () => {
-     console.log('🎬 Reprise de la lecture à', currentTime);
+     // console.log('🎬 Reprise de la lecture à', currentTime);
      setShowResumeModal(false);
      
      // Positionner la vidéo/audio au temps sauvegardé
@@ -1146,7 +1153,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
    };
 
    const handleRestartPlayback = () => {
-     console.log('🎬 Redémarrage depuis le début');
+     // console.log('🎬 Redémarrage depuis le début');
      setShowResumeModal(false);
          setCurrentTime(0);
          
@@ -1161,7 +1168,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
    };
 
    const handleCloseResumeModal = () => {
-     console.log('🎬 Modal fermée sans action');
+     // console.log('🎬 Modal fermée sans action');
      setShowResumeModal(false);
    };
 
@@ -1170,7 +1177,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   // Nettoyer l'intervalle quand le composant se démonte
   useEffect(() => {
     return () => {
-      console.log('🧹 TestViewer - Nettoyage du composant');
+      // console.log('🧹 TestViewer - Nettoyage du composant');
       stopProgressTracking();
       
       // Nettoyer les timeouts
@@ -1223,7 +1230,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
               </div>
                              <button
                  onClick={() => {
-                   console.log('🔄 TestViewer - Tentative de rechargement');
+                   // console.log('🔄 TestViewer - Tentative de rechargement');
                    // Réinitialiser les états nécessaires
                    setError(null);
                    setIsLoading(true);
@@ -1323,13 +1330,13 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                                                <Document
                           file={blobUrl}
                           onLoadSuccess={({ numPages }) => {
-                            console.log('📄 PDF chargé avec react-pdf:', numPages, 'pages');
+                            // console.log('📄 PDF chargé avec react-pdf:', numPages, 'pages');
                             setPageCount(numPages);
                             setTotalPages(numPages);
                             
                             // Charger la progression sauvegardée APRÈS que le PDF soit prêt
                             if (formationId && userId) {
-                              console.log('📊 Chargement de la progression après chargement PDF...');
+                              // console.log('📊 Chargement de la progression après chargement PDF...');
                               loadSavedProgress();
                             }
                             
@@ -1341,7 +1348,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                              
                              // Vérifier l'état du worker
                              if (typeof window !== 'undefined' && pdfjs.GlobalWorkerOptions.workerSrc) {
-                               console.log('🔍 Worker PDF configuré:', pdfjs.GlobalWorkerOptions.workerSrc);
+                               // console.log('🔍 Worker PDF configuré:', pdfjs.GlobalWorkerOptions.workerSrc);
                              } else {
                                console.error('❌ Worker PDF non configuré');
                                resetPdfWorker();
@@ -1418,13 +1425,17 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                        onMouseMove={handleVideoMouseMove}
                        onMouseLeave={handleVideoMouseLeave}
                        onLoadedMetadata={() => {
-                         console.log('🎬 onLoadedMetadata - Événement déclenché');
+                         // console.log('🎬 onLoadedMetadata - Événement déclenché');
                          if (videoRef.current) {
                            const duration = videoRef.current.duration;
                            console.log(`🎬 onLoadedMetadata - Durée vidéo: ${duration}s (${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')})`);
                            console.log(`🎬 onLoadedMetadata - isNaN(duration): ${isNaN(duration)}`);
                            console.log(`🎬 onLoadedMetadata - videoRef.current.duration: ${videoRef.current.duration}`);
                            console.log(`🎬 onLoadedMetadata - videoRef.current.readyState: ${videoRef.current.readyState}`);
+                           
+                           // Définir la vitesse de lecture par défaut à 0.85
+                           videoRef.current.playbackRate = 0.85;
+                           console.log(`🎬 Vitesse de lecture définie à 0.85x`);
                            
                                                         if (!isNaN(duration) && duration > 0) {
                                console.log(`🎬 Durée valide détectée, mise à jour de totalTime`);
@@ -1433,7 +1444,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                              
                              // Charger la progression sauvegardée APRÈS que la vidéo soit prête
                              if (formationId && userId) {
-                               console.log('🎬 Chargement de la progression vidéo après chargement...');
+                               // console.log('🎬 Chargement de la progression vidéo après chargement...');
                                loadSavedProgress();
                                
                                // Positionner la vidéo au temps sauvegardé
@@ -1448,7 +1459,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                              
                              // Démarrer le suivi de progression maintenant que tout est prêt
                              setTimeout(() => {
-                               console.log('🎬 Démarrage du suivi de progression vidéo...');
+                               // console.log('🎬 Démarrage du suivi de progression vidéo...');
                                startProgressTracking();
                              }, 100);
                            } else {
@@ -1475,7 +1486,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                              
                              // Démarrer le suivi de progression maintenant que totalTime est disponible
                              if (!isTrackingProgress) {
-                               console.log('🎬 onTimeUpdate - Démarrage du suivi de progression (récupération tardive)');
+                               // console.log('🎬 onTimeUpdate - Démarrage du suivi de progression (récupération tardive)');
                                startProgressTracking();
                              }
                            }
@@ -1494,7 +1505,13 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                            });
                          }
                        }}
-                       onPlay={() => setIsPlaying(true)}
+                       onPlay={() => {
+                         setIsPlaying(true);
+                         // S'assurer que la vitesse de lecture reste à 0.85
+                         if (videoRef.current) {
+                           videoRef.current.playbackRate = 0.85;
+                         }
+                       }}
                        onPause={() => setIsPlaying(false)}
                      />
                      
@@ -1732,7 +1749,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                            
                            // Charger la progression sauvegardée APRÈS que l'audio soit prêt
                            if (formationId && userId) {
-                             console.log('📊 Chargement de la progression audio après chargement...');
+                             // console.log('📊 Chargement de la progression audio après chargement...');
                              loadSavedProgress();
                              
                              // Positionner l'audio au temps sauvegardé
