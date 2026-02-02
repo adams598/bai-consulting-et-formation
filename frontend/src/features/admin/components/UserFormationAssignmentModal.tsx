@@ -289,7 +289,7 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
       const assignmentIds = unassignData.assignmentId.split(',');
       
       for (const assignmentId of assignmentIds) {
-        await assignmentsApi.delete(assignmentId);
+      await assignmentsApi.delete(assignmentId);
       }
       
       const count = assignmentIds.length;
@@ -340,8 +340,8 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
   return (
     <>
       {/* Modale principale */}
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div>
@@ -568,20 +568,20 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
                   </div>
 
                   {/* Liste des formations assignées */}
-                  <div className="space-y-3">
+                <div className="space-y-3">
                     {assignedFormations.map((assignment) => {
                       const universeName = getUniverseName(assignment);
                       
                       return (
-                        <div
-                          key={assignment.id}
+                    <div
+                      key={assignment.id}
                           className={`p-4 border rounded-lg transition-colors ${
                             selectedAssignments.includes(assignment.id)
                               ? 'border-blue-500 bg-blue-50'
                               : 'border-gray-200 hover:border-gray-300'
                           }`}
-                        >
-                          <div className="flex items-start justify-between">
+                    >
+                      <div className="flex items-start justify-between">
                             <div className="flex items-start space-x-3 flex-1">
                               <input
                                 type="checkbox"
@@ -589,56 +589,56 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
                                 onChange={() => handleAssignmentToggle(assignment.id)}
                                 className="mt-1 rounded border-gray-300"
                               />
-                              <div className="flex-1">
-                                <h4 className="font-medium text-gray-900 mb-1">
-                                  {assignment.formation?.title || 'Formation sans titre'}
-                                </h4>
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900 mb-1">
+                            {assignment.formation?.title || 'Formation sans titre'}
+                          </h4>
                                 <p className="text-sm text-gray-600 mb-2">
                                   <span className="font-medium">Univers:</span> {universeName}
-                                </p>
-                                <div className="flex items-center space-x-4 text-xs text-gray-500">
-                                  {assignment.formation?.duration && (
-                                    <div className="flex items-center">
-                                      <Clock className="w-3 h-3 mr-1" />
-                                      {formatDuration(assignment.formation.duration)}
-                                    </div>
-                                  )}
-                                  <div className="flex items-center">
-                                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
-                                      assignment.isMandatory
-                                        ? 'bg-red-100 text-red-700'
-                                        : 'bg-green-100 text-green-700'
-                                    }`}>
-                                      {assignment.isMandatory ? 'Obligatoire' : 'Optionnelle'}
-                                    </span>
-                                  </div>
-                                  {assignment.dueDate && (
-                                    <div className="flex items-center text-xs text-gray-500">
-                                      Échéance: {new Date(assignment.dueDate).toLocaleDateString('fr-FR')}
-                                    </div>
-                                  )}
-                                </div>
+                            </p>
+                          <div className="flex items-center space-x-4 text-xs text-gray-500">
+                            {assignment.formation?.duration && (
+                              <div className="flex items-center">
+                                <Clock className="w-3 h-3 mr-1" />
+                                {formatDuration(assignment.formation.duration)}
                               </div>
+                            )}
+                            <div className="flex items-center">
+                              <span className={`inline-flex px-2 py-1 rounded-full text-xs font-medium ${
+                                assignment.isMandatory
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-green-100 text-green-700'
+                              }`}>
+                                {assignment.isMandatory ? 'Obligatoire' : 'Optionnelle'}
+                              </span>
+                            </div>
+                            {assignment.dueDate && (
+                              <div className="flex items-center text-xs text-gray-500">
+                                Échéance: {new Date(assignment.dueDate).toLocaleDateString('fr-FR')}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                             </div>
                             {selectedAssignments.length === 0 && (
-                              <Button
-                                variant="outline"
-                                size="sm"
+                        <Button
+                          variant="outline"
+                          size="sm"
                                 onClick={() => {
                                   setSelectedAssignments([assignment.id]);
                                   handleUnassignFormations();
                                 }}
-                                className="ml-4 border-red-200 text-red-600 hover:text-red-700 hover:border-red-300 hover:bg-red-50"
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                Dé-assigner
-                              </Button>
+                          className="ml-4 border-red-200 text-red-600 hover:text-red-700 hover:border-red-300 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Dé-assigner
+                        </Button>
                             )}
-                          </div>
-                        </div>
+                      </div>
+                    </div>
                       );
                     })}
-                  </div>
+                </div>
                 </>
               )}
             </div>
@@ -680,8 +680,8 @@ const UserFormationAssignmentModal: React.FC<UserFormationAssignmentModalProps> 
             </Button>
           )}
         </div>
-        </div>
       </div>
+    </div>
 
       {/* Modale de confirmation pour la dé-assignation */}
       {showUnassignConfirm && unassignData && (

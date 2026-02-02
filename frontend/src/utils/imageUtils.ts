@@ -179,7 +179,7 @@ export const getLessonFileUrl = (
 ): string => {
   // Si une URL complète est fournie (Cloudinary, Hostinger, Render, etc.), l'utiliser directement
   if (lessonFileUrl && (lessonFileUrl.startsWith('http://') || lessonFileUrl.startsWith('https://'))) {
-    console.log('✅ getLessonFileUrl - Utilisation de l\'URL complète fournie:', lessonFileUrl);
+    // console.log('✅ getLessonFileUrl - Utilisation de l\'URL complète fournie:', lessonFileUrl);
     return lessonFileUrl;
   }
   

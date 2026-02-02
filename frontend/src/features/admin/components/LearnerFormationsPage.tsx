@@ -247,18 +247,14 @@ const LearnerFormationsPage: React.FC = () => {
           .filter((f: any) => f.isAssigned === true)
           .map((f: any) => f.id)
       );
-      
-      // Debug: Log pour vérifier les formations non assignées
-      const nonAssignedFormations = formationsData.filter((f: any) => f.isAssigned !== true);
-      console.log('🔒 Formations NON assignées:', nonAssignedFormations.map((f: any) => ({ id: f.id, title: f.title, isAssigned: f.isAssigned })));
-      
-      setAssignedFormationIds(assignedIds);
-      
-      setFilteredFormations(transformedFormations);
-      
-      // console.log('✅ Formations transformées:', transformedFormations.length);
-      // console.log('🔒 Formations assignées:', assignedIds.size);
-      
+            // Debug: Log pour vérifier les formations non assignées
+            const nonAssignedFormations = formationsData.filter((f: any) => f.isAssigned !== true);
+            // console.log('🔒 Formations NON assignées:', nonAssignedFormations.map((f: any) => ({ id: f.id, title: f.title, isAssigned: f.isAssigned })));
+            
+            setAssignedFormationIds(assignedIds);
+            
+            setFilteredFormations(transformedFormations);
+            
     } catch (error) {
       console.error('❌ Erreur lors du chargement des formations:', error);
       toast({
@@ -404,9 +400,9 @@ const LearnerFormationsPage: React.FC = () => {
     if (!isAssigned && formationId) {
       // Vérifier si la formation existe dans allFormations
       const formation = allFormations.find(f => f.id === formationId);
-      if (formation) {
-        console.log(`⚠️ Formation "${formation.title}" (ID: ${formationId}) n'est PAS dans assignedFormationIds`);
-      }
+      // if (formation) {
+      //   console.log(`⚠️ Formation "${formation.title}" (ID: ${formationId}) n'est PAS dans assignedFormationIds`);
+      // }
     }
     
     return isAssigned;

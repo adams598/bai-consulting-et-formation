@@ -670,39 +670,6 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   };
 
 
-
-
-  const getFileIcon = (lesson: FormationContent) => {
-    const fileType = getFileType(lesson);
-    switch (fileType) {
-      case 'video':
-        return <Video className="h-5 w-5 text-red-500" />;
-      case 'pdf':
-        return <FileText className="h-5 w-5 text-red-600" />;
-      case 'document':
-        return <FileText className="h-5 w-5 text-blue-600" />;
-      case 'presentation':
-        return <Presentation className="h-5 w-5 text-orange-500" />;
-      default:
-        return <FileText className="h-5 w-5 text-gray-500" />;
-    }
-  };
-
-  const getActionButtonText = (lesson: FormationContent) => {
-    const fileType = getFileType(lesson);
-    switch (fileType) {
-      case 'video':
-        return 'Lire la vidéo';
-      case 'pdf':
-      case 'document':
-        return 'Lire le document';
-      case 'presentation':
-        return 'Voir la présentation';
-      default:
-        return 'Lire';
-    }
-  };
-
   const renderLessonContent = () => {
     if (!selectedLesson) return null;
 
