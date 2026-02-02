@@ -1,11 +1,17 @@
 {
   "version": 2,
-  "buildCommand": "cd backend && npm install && npm run vercel-build",
-  "installCommand": "cd backend && npm install",
+  "buildCommand": "cd backend && npm install && npm run vercel-build && cd ../frontend && npm install && npm run build",
+  "installCommand": "cd backend && npm install && cd ../frontend && npm install",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
       "destination": "/api/index.js"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/frontend/dist/$1"
     }
   ]
 }
