@@ -428,9 +428,7 @@ const LearnerFormationsPage: React.FC = () => {
     setSelectedFormation(formation);
     
     // Si c'est une formation d'opportunités commerciales, ouvrir directement le viewer vidéo
-    if (formation.isOpportunity || formation.universeId === 'opportunites-commerciales') {
-      // console.log('🎥 Ouverture du viewer vidéo pour formation opportunité:', formation.id);
-      
+    if (formation) {
       try {
         setIsLoadingLessons(true);
         
@@ -481,8 +479,7 @@ const LearnerFormationsPage: React.FC = () => {
         setIsLoadingLessons(false);
       }
     } else {
-      // Comportement normal pour les formations d'univers
-      setShowFormationDetail(true);
+      console.log('⚠️ Formation sélectionnée invalide');
     }
   };
 
@@ -570,7 +567,8 @@ const LearnerFormationsPage: React.FC = () => {
           id: selectedFormation.id,
           title: selectedFormation.title,
           description: selectedFormation.description || '',
-          duration: selectedFormation.duration // Ajouter la durée de la formation
+          duration: selectedFormation.duration,
+          universeId: selectedFormation.universeId // Ajouter universeId pour la logique de basculement au quiz
         }}
         lessons={lessons}
         initialSelectedLesson={lessons[0]} // Commencer par la première leçon

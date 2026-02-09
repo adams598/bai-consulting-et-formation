@@ -8,6 +8,7 @@ export const authMiddleware = async (req, res, next) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.warn("[AUTH] Authorization header missing or malformed");
       return res.status(401).json({
         success: false,
         message: "Token d'authentification manquant",
@@ -77,6 +78,10 @@ export const authMiddleware = async (req, res, next) => {
     });
 
     if (!session) {
+      console.warn(
+        "[AUTH] Session not found or expired for token userId=",
+        decoded.userId,
+      );
       return res.status(401).json({
         success: false,
         message: "Session expirée",
@@ -112,7 +117,8 @@ export const authMiddleware = async (req, res, next) => {
       },
     });
 
-    // Ajouter l'utilisateur à la requête
+    // Ajouter l'utilisateur à la requête et normaliser `userId`
+    if (user && !user.userId && user.id) user.userId = user.id;
     req.user = user;
     req.token = token;
     next();

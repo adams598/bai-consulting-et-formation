@@ -15,12 +15,12 @@ class CloudinaryService {
         api_secret: this.apiSecret,
         secure: true,
       });
-      console.log("✅ CloudinaryService activé");
-      console.log(`   Cloud Name: ${this.cloudName}`);
+      // console.log("✅ CloudinaryService activé");
+      // console.log(`   Cloud Name: ${this.cloudName}`);
     } else {
-      console.warn(
-        "⚠️ CloudinaryService désactivé : variables manquantes (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)"
-      );
+      // console.warn(
+      //   "⚠️ CloudinaryService désactivé : variables manquantes (CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET)"
+      // );
     }
   }
 

@@ -38,16 +38,16 @@ class ProgressService {
 
   // Récupérer les progressions pour une formation et un utilisateur
   getProgress(formationId: string, userId: string, lessons: any[]): { [lessonId: string]: LessonProgress } {
-    console.log(`📊 progressService.getProgress - formationId: ${formationId}, userId: ${userId}`);
+    // console.log(`📊 progressService.getProgress - formationId: ${formationId}, userId: ${userId}`);
     
     const allProgress = this.getAllProgress();
-    console.log(`📊 progressService.getProgress - Toutes les progressions:`, allProgress);
+    // console.log(`📊 progressService.getProgress - Toutes les progressions:`, allProgress);
     
     const formationProgress = allProgress.find(
       p => p.formationId === formationId && p.userId === userId
     );
     
-    console.log(`📊 progressService.getProgress - Progression trouvée:`, formationProgress);
+    // console.log(`📊 progressService.getProgress - Progression trouvée:`, formationProgress);
 
     if (!formationProgress) {
       console.log(`📊 progressService.getProgress - Aucune progression trouvée, initialisation...`);
@@ -102,7 +102,7 @@ class ProgressService {
 
     // Mettre à jour la progression
     if (!formationProgress.lessons[lessonId]) {
-      console.log(`💾 progressService.updateProgress - Création d'une nouvelle progression leçon`);
+      // console.log(`💾 progressService.updateProgress - Création d'une nouvelle progression leçon`);
       formationProgress.lessons[lessonId] = {
         lessonId,
         timeSpent: 0,

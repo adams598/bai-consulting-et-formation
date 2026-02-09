@@ -38,19 +38,19 @@ class CacheService {
       });
 
       this.redis.on("error", (error) => {
-        console.error("❌ Erreur Redis:", error.message);
+        // console.error("❌ Erreur Redis:", error.message);
         this.isConnected = false;
       });
 
       this.redis.on("close", () => {
-        console.log("🔌 Connexion Redis fermée");
+        // console.log("🔌 Connexion Redis fermée");
         this.isConnected = false;
       });
 
       // Test de connexion
       await this.testConnection();
     } catch (error) {
-      console.error("❌ Impossible de se connecter à Redis:", error.message);
+      // console.error("❌ Impossible de se connecter à Redis:", error.message);
       this.isConnected = false;
     }
   }

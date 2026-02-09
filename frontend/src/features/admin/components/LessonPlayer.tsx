@@ -10,7 +10,8 @@ import '../../../components/LessonPlayer.css';
 import { useAuth } from '../../../providers/auth-provider';
 import progressService from '../../../services/progressService';
 import { authService } from '../../../services/authService';
-import { quizApi } from '../../../api/adminApi';
+import { formationsApi, quizApi as learnerQuizApi } from '../../../api/learnerApi';
+import { quizApi as adminQuizApi } from '../../../api/adminApi';
 
 interface LessonPlayerProps {
   formation: {
@@ -62,7 +63,17 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   const [lastAttempt, setLastAttempt] = useState<any | null>(null);
   const [showQuizRecap, setShowQuizRecap] = useState(false);
   const [selectedQuestionIndex, setSelectedQuestionIndex] = useState<number | null>(null);
+  const [hasAutoTransitionedToQuiz, setHasAutoTransitionedToQuiz] = useState(false);
+  const [quizAvailable, setQuizAvailable] = useState(false);
 
+  // Debug: log du montage et de l'identité courante
+  useEffect(() => {
+    try {
+      console.log('🧭 LessonPlayer mounted', { formationId: formation.id, userId: getCurrentUserId() });
+    } catch (e) {
+      console.warn('LessonPlayer mount log failed', e);
+    }
+  }, [formation.id]);
 
   // Transformer les données des leçons pour s'assurer que toutes les propriétés sont bien définies
   // Principe similaire à la transformation des formations dans LearnerFormationsPage
@@ -127,44 +138,42 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
 
   // Fonction pour récupérer le quiz de la formation
   const fetchQuiz = async () => {
-    if (!isAdmin()) return;
-    
     setIsLoadingQuiz(true);
+    console.log('📥 fetchQuiz start for formation:', formation.id);
     try {
-      const response = await fetch(`http://localhost:3000/api/admin/formations/${formation.id}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data.quiz) {
-          setQuiz(data.data.quiz);
-          // Charger la dernière tentative si le quiz existe
-          await fetchLastAttempt(data.data.quiz.id);
+      // Utiliser l'API learner pour récupérer la formation (incluant le quiz associé)
+      const res = await formationsApi.getFormationById(formation.id);
+      if (res && (res as any).data) {
+        const data = (res as any).data;
+        if (data.quiz) {
+          setQuiz(data.quiz);
+          console.log('📋 Quiz chargé (learner API) pour la formation:', formation.id, data.quiz);
+          await fetchLastAttempt(data.quiz.id);
+        } else {
+          console.log('ℹ️ Aucun quiz associé retourné par formationsApi.getFormationById');
+          setQuiz(null);
         }
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération du quiz:', error);
+      console.error('❌ Erreur lors de la récupération du quiz via learner API:', error);
     } finally {
       setIsLoadingQuiz(false);
     }
   };
 
-  // Fonction pour récupérer la dernière tentative
+  // Fonction pour récupérer la dernière tentative (via learner API)
   const fetchLastAttempt = async (quizId: string) => {
     try {
-      const response = await quizApi.getLastAttempt(quizId);
-      if (response.data.success && response.data.data) {
-        setLastAttempt(response.data.data);
+      const response = await learnerQuizApi.getQuizAttempts(quizId);
+      const attempts = response && (response as any).data ? (response as any).data : response;
+      if (Array.isArray(attempts) && attempts.length > 0) {
+        const last = attempts[attempts.length - 1];
+        setLastAttempt(last);
       } else {
         setLastAttempt(null);
       }
     } catch (error) {
-      console.error('Erreur lors de la récupération de la dernière tentative:', error);
+      console.error('Erreur lors de la récupération de la dernière tentative (learner API):', error);
       setLastAttempt(null);
     }
   };
@@ -300,8 +309,8 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
       // console.log('💾 Sauvegarde du quiz:', quizData);
       
       if (quiz && quiz.id) {
-        // Mise à jour du quiz existant
-        const response = await quizApi.updateQuiz(quiz.id, {
+        // Mise à jour du quiz existant (admin API)
+        const response = await adminQuizApi.updateQuiz(quiz.id, {
           title: quizData.title || '',
           description: quizData.description || '',
           passingScore: quizData.passingScore || 80,
@@ -309,17 +318,15 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
           questions: quizData.questions || []
         });
         
-        if (response.data.success) {
-          // console.log('✅ Quiz mis à jour:', response.data.data);
+        if (response.data && response.data.success) {
           setQuiz(response.data.data);
           setSuccessMessage('Quiz mis à jour avec succès !');
           setTimeout(() => setSuccessMessage(null), 5000);
-          // Recharger le quiz depuis l'API
           await fetchQuiz();
         }
       } else {
-        // Création d'un nouveau quiz
-        const response = await quizApi.createQuiz(formation.id, {
+        // Création d'un nouveau quiz (admin API)
+        const response = await adminQuizApi.createQuiz(formation.id, {
           title: quizData.title || '',
           description: quizData.description || '',
           passingScore: quizData.passingScore || 80,
@@ -327,12 +334,10 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
           questions: quizData.questions || []
         });
         
-        if (response.data.success) {
-          // console.log('✅ Quiz créé:', response.data.data);
+        if (response.data && response.data.success) {
           setQuiz(response.data.data);
           setSuccessMessage('Quiz créé avec succès !');
           setTimeout(() => setSuccessMessage(null), 5000);
-          // Recharger le quiz depuis l'API
           await fetchQuiz();
         }
       }
@@ -546,11 +551,9 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     return () => clearInterval(interval);
   }, [formation.id, lessons]);
 
-  // Charger le quiz au montage du composant (pour les admins)
+  // Charger le quiz au montage du composant
   useEffect(() => {
-    if (isAdmin()) {
-      fetchQuiz();
-    }
+    fetchQuiz();
   }, [formation.id]);
 
   // Effet de débogage pour surveiller l'état de la modal
@@ -598,6 +601,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
       setSelectedLesson(lesson);
       setIsQuizSelected(false); // Désélectionner le quiz si une leçon est sélectionnée
       setQuizResult(null);
+      setHasAutoTransitionedToQuiz(false); // Réinitialiser le flag pour permettre la transition auto au quiz quand 100% est atteint
     } else {
       // console.log('🚫 Sélection bloquée pour', lesson.title, '- Leçon non accessible');
     }
@@ -634,6 +638,18 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         lastUpdated: new Date().toISOString()
       }
     }));
+
+    // Si la leçon vient d'atteindre 100% et que la formation n'est pas une opportunité commerciale,
+    // indiquer que le quiz est disponible mais NE PAS le lancer automatiquement.
+    if (progress.progress && progress.progress >= 100 && formation.universeId !== 'opportunites-commerciales') {
+      console.log('📊 Progression à 100% détectée - universeId:', formation.universeId, 'quiz exists:', !!quiz);
+      if (quiz) {
+        setQuizAvailable(true);
+        // garder l'utilisateur maître du lancement : il devra cliquer sur le bloc Quiz
+      } else {
+        console.log('⚠️ Progression à 100% mais aucun quiz trouvé');
+      }
+    }
     
     // Appeler la fonction parent si elle existe
     if (onProgressUpdate) {
@@ -701,75 +717,22 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   const renderQuizContent = () => {
     if (!quiz) return null;
 
-    // Si on a un résultat, afficher les résultats
-    if (quizResult) {
-      return (
-        <div className="h-full flex items-center justify-center p-8">
-          <div className="max-w-2xl w-full bg-white rounded-xl shadow-lg p-8">
-            <div className="text-center">
-              {quizResult.isPassed ? (
-                <>
-                  <CheckCircle className="h-20 w-20 text-green-500 mx-auto mb-4" />
-                  <h2 className="text-3xl font-bold text-green-600 mb-2">Quiz réussi !</h2>
-                  <p className="text-gray-600 mb-6">Félicitations, vous avez réussi le quiz avec un score de {quizResult.score}%</p>
-                </>
-              ) : (
-                <>
-                  <XCircle className="h-20 w-20 text-red-500 mx-auto mb-4" />
-                  <h2 className="text-3xl font-bold text-red-600 mb-2">Quiz échoué</h2>
-                  <p className="text-gray-600 mb-6">Vous avez obtenu {quizResult.score}% sur {quizResult.totalScore} points. Le score minimum requis est {quiz.passingScore}%</p>
-                </>
-              )}
-              
-              <div className="bg-gray-50 rounded-lg p-6 mb-6">
-                <div className="grid grid-cols-2 gap-4 text-center">
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Votre score</p>
-                    <p className="text-2xl font-bold text-gray-900">{quizResult.userScore} / {quizResult.totalScore}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500 mb-1">Pourcentage</p>
-                    <p className="text-2xl font-bold text-gray-900">{quizResult.score}%</p>
-                  </div>
-                </div>
-                <div className="mt-4">
-                  <div className="w-full bg-gray-200 rounded-full h-4">
-                    <div
-                      className={`h-4 rounded-full transition-all ${
-                        quizResult.isPassed ? 'bg-green-500' : 'bg-red-500'
-                      }`}
-                      style={{ width: `${quizResult.score}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() => {
-                  setQuizResult(null);
-                  setIsQuizSelected(false);
-                  setSelectedLesson(null);
-                }}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Retour aux leçons
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    // Sinon, afficher le quiz inline
-    return <InlineQuizPlayer 
-      quiz={quiz} 
-      onComplete={async (result) => {
-        setQuizResult(result);
-        // Recharger la dernière tentative après sauvegarde
-        await fetchLastAttempt(quiz.id);
-      }} 
-      onClose={() => setIsQuizSelected(false)} 
-    />;
+    // Toujours afficher le quiz inline dans l'espace prévu.
+    return (
+      <InlineQuizPlayer
+        quiz={quiz}
+        onComplete={async (result) => {
+          // Le composant Inline gère l'affichage du récapitulatif/résultats.
+          // Ici on recharge simplement la dernière tentative pour mettre à jour l'historique.
+          try {
+            await fetchLastAttempt(quiz.id);
+          } catch (e) {
+            console.warn('Impossible de recharger la dernière tentative:', e);
+          }
+        }}
+        onClose={() => setIsQuizSelected(false)}
+      />
+    );
   };
 
   // Composant Quiz Player Inline - Inspiré de QuizPreviewModal
@@ -935,13 +898,23 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
           ? Math.floor((new Date().getTime() - startTime.getTime()) / 1000)
           : undefined;
         
-        const response = await quizApi.submitAttempt(quiz.id, {
-          answers: answersForApi,
-          timeSpent,
-        });
-
-        if (response.data.success) {
-          // console.log('✅ Résultats sauvegardés:', response.data.data);
+        // Pour les apprenants: démarrer une tentative via l'API learner, puis soumettre
+        try {
+          const startResp = await learnerQuizApi.startQuizAttempt(quiz.id);
+          console.log('📨 Démarrage tentative quiz (learner API) pour quizId:', quiz.id);
+          const attempt = startResp && (startResp as any).data ? (startResp as any).data : startResp;
+          const attemptId = attempt?.id;
+          if (attemptId) {
+            console.log('📨 Tentative démarrée, attemptId:', attemptId, 'soumission en cours...');
+            const submitResp = await learnerQuizApi.submitQuizAttempt(attemptId, answersForApi);
+            if (submitResp && (submitResp as any).data) {
+              // tentative soumise
+            }
+          } else {
+            console.warn('Impossible de démarrer une tentative pour le quiz');
+          }
+        } catch (err) {
+          console.error('Erreur démarrage/soumission tentative (learner API):', err);
         }
       } catch (error) {
         console.error('❌ Erreur lors de la sauvegarde des résultats:', error);
@@ -1422,11 +1395,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                           <Clock className="h-3 w-3" />
                           <span>{formatDuration(lesson.duration || 0)}</span>
                         </div>
-                        {progress && progress.timeSpent > 0 && (
-                          <span className="text-blue-600">
-                            {formatTime(progress.timeSpent)} passés
-                          </span>
-                        )}
+                       
                       </div>
 
                       {/* Bouton d'action
@@ -1478,6 +1447,65 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                     </div>
                   );
                 })}
+
+                {/* Carte Quiz pour les apprenants (toujours visible si quiz configuré) */}
+                {quiz && !isAdmin() && (
+                  <div
+                    className={`p-4 bg-white rounded-lg border-2 transition-all ${
+                      isQuizSelected
+                        ? 'border-purple-500 bg-purple-50 cursor-pointer hover:shadow-md'
+                        : quizAvailable
+                          ? 'border-yellow-400 bg-yellow-50 cursor-pointer hover:shadow-md'
+                          : 'border-purple-200 hover:border-purple-300 cursor-pointer hover:shadow-md'
+                    }`}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsQuizSelected(true);
+                      setSelectedLesson(null);
+                    }}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div className="flex items-center space-x-2 flex-1">
+                        <div className={`p-2 rounded-md ${quiz ? 'bg-purple-100' : 'bg-gray-100'}`}>
+                          <HelpCircle className={`h-5 w-5 ${quiz ? 'text-purple-600' : 'text-gray-400'}`} />
+                        </div>
+                        <div>
+                          <h3 className="font-medium text-gray-900 text-sm">
+                            {quiz ? quiz.title : 'Quiz de validation'}
+                          </h3>
+                          {quiz && quiz.questions && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {quiz.questions.length} question{quiz.questions.length > 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-1 ml-2">
+                        <Plus className="h-4 w-4 text-blue-600" />
+                      </div>
+                    </div>
+
+                    {quiz && (
+                      <>
+                        <div className="mt-2 text-xs text-gray-500">
+                          {lastAttempt ? (
+                            <div>
+                              <span>Dernier score: {lastAttempt.score}%</span>
+                              {lastAttempt.isPassed ? (
+                                <span className="ml-2 text-green-600">✓ Réussi</span>
+                              ) : (
+                                <span className="ml-2 text-red-600">✗ Échoué</span>
+                              )}
+                            </div>
+                          ) : (
+                            <span>Pas encore joué</span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
 
                 {/* Carte Quiz pour les admins */}
                 {isAdmin() && (

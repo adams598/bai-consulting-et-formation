@@ -125,12 +125,15 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   const [isPresentationLoading, setIsPresentationLoading] = useState<boolean>(false);
   const [showResumeModal, setShowResumeModal] = useState<boolean>(false);
   const [hasShownResumeModal, setHasShownResumeModal] = useState<boolean>(false);
+  const [resumeModalData, setResumeModalData] = useState<{
+    currentTime: number;
+    totalTime: number;
+    progressPercentage: number;
+  } | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
-  const pdfContainerRef = useRef<HTMLDivElement | null>(null);
   const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const presentationContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Effet pour bloquer les raccourcis clavier et captures d'écran
   useEffect(() => {
@@ -677,7 +680,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
      // Effet pour sauvegarder automatiquement la progression quand la page change (PDF) ou le temps change (vidéo/audio)
    useEffect(() => {
      if (mimeType === "application/pdf" && pageCount && pageCount > 0 && currentPage > 0) {
-       console.log(`📊 Sauvegarde automatique PDF: page ${currentPage}/${pageCount}`);
+      //  console.log(`📊 Sauvegarde automatique PDF: page ${currentPage}/${pageCount}`);
        // Utiliser updateProgress pour bénéficier de la logique non-régressive
        updateProgress();
      } else if ((mimeType.startsWith("video/") || mimeType.startsWith("audio/")) && totalTime > 0 && currentTime >= 0) {
@@ -689,13 +692,13 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
        // Pour les vidéos/audios, toujours mettre à jour la progression si on a les données nécessaires
        // Ne pas dépendre de isTrackingProgress car il peut ne pas être encore initialisé
        if (currentTime > 0 && totalTime > 0) {
-         console.log(`🎬 useEffect sauvegarde - Mise à jour de la progression (currentTime > 0)`);
+        //  console.log(`🎬 useEffect sauvegarde - Mise à jour de la progression (currentTime > 0)`);
          // Utiliser updateProgress pour bénéficier de la logique non-régressive
          updateProgress();
          
          // Démarrer le suivi si ce n'est pas déjà fait
          if (!isTrackingProgress) {
-           console.log(`🎬 useEffect sauvegarde - Démarrage du suivi de progression`);
+          //  console.log(`🎬 useEffect sauvegarde - Démarrage du suivi de progression`);
            startProgressTracking();
          }
        } else {
@@ -904,7 +907,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
        saveLocalProgress(currentPage, pageCount, finalProgressPercentage);
             } else if (mimeType === "application/vnd.openxmlformats-officedocument.presentationml.presentation" && totalSlides > 0) {
          const progressPercentage = Math.round((currentSlide / totalSlides) * 100);
-         console.log(`📊 updateProgress - Présentation: ${currentSlide}/${totalSlides} = ${progressPercentage}%`);
+        //  console.log(`📊 updateProgress - Présentation: ${currentSlide}/${totalSlides} = ${progressPercentage}%`);
          
          // Récupérer la progression actuelle pour éviter la régression
        const currentProgress = progressService.getProgress(formationId, currentUserId, [])[lesson.id];
@@ -913,7 +916,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
          // Ne pas diminuer la progression si on recule
          const finalProgressPercentage = Math.max(progressPercentage, savedProgressPercentage);
          
-         console.log(`📊 Progression présentation: actuelle=${progressPercentage}%, sauvegardée=${savedProgressPercentage}%, finale=${finalProgressPercentage}%`);
+        //  console.log(`📊 Progression présentation: actuelle=${progressPercentage}%, sauvegardée=${savedProgressPercentage}%, finale=${finalProgressPercentage}%`);
          
          // Mettre à jour l'interface parent
          if (onProgressUpdate) {
@@ -932,8 +935,8 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
          const currentTime = video.currentTime;
          const duration = video.duration;
          
-         console.log(`🎬 updateProgress vidéo - currentTime: ${currentTime}s, duration: ${duration}s, isNaN: ${isNaN(currentTime)}/${isNaN(duration)}`);
-         console.log(`🎬 updateProgress vidéo - readyState: ${video.readyState}, networkState: ${video.networkState}`);
+        //  console.log(`🎬 updateProgress vidéo - currentTime: ${currentTime}s, duration: ${duration}s, isNaN: ${isNaN(currentTime)}/${isNaN(duration)}`);
+        //  console.log(`🎬 updateProgress vidéo - readyState: ${video.readyState}, networkState: ${video.networkState}`);
          
          // Vérifier que la durée est disponible (nécessaire pour calculer la progression)
          if (duration > 0 && currentTime >= 0 && !isNaN(currentTime) && !isNaN(duration) && duration !== Infinity) {
@@ -1099,43 +1102,45 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
      const currentUserId = getCurrentUserId();
      try {
        const allProgress = progressService.getProgress(formationId, currentUserId, []);
-       // console.log('📊 loadSavedProgress - Toutes les progressions:', allProgress);
+       console.log('📊 loadSavedProgress - Toutes les progressions:', allProgress);
        
        const savedProgress = allProgress[lesson.id];
-       // console.log('📊 loadSavedProgress - Progression récupérée pour la leçon:', savedProgress);
-       // console.log('📊 loadSavedProgress - LessonId:', lesson.id);
-       // console.log('📊 loadSavedProgress - FormationId:', formationId);
-       // console.log('📊 loadSavedProgress - UserId:', currentUserId);
+       console.log('📊 loadSavedProgress - Progression récupérée pour la leçon:', savedProgress, 'hasShownResumeModal:', hasShownResumeModal, 'mimeType:', mimeType, 'videoDuration:', videoRef.current?.duration);
+       console.log('📊 loadSavedProgress - LessonId:', lesson.id, 'FormationId:', formationId, 'UserId:', currentUserId);
        
        if (savedProgress && savedProgress.progress > 0 && !hasShownResumeModal) {
-           // console.log('📊 Progression chargée:', savedProgress);
-           
-         // Afficher la modal de reprise pour les vidéos/audios avec progression significative
+         console.log('📊 loadSavedProgress - Condition satisfied: savedProgress.progress > 0 && !hasShownResumeModal');
          if ((mimeType.startsWith("video/") || mimeType.startsWith("audio/")) && savedProgress.progress > 5) {
-           // console.log('🎬 Affichage de la modal de reprise - Progression:', savedProgress.progress + '%');
-           setShowResumeModal(true);
-           setHasShownResumeModal(true);
-           
-           // Préparer les données pour la modal
-           // Pour les vidéos, timeSpent contient le temps en secondes où l'utilisateur s'est arrêté
-           const savedTime = savedProgress.timeSpent || 0;
-           console.log(`🎬 Modal - savedProgress.timeSpent: ${savedProgress.timeSpent}`);
-           console.log(`🎬 Modal - savedTime calculé: ${savedTime}`);
-           console.log(`🎬 Modal - savedProgress.progress: ${savedProgress.progress}`);
-           
-           setCurrentTime(savedTime);
-           
-           // Calculer la durée totale estimée basée sur la progression
-           const estimatedTotalTime = savedProgress.progress > 0 ? (savedTime / savedProgress.progress) * 100 : 0;
-           setTotalTime(estimatedTotalTime);
-           
-           console.log(`🎬 Modal préparée - Temps sauvegardé: ${savedTime}s, Progression: ${savedProgress.progress}%, Durée estimée: ${estimatedTotalTime}s`);
-           console.log(`🎬 Modal - currentTime state: ${savedTime}, totalTime state: ${estimatedTotalTime}`);
-         } else {
-           // Pour les autres types ou progression faible, charger directement
-           loadProgressDirectly(savedProgress);
-         }
-         } else {
+          const savedTime = savedProgress.timeSpent || 0;
+          const totallTime = videoRef.current?.duration || 0;
+          let curTime = 0;
+          if (totallTime > 0) {
+            // If we know the real duration, compute time from progress percentage
+            curTime = savedProgress.progress * totallTime / 100;
+            console.log('📊 loadSavedProgress - computed curTime from progress% and duration:', curTime);
+          } else {
+            // Otherwise use savedTime as the best estimate
+            curTime = savedTime;
+            console.log('📊 loadSavedProgress - using savedTime as curTime fallback:', curTime);
+          }
+          const estimatedTotalTime = totallTime > 0 ? totallTime : (savedProgress.progress > 0 ? (savedTime / savedProgress.progress) * 100 : 0);
+          // Set modal-specific data
+          setResumeModalData({
+            currentTime: curTime,
+            totalTime: estimatedTotalTime,
+            progressPercentage: savedProgress.progress
+          });
+          
+          console.log('📊 loadSavedProgress - About to show resume modal with data:', { currentTime: curTime, totalTime: estimatedTotalTime, progress: savedProgress.progress });
+          setShowResumeModal(true);
+          setHasShownResumeModal(true);
+          
+          console.log(`🎬 Modal préparée - Temps sauvegardé: ${savedTime}s, Progression: ${savedProgress.progress}%, Durée estimée: ${estimatedTotalTime}s`);
+        } else {
+          console.log('📊 loadSavedProgress - Progress <=5 or not media, loading directly');
+          loadProgressDirectly(savedProgress);
+        }
+      }else {
          console.log('📊 Aucune progression trouvée ou modal déjà affichée, utilisation des valeurs par défaut');
            // Pas de progression sauvegardée, utiliser les valeurs par défaut
            setCurrentPage(1);
@@ -1209,31 +1214,75 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
 
    // Fonctions pour gérer la modal de reprise
    const handleResumePlayback = () => {
-     // console.log('🎬 Reprise de la lecture à', currentTime);
+     // Utiliser la valeur fournie par la modal si disponible, sinon fallback sur l'état
+     const timeToResume = resumeModalData?.currentTime ?? currentTime;
+     const estimatedTotal = resumeModalData?.totalTime ?? totalTime;
+
+     console.log(`🎬 handleResumePlayback - Reprise demandée à ${timeToResume}s (est. total: ${estimatedTotal}s)`);
+
+     // Fermer la modal
      setShowResumeModal(false);
-     
-     // Positionner la vidéo/audio au temps sauvegardé
+     setHasShownResumeModal(true);
+
+     // Mettre à jour l'état
+     setCurrentTime(timeToResume);
+     if (estimatedTotal > 0) setTotalTime(estimatedTotal);
+
+     // Positionner et lancer la lecture
      if (mimeType.startsWith("video/") && videoRef.current) {
-       videoRef.current.currentTime = currentTime;
-       console.log(`🎬 Vidéo positionnée à ${currentTime}s`);
+       try {
+         videoRef.current.currentTime = timeToResume;
+         const playPromise = videoRef.current.play();
+         if (playPromise !== undefined) {
+           playPromise.catch((error) => console.warn('⚠️ Lecture bloquée par le navigateur:', error));
+         }
+         console.log(`🎬 Vidéo positionnée à ${timeToResume}s et tentative de lecture`);
+       } catch (e) {
+         console.warn('⚠️ Erreur lors du positionnement/lecture de la vidéo:', e);
+       }
      } else if (mimeType.startsWith("audio/") && audioRef.current) {
-       audioRef.current.currentTime = currentTime;
-       console.log(`🎬 Audio positionné à ${currentTime}s`);
+       try {
+         audioRef.current.currentTime = timeToResume;
+         const playPromise = audioRef.current.play();
+         if (playPromise !== undefined) {
+           playPromise.catch((error) => console.warn('⚠️ Lecture audio bloquée par le navigateur:', error));
+         }
+         console.log(`🎬 Audio positionné à ${timeToResume}s et tentative de lecture`);
+       } catch (e) {
+         console.warn('⚠️ Erreur lors du positionnement/lecture de l\'audio:', e);
+       }
      }
    };
 
    const handleRestartPlayback = () => {
      // console.log('🎬 Redémarrage depuis le début');
      setShowResumeModal(false);
-         setCurrentTime(0);
+     setCurrentTime(0);
+     setHasShownResumeModal(true);
          
-     // Remettre la vidéo/audio au début
+     // Remettre la vidéo/audio au début et relancer la lecture
      if (mimeType.startsWith("video/") && videoRef.current) {
-       videoRef.current.currentTime = 0;
-       console.log(`🎬 Vidéo remise au début`);
+       try {
+         videoRef.current.currentTime = 0;
+         const playPromise = videoRef.current.play();
+         if (playPromise !== undefined) {
+           playPromise.catch((error) => console.warn('⚠️ Lecture bloquée par le navigateur:', error));
+         }
+         console.log(`🎬 Vidéo remise au début et lecture lancée`);
+       } catch (e) {
+         console.warn('⚠️ Erreur lors du redémarrage de la vidéo:', e);
+       }
      } else if (mimeType.startsWith("audio/") && audioRef.current) {
-       audioRef.current.currentTime = 0;
-       console.log(`🎬 Audio remis au début`);
+       try {
+         audioRef.current.currentTime = 0;
+         const playPromise = audioRef.current.play();
+         if (playPromise !== undefined) {
+           playPromise.catch((error) => console.warn('⚠️ Lecture audio bloquée par le navigateur:', error));
+         }
+         console.log(`🎬 Audio remis au début et lecture lancée`);
+       } catch (e) {
+         console.warn('⚠️ Erreur lors du redémarrage de l\'audio:', e);
+       }
      }
    };
 
@@ -1279,195 +1328,9 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
               </h4>
               <p className="text-gray-600">Veuillez patienter</p>
             </div>
-          ) : error ? (
-            <div className="text-center">
-              <div className="w-24 h-24 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-6">
-                <FileText className="h-12 w-12 text-red-600" />
-              </div>
-              <h4 className="text-xl font-semibold text-gray-800 mb-4">
-                Erreur de chargement ❌
-              </h4>
-              <p className="text-gray-600 mb-4">{error}</p>
-              <div className="bg-gray-100 p-4 rounded text-left text-sm mb-4">
-                <p><strong>Debug info :</strong></p>
-                <p>Lesson ID: {lesson.id}</p>
-                <p>Lesson Title: {lesson.title}</p>
-                <p>FileUrl (prop): {fileUrl}</p>
-                <p>FileUrl (lesson): {lesson.fileUrl || 'Non défini'}</p>
-                <p>URL utilisée: {blobUrl || fullUrl || 'Aucune'}</p>
-                <p>MimeType: {mimeType}</p>
-                <p>FullUrl: {fullUrl}</p>
-              </div>
-                             <button
-                 onClick={() => {
-                   // console.log('🔄 TestViewer - Tentative de rechargement');
-                   // Réinitialiser les états nécessaires
-                   setError(null);
-                   setIsLoading(true);
-                   // Déclencher un nouveau chargement
-                   if (fileUrl) {
-                     const event = new CustomEvent('retryLoad', { detail: { fileUrl, lessonId: lesson.id } });
-                     window.dispatchEvent(event);
-                   }
-                 }}
-                 className="inline-block bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-               >
-                 Réessayer
-               </button>
-            </div>
           ) : blobUrl ? (
             <div>
-              {/* Images */}
-              {mimeType.startsWith("image/") && (
-                <div className="w-full h-[calc(100vh-120px)] border rounded bg-white flex items-center justify-center">
-                  <img
-                    src={blobUrl}
-                    alt="Aperçu fichier"
-                    className="max-w-full max-h-full object-contain rounded shadow"
-                  />
-                </div>
-              )}
-
-                             {/* PDFs */}
-               {mimeType === "application/pdf" && (
-                 <div className="w-full h-[calc(100vh-120px)] border rounded bg-white relative">
-                   <div className="w-full h-full relative p-4">
-                     {/* Message d'erreur PDF */}
-                     {pdfError && retryCount >= 3 && (
-                       <div className="absolute inset-0 bg-white/95 flex items-center justify-center z-30">
-                         <div className="text-center p-6">
-                           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                             <FileText className="h-8 w-8 text-red-600" />
-                           </div>
-                           <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                             Erreur de chargement PDF
-                           </h3>
-                           <p className="text-gray-600 mb-4">
-                             Le PDF n'a pas pu être chargé après plusieurs tentatives.
-                           </p>
-                           <button
-                             onClick={() => {
-                               setPdfError(false);
-                               setRetryCount(0);
-                               resetPdfWorker();
-                             }}
-                             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                           >
-                             Réessayer
-                           </button>
-                         </div>
-                       </div>
-                     )}
-                    {/* Contrôles de navigation */}
-                    {pageCount && pageCount > 1 && (
-                      <div className="absolute bottom-4 right-4 z-20 bg-white/95 p-3 rounded-lg shadow-lg border">
-                        <div className="flex items-center space-x-3">
-                                                                              <button
-                           onClick={() => {
-                             const newPage = Math.max(1, currentPage - 1);
-                             setCurrentPage(newPage);
-                             console.log(`📄 Navigation: Page ${newPage}/${pageCount}`);
-                             // La progression sera mise à jour automatiquement par l'useEffect
-                           }}
-                           className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 transition-colors text-sm font-medium"
-                           disabled={currentPage <= 1}
-                         >
-                           ← Précédente
-                         </button>
-                          
-                          <span className="text-sm font-medium text-gray-700 px-2">
-                            {currentPage} / {pageCount}
-                          </span>
-                          
-                                                                              <button
-                           onClick={() => {
-                             const newPage = Math.min(pageCount, currentPage + 1);
-                             setCurrentPage(newPage);
-                             console.log(`📄 Navigation: Page ${newPage}/${pageCount}`);
-                             // La progression sera mise à jour automatiquement par l'useEffect
-                           }}
-                           className="px-3 py-1.5 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300 transition-colors text-sm font-medium"
-                           disabled={currentPage >= pageCount}
-                         >
-                           Suivante →
-                         </button>
-                        </div>
-                      </div>
-                    )}
-                    
-                                         {/* PDF Viewer */}
-                     <div className="w-full h-full flex items-center justify-center">
-                                               <Document
-                          file={blobUrl}
-                          onLoadSuccess={({ numPages }) => {
-                            // console.log('📄 PDF chargé avec react-pdf:', numPages, 'pages');
-                            setPageCount(numPages);
-                            setTotalPages(numPages);
-                            
-                            // Charger la progression sauvegardée APRÈS que le PDF soit prêt
-                            if (formationId && userId) {
-                              // console.log('📊 Chargement de la progression après chargement PDF...');
-                              loadSavedProgress();
-                            }
-                            
-                            console.log(`📊 PDF chargé: ${numPages} pages, page courante: ${currentPage}`);
-                          }}
-                                                     onLoadError={(error) => {
-                             console.error('❌ Erreur lors du chargement du PDF:', error);
-                             setPdfError(true);
-                             
-                             // Vérifier l'état du worker
-                             if (typeof window !== 'undefined' && pdfjs.GlobalWorkerOptions.workerSrc) {
-                               // console.log('🔍 Worker PDF configuré:', pdfjs.GlobalWorkerOptions.workerSrc);
-                             } else {
-                               console.error('❌ Worker PDF non configuré');
-                               resetPdfWorker();
-                             }
-                             
-                             // Réessayer automatiquement jusqu'à 3 fois
-                             if (retryCount < 3) {
-                               console.log(`🔄 Tentative de récupération ${retryCount + 1}/3...`);
-                               setRetryCount(prev => prev + 1);
-                               setTimeout(() => {
-                                 resetPdfWorker();
-                               }, 1000);
-                             } else {
-                               console.error('❌ Échec après 3 tentatives de récupération');
-                             }
-                           }}
-                        >
-                                                   <Page
-                            pageNumber={currentPage}
-                            width={800}
-                            scale={0.65}
-                            renderTextLayer={false}
-                            renderAnnotationLayer={false}
-                            onLoadSuccess={() => {
-                              console.log(`📄 Page ${currentPage} chargée avec succès`);
-                              // La progression est maintenant gérée par l'useEffect automatique
-                            }}
-                                                         onLoadError={(error) => {
-                               console.error(`❌ Erreur lors du chargement de la page ${currentPage}:`, error);
-                               setPdfError(true);
-                               
-                               // Réessayer automatiquement jusqu'à 3 fois
-                               if (retryCount < 3) {
-                                 console.log(`🔄 Tentative de récupération page ${retryCount + 1}/3...`);
-                                 setRetryCount(prev => prev + 1);
-                                 setTimeout(() => {
-                                   resetPdfWorker();
-                                 }, 1000);
-                               } else {
-                                 console.error('❌ Échec après 3 tentatives de récupération de page');
-                               }
-                             }}
-                          />
-                       </Document>
-                     </div>
-                  </div>
-                </div>
-              )}
-
+          
                              {/* Vidéos */}
                {mimeType.startsWith("video/") && (
                  <div className="w-full h-[calc(100vh-120px)] border rounded bg-white">
@@ -1496,15 +1359,15 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                        onMouseMove={handleVideoMouseMove}
                        onMouseLeave={handleVideoMouseLeave}
                        onLoadedMetadata={() => {
-                         console.log('🎬 onLoadedMetadata - Événement déclenché');
+                        //  console.log('🎬 onLoadedMetadata - Événement déclenché');
                          if (videoRef.current) {
                            const duration = videoRef.current.duration;
-                           console.log(`🎬 onLoadedMetadata - Durée vidéo: ${duration}s (${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')})`);
-                           console.log(`🎬 onLoadedMetadata - isNaN(duration): ${isNaN(duration)}, readyState: ${videoRef.current.readyState}`);
-                           console.log(`🎬 onLoadedMetadata - URL vidéo: ${blobUrl}`);
+                          //  console.log(`🎬 onLoadedMetadata - Durée vidéo: ${duration}s (${Math.floor(duration / 60)}:${(duration % 60).toFixed(0).padStart(2, '0')})`);
+                          //  console.log(`🎬 onLoadedMetadata - isNaN(duration): ${isNaN(duration)}, readyState: ${videoRef.current.readyState}`);
+                          //  console.log(`🎬 onLoadedMetadata - URL vidéo: ${blobUrl}`);
                            
                            // Définir la vitesse de lecture par défaut à 0.85
-                           videoRef.current.playbackRate = 0.85;
+                           videoRef.current.playbackRate = 0.5;
                            
                            if (!isNaN(duration) && duration > 0 && duration !== Infinity) {
                              console.log(`✅ Durée valide détectée depuis onLoadedMetadata, mise à jour de totalTime: ${duration}s`);
@@ -1761,20 +1624,6 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
             </div>
           </div>
         )}
-
-                 {/* Composant de suivi de progression */}
-         {formationId && userId && (
-           <div className="mt-6">
-             <div className="bg-white p-4 rounded-lg shadow border">
-               <h3 className="text-lg font-semibold text-gray-800 mb-2">Suivi de progression</h3>
-               <div className="text-sm text-gray-600">
-                 <p>• Progression basée sur la navigation des pages</p>
-                 <p>• Sauvegarde automatique de votre position</p>
-                 <p>• Rechargement de la progression à la reconnexion</p>
-               </div>
-            </div>
-          </div>
-        )}
       </div>
       
       {/* Footer minimal */}
@@ -1788,9 +1637,9 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
         onResume={handleResumePlayback}
         onRestart={handleRestartPlayback}
         onClose={handleCloseResumeModal}
-        progressPercentage={Math.round((currentTime / totalTime) * 100)}
-        currentTime={currentTime}
-        totalTime={totalTime}
+        progressPercentage={resumeModalData?.progressPercentage || 0}
+        currentTime={resumeModalData?.currentTime || 0}
+        totalTime={resumeModalData?.totalTime ?? videoRef.current?.duration ?? 0}
         lessonTitle={lesson.title}
       />
     </div>

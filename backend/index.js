@@ -131,7 +131,7 @@ app.get("/api/images/:type/:userFolder/:filename", (req, res) => {
     "uploads",
     type,
     userFolder,
-    filename
+    filename,
   );
 
   console.log("🔍 Route /api/images appelée:");
@@ -177,7 +177,7 @@ app.get("/api/formations/:formationTitle/:filename", (req, res) => {
     "uploads",
     "formations",
     formationTitle,
-    filename
+    filename,
   );
   console.log("🔍 Route /api/formations couverture appelée:");
   console.log("  - formationTitle:", formationTitle);
@@ -303,32 +303,32 @@ app.use("/api/calendar", calendarIntegrationRoutes);
 app.get(
   "/api/calendar/events",
   authMiddleware,
-  calendarController.getUserEvents
+  calendarController.getUserEvents,
 );
 app.post(
   "/api/calendar/events",
   authMiddleware,
-  calendarController.createEvent
+  calendarController.createEvent,
 );
 app.put(
   "/api/calendar/events/:id",
   authMiddleware,
-  calendarController.updateEvent
+  calendarController.updateEvent,
 );
 app.delete(
   "/api/calendar/events/:id",
   authMiddleware,
-  calendarController.deleteEvent
+  calendarController.deleteEvent,
 );
 app.get(
   "/api/calendar/events/range",
   authMiddleware,
-  calendarController.getEventsByDateRange
+  calendarController.getEventsByDateRange,
 );
 app.get(
   "/api/calendar/upcoming",
   authMiddleware,
-  calendarController.getUpcomingDeadlines
+  calendarController.getUpcomingDeadlines,
 );
 
 // Import des nouvelles routes unifiées pour les apprenants
@@ -353,7 +353,7 @@ app.use(
     trackUserAgent: true,
     trackIpAddress: true,
     trackReferrer: true,
-  })
+  }),
 );
 
 // Initialisation conditionnelle d'OpenAI
@@ -568,7 +568,7 @@ app.post(
         .status(500)
         .json({ error: "Erreur lors de la génération de la réponse." });
     }
-  }
+  },
 );
 
 app.post(
@@ -589,7 +589,7 @@ app.post(
     res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization"
+      "Content-Type, Authorization",
     );
     if (req.method === "OPTIONS") {
       res.status(200).end();
@@ -603,7 +603,7 @@ app.post(
       console.error("Erreur lors de l'envoi de l'email:", error);
       res.status(500).json({ error: "Erreur lors de l'envoi du message" });
     }
-  }
+  },
 );
 
 // Configuration SSL/TLS
@@ -625,28 +625,8 @@ if (!process.env.VERCEL) {
     const httpsServer = https.createServer(sslOptions, app);
     httpsServer.listen(port, () => {
       console.log(`🔒 Serveur HTTPS démarré sur https://localhost:${port}`);
-      console.log(`📜 Certificat SSL: ${process.env.SSL_CERT_PATH}`);
-      console.log(`🔑 Clé SSL: ${process.env.SSL_KEY_PATH}`);
-
-      // Vérification du service Cloudinary
-      console.log("\n📦 Vérification du service Cloudinary:");
-      if (cloudinaryService.isEnabled()) {
-        console.log(
-          "✅ Service Cloudinary activé - Les vidéos seront uploadées automatiquement sur Cloudinary"
-        );
-      } else {
-        console.log("⚠️  Service Cloudinary désactivé");
-        console.log(
-          "📝 Pour activer, configurez les variables d'environnement:"
-        );
-        console.log("   - CLOUDINARY_CLOUD_NAME");
-        console.log("   - CLOUDINARY_API_KEY");
-        console.log("   - CLOUDINARY_API_SECRET");
-        console.log(
-          "💡 Les vidéos seront stockées localement si Cloudinary n'est pas activé"
-        );
-      }
-      console.log("");
+      // console.log(`📜 Certificat SSL: ${process.env.SSL_CERT_PATH}`);
+      // console.log(`🔑 Clé SSL: ${process.env.SSL_KEY_PATH}`);
     });
   } else {
     app.listen(port, () => {
@@ -655,26 +635,6 @@ if (!process.env.VERCEL) {
         console.log("⚠️  ATTENTION: SSL non configuré en production !");
         console.log("📝 Configurez SSL_CERT_PATH et SSL_KEY_PATH dans .env");
       }
-
-      // Vérification du service Cloudinary
-      console.log("\n📦 Vérification du service Cloudinary:");
-      if (cloudinaryService.isEnabled()) {
-        console.log(
-          "✅ Service Cloudinary activé - Les vidéos seront uploadées automatiquement sur Cloudinary"
-        );
-      } else {
-        console.log("⚠️  Service Cloudinary désactivé");
-        console.log(
-          "📝 Pour activer, configurez les variables d'environnement:"
-        );
-        console.log("   - CLOUDINARY_CLOUD_NAME");
-        console.log("   - CLOUDINARY_API_KEY");
-        console.log("   - CLOUDINARY_API_SECRET");
-        console.log(
-          "💡 Les vidéos seront stockées localement si Cloudinary n'est pas activé"
-        );
-      }
-      console.log("");
     });
   }
 }

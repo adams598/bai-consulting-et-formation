@@ -66,7 +66,7 @@ export const authController = {
           bankId: user.bankId,
         },
         process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "24h" }
+        { expiresIn: "24h" },
       );
 
       // Mettre à jour la dernière connexion et effacer l'expiration du mot de passe
@@ -144,7 +144,7 @@ export const authController = {
   getCurrentUser: async (req, res) => {
     try {
       const user = await prisma.user.findUnique({
-        where: { id: req.user.userId },
+        where: { id: req.user?.id || req.user?.userId },
         include: { bank: true },
       });
 
@@ -193,7 +193,7 @@ export const authController = {
       // Vérifier le refresh token
       const decoded = jwt.verify(
         refreshToken,
-        process.env.JWT_REFRESH_SECRET || "refresh-secret"
+        process.env.JWT_REFRESH_SECRET || "refresh-secret",
       );
 
       const user = await prisma.user.findUnique({
@@ -216,7 +216,7 @@ export const authController = {
           bankId: user.bankId,
         },
         process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "24h" }
+        { expiresIn: "24h" },
       );
 
       res.json({
@@ -238,7 +238,7 @@ export const authController = {
   changePassword: async (req, res) => {
     try {
       const { currentPassword, newPassword } = req.body;
-      const userId = req.user.userId;
+      const userId = req.user?.id || req.user?.userId;
 
       if (!currentPassword || !newPassword) {
         return res.status(400).json({
@@ -261,7 +261,7 @@ export const authController = {
       // Vérifier l'ancien mot de passe
       const isValidPassword = await bcrypt.compare(
         currentPassword,
-        user.password
+        user.password,
       );
       if (!isValidPassword) {
         return res.status(400).json({
@@ -304,7 +304,7 @@ export const formationsController = {
       const userId = req.user.id; // Correction: req.user.id au lieu de req.user.userId
       console.log(
         "🔄 [LEARNER API] getMyFormations appelé pour userId:",
-        userId
+        userId,
       );
 
       // Récupérer les formations assignées à l'utilisateur
@@ -324,7 +324,7 @@ export const formationsController = {
 
       console.log(
         "📊 [LEARNER API] Nombre d'assignations trouvées:",
-        assignments.length
+        assignments.length,
       );
 
       // Récupérer la progression pour chaque formation
@@ -340,10 +340,10 @@ export const formationsController = {
 
           const totalLessons =
             assignment.formation.content?.filter(
-              (c) => c.contentType === "LESSON"
+              (c) => c.contentType === "LESSON",
             ).length || 0;
           const completedLessons = userProgress.filter(
-            (p) => p.isCompleted
+            (p) => p.isCompleted,
           ).length;
           const progressPercentage =
             totalLessons > 0
@@ -356,7 +356,7 @@ export const formationsController = {
             lessonCount: totalLessons,
             completedLessons,
           };
-        })
+        }),
       );
 
       // Retourner les assignations avec progression calculée
@@ -393,7 +393,7 @@ export const formationsController = {
       console.log(
         "✅ [LEARNER API] Retour de",
         formations.length,
-        "formations transformées"
+        "formations transformées",
       );
 
       res.json({
@@ -415,7 +415,7 @@ export const formationsController = {
       const userId = req.user.id;
       console.log(
         "🔄 [LEARNER API] getAllFormationsWithAssignment appelé pour userId:",
-        userId
+        userId,
       );
 
       // Récupérer toutes les formations actives
@@ -435,17 +435,17 @@ export const formationsController = {
 
       console.log(
         "📊 [LEARNER API] Nombre total de formations trouvées:",
-        allFormations.length
+        allFormations.length,
       );
 
       // Debug: Afficher les données des formations
       allFormations.forEach((formation) => {
-        console.log(`🔍 [LEARNER API] Formation "${formation.title}":`, {
-          id: formation.id,
-          universeId: formation.universeId,
-          universe: formation.universe,
-          isOpportunity: formation.isOpportunity,
-        });
+        // console.log(`🔍 [LEARNER API] Formation "${formation.title}":`, {
+        //   id: formation.id,
+        //   universeId: formation.universeId,
+        //   universe: formation.universe,
+        //   isOpportunity: formation.isOpportunity,
+        // });
       });
 
       // Récupérer les formations assignées à l'utilisateur
@@ -461,13 +461,13 @@ export const formationsController = {
 
       // Créer un Set des IDs des formations assignées pour une recherche rapide
       const assignedFormationIds = new Set(
-        assignments.map((a) => a.formationId)
+        assignments.map((a) => a.formationId),
       );
       const assignmentMap = new Map(assignments.map((a) => [a.formationId, a]));
 
       console.log(
         "📊 [LEARNER API] Nombre de formations assignées:",
-        assignedFormationIds.size
+        assignedFormationIds.size,
       );
 
       // Récupérer la progression pour chaque formation assignée
@@ -559,7 +559,7 @@ export const formationsController = {
       console.log(
         "✅ [LEARNER API] Retour de",
         formationsWithAssignment.length,
-        "formations avec indication d'assignation"
+        "formations avec indication d'assignation",
       );
 
       res.json({
@@ -614,7 +614,7 @@ export const formationsController = {
         quizAttempts.length > 0
           ? Math.round(
               quizAttempts.reduce((sum, attempt) => sum + attempt.score, 0) /
-                quizAttempts.length
+                quizAttempts.length,
             )
           : 0;
 
@@ -622,7 +622,7 @@ export const formationsController = {
       for (const assignment of assignments) {
         const totalLessons =
           assignment.formation.content?.filter(
-            (c) => c.contentType === "LESSON"
+            (c) => c.contentType === "LESSON",
           ).length || 0;
 
         // Vérifier la progression
@@ -634,7 +634,7 @@ export const formationsController = {
         });
 
         const completedLessons = userProgress.filter(
-          (p) => p.isCompleted
+          (p) => p.isCompleted,
         ).length;
         const hasStarted = userProgress.length > 0;
         const isCompleted =
@@ -750,7 +750,7 @@ export const formationsController = {
       // Créer l'événement dans l'agenda
       const startDateTime = new Date(`${date}T${time}`);
       const endDateTime = new Date(
-        startDateTime.getTime() + (assignment.formation.duration || 60) * 60000
+        startDateTime.getTime() + (assignment.formation.duration || 60) * 60000,
       );
 
       const calendarEvent = await prisma.calendarEvent.create({
@@ -786,7 +786,7 @@ export const formationsController = {
           message: `La formation "${
             assignment.formation.title
           }" a été planifiée pour le ${new Date(date).toLocaleDateString(
-            "fr-FR"
+            "fr-FR",
           )} à ${time}`,
           type: "INFO",
           isRead: false,
@@ -812,19 +812,59 @@ export const formationsController = {
   getFormationById: async (req, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.userId;
+      const userId = req.user?.id || req.user?.userId;
+
+      console.log(
+        "🔄 [LEARNER API] getFormationById called for id:",
+        id,
+        "userId:",
+        userId,
+      );
+
+      // Vérifier que l'utilisateur est authentifié
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: "Utilisateur non authentifié",
+        });
+      }
 
       // Vérifier que l'utilisateur a accès à cette formation
+      // NOTE: le modèle FormationAssignment n'expose pas de relation `progress` directement,
+      // la progression est stockée dans la table `userProgress`. Nous récupérons l'assignation,
+      // puis la progression séparément.
       const assignment = await prisma.formationAssignment.findFirst({
         where: {
           formationId: id,
           userId,
         },
         include: {
-          formation: true,
-          progress: {
-            where: { userId },
+          formation: {
+            include: {
+              quiz: {
+                include: {
+                  questions: {
+                    orderBy: { order: "asc" },
+                    include: {
+                      answers: {
+                        orderBy: { order: "asc" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
           },
+          user: true,
+          assignedByUser: true,
+        },
+      });
+
+      // Récupérer la progression de l'utilisateur pour cette formation (si existante)
+      const progressRecord = await prisma.userProgress.findFirst({
+        where: {
+          formationId: id,
+          userId,
         },
       });
 
@@ -844,7 +884,7 @@ export const formationsController = {
             dueDate: assignment.dueDate,
             status: assignment.status,
           },
-          progress: assignment.progress[0] || null,
+          progress: progressRecord || null,
         },
       });
     } catch (error) {
@@ -1128,7 +1168,7 @@ export const formationsController = {
           type: "formation_scheduled",
           title: event.title,
           description: `Événement planifié pour le ${event.startDate.toLocaleDateString(
-            "fr-FR"
+            "fr-FR",
           )}`,
           timestamp: event.createdAt.toISOString(),
           formationId: event.formationId,
@@ -1165,7 +1205,7 @@ export const formationsController = {
       // Trier toutes les activités par timestamp (plus récent en premier)
       activities.sort(
         (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       );
 
       // Limiter à 20 activités maximum
@@ -1216,10 +1256,10 @@ export const progressController = {
       // Calculer les formations complétées (toutes les leçons terminées)
       const completedFormations = assignments.filter((assignment) => {
         const formationLessons = userProgress.filter(
-          (progress) => progress.formationId === assignment.formationId
+          (progress) => progress.formationId === assignment.formationId,
         );
         const completedLessons = formationLessons.filter(
-          (progress) => progress.isCompleted
+          (progress) => progress.isCompleted,
         );
         return (
           formationLessons.length > 0 &&
@@ -1230,10 +1270,10 @@ export const progressController = {
       // Calculer les formations en cours (au moins une leçon commencée mais pas toutes terminées)
       const inProgressFormations = assignments.filter((assignment) => {
         const formationLessons = userProgress.filter(
-          (progress) => progress.formationId === assignment.formationId
+          (progress) => progress.formationId === assignment.formationId,
         );
         const completedLessons = formationLessons.filter(
-          (progress) => progress.isCompleted
+          (progress) => progress.isCompleted,
         );
         return (
           formationLessons.length > 0 &&
@@ -1386,6 +1426,13 @@ export const quizController = {
       const { formationId } = req.params;
       const userId = req.user.userId;
 
+      console.log(
+        "🔄 [LEARNER API] getQuiz called for formationId:",
+        formationId,
+        "userId:",
+        userId,
+      );
+
       // Vérifier que l'utilisateur a accès à cette formation
       const assignment = await prisma.formationAssignment.findFirst({
         where: {
@@ -1481,7 +1528,7 @@ export const quizController = {
       quiz.questions.forEach((question) => {
         const userAnswer = answers[question.id];
         const correctOption = question.options.find(
-          (option) => option.isCorrect
+          (option) => option.isCorrect,
         );
 
         if (userAnswer === correctOption?.id) {
@@ -1900,7 +1947,7 @@ export const notificationsController = {
           type: "formation_scheduled",
           title: event.title,
           description: `Événement planifié pour le ${event.startDate.toLocaleDateString(
-            "fr-FR"
+            "fr-FR",
           )}`,
           timestamp: event.createdAt.toISOString(),
           formationId: event.formationId,
@@ -1937,7 +1984,7 @@ export const notificationsController = {
       // Trier toutes les activités par timestamp (plus récent en premier)
       activities.sort(
         (a, b) =>
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime(),
       );
 
       // Limiter à 20 activités maximum
