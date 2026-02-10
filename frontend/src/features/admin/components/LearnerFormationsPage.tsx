@@ -824,7 +824,7 @@ const LearnerFormationsPage: React.FC = () => {
                             {/* Badge code de la formation */}
                             {formation.code && formation.code.trim() !== '' && (
                               <div className="absolute top-3 left-3">
-                                <div className="px-3 py-1.5 rounded-full border-2 border-white bg-transparent backdrop-blur-sm">
+                                <div className="px-3 py-1.5 border-2 border-white bg-transparent backdrop-blur-sm">
                                   <span className="text-brand-beige font-bold text-sm tracking-wide">
                                     {(formation.code || '').toString().trim().toUpperCase()}
                                   </span>

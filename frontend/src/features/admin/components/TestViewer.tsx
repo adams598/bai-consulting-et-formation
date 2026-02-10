@@ -1565,7 +1565,7 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                        */}
                     </div>
                  
-                    <div className="flex items-center justify-center h-full">
+                    {/* <div className="flex items-center justify-center h-full">
                       <div className="text-center">
                         <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
                           <Presentation className="h-8 w-8 text-red-600" />
@@ -1577,8 +1577,8 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                           La video n'a pas pu être chargée
                         </p>
                       </div>
-                    </div>
-                  )
+                    </div> */}
+                  
                 </div>
               )}
           </div>

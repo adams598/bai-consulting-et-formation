@@ -152,9 +152,26 @@ export class CalendarService {
     return response.data.data;
   }
 
-  // Déconnecter une intégration
-  static async disconnectIntegration(type: 'GOOGLE' | 'OUTLOOK'): Promise<void> {
+  // Déconnecter une intégration par ID
+  static async disconnectIntegration(integrationId: string): Promise<void> {
+    await api.delete(`/calendar/integrations/${integrationId}`);
+  }
+
+  // Déconnecter une intégration par type (legacy)
+  static async disconnectIntegrationByType(type: 'GOOGLE' | 'OUTLOOK'): Promise<void> {
     await api.delete(`/calendar/integrations/${type.toLowerCase()}`);
+  }
+
+  // Synchroniser Google Calendar
+  static async syncGoogleCalendar(): Promise<{ imported: number; total: number }> {
+    const response = await api.post('/calendar/sync/google');
+    return response.data.data;
+  }
+
+  // Synchroniser Outlook Calendar
+  static async syncOutlookCalendar(): Promise<{ imported: number; total: number }> {
+    const response = await api.post('/calendar/sync/outlook');
+    return response.data.data;
   }
 
   // Importer les événements depuis Google Calendar

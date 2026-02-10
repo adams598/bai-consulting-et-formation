@@ -19,6 +19,7 @@ interface LessonPlayerProps {
     title: string;
     description?: string;
     duration?: number; // Ajouter la durée de la formation
+    universeId?: string;
   };
   lessons: FormationContent[];
   initialSelectedLesson?: FormationContent | null;
@@ -37,6 +38,503 @@ interface LessonProgress {
   progress: number; // 0-100
   completed: boolean;
 }
+
+// Composant Quiz Player Inline (extrait hors du composant parent pour conserver son état)
+const InlineQuizPlayer = ({ quiz, onComplete, onClose }: { quiz: Quiz; onComplete: (result: any) => void; onClose: () => void }) => {
+  const [currentQuestionIndex, setCurrentQuestionIndex] = React.useState(0);
+  const [selectedAnswers, setSelectedAnswers] = React.useState<Record<number, number | number[] | string | string[]>>({});
+  const [showResults, setShowResults] = React.useState(false);
+  const [showReview, setShowReview] = React.useState(false);
+  const [timeLeft, setTimeLeft] = React.useState<number | null>(null);
+  const [startTime, setStartTime] = React.useState<Date | null>(null);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+
+  const formatTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleAnswerSelect = (questionIndex: number, answerIndex: number | string, isMultiple: boolean = false) => {
+    if (isMultiple && typeof answerIndex === 'number') {
+      setSelectedAnswers(prev => {
+        const current = prev[questionIndex];
+        let currentArray: number[] = [];
+        if (Array.isArray(current)) {
+          currentArray = current.filter(c => typeof c === 'number') as number[];
+        } else if (typeof current === 'number') {
+          currentArray = [current];
+        }
+        const newArray = currentArray.includes(answerIndex)
+          ? currentArray.filter(id => id !== answerIndex)
+          : [...currentArray, answerIndex];
+        if (newArray.length === 0) {
+          const newPrev = { ...prev };
+          delete newPrev[questionIndex];
+          return newPrev;
+        }
+        return { ...prev, [questionIndex]: newArray as number[] };
+      });
+    } else if (!isMultiple) {
+      setSelectedAnswers(prev => ({
+        ...prev,
+        [questionIndex]: answerIndex
+      }));
+    }
+  };
+
+  const calculateScore = () => {
+    let correctAnswers = 0;
+    let totalPoints = 0;
+    let earnedPoints = 0;
+
+    quiz.questions.forEach((question, qIndex) => {
+      const selected = selectedAnswers[qIndex];
+      const points = question.points || 1;
+      totalPoints += points;
+
+      let questionIsCorrect = false;
+
+      if (question.type === 'multiple_choice') {
+        const correctIndices = question.answers
+          .map((a, i) => a.isCorrect ? i : -1)
+          .filter(i => i !== -1);
+        const selectedIndices = Array.isArray(selected) ? (selected as number[]) : (typeof selected === 'number' ? [selected] : []);
+        const allMatch = correctIndices.length === selectedIndices.length && correctIndices.every(ci => selectedIndices.includes(ci));
+        questionIsCorrect = allMatch;
+      } else if (question.type === 'text' || question.type === 'fill_in_blank') {
+        if (typeof selected === 'string') {
+          const normalized = selected.trim().toLowerCase();
+          questionIsCorrect = question.answers.some(a => typeof a.answer === 'string' && a.answer.trim().toLowerCase() === normalized);
+        } else if (Array.isArray(selected)) {
+          const normalized = (selected as string[]).map(s => (s || '').trim().toLowerCase());
+          const correctTexts = question.answers.filter(a => a.isCorrect).map(a => (a.answer || '').trim().toLowerCase());
+          questionIsCorrect = correctTexts.every(ct => normalized.includes(ct));
+        }
+      } else {
+        if (typeof selected === 'number') {
+          const ans = question.answers[selected];
+          questionIsCorrect = !!ans && !!ans.isCorrect;
+        }
+      }
+
+      if (questionIsCorrect) {
+        earnedPoints += points;
+        correctAnswers += 1;
+      }
+    });
+
+    const percentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
+    return {
+      percentage,
+      passed: percentage >= (quiz.passingScore || 80),
+      totalPoints,
+      earnedPoints,
+      correctAnswers,
+      totalQuestions: quiz.questions.length
+    };
+  };
+  const handleSubmitQuiz = React.useCallback(async () => {
+    setIsSubmitting(true);
+    const results = calculateScore();
+
+    const answersForApi: Record<string, string | string[]> = {};
+    quiz.questions.forEach((question, qIndex) => {
+      const selectedAnswer = selectedAnswers[qIndex];
+      if (selectedAnswer !== undefined) {
+        if (question.type === 'fill_in_blank') {
+          if (Array.isArray(selectedAnswer)) {
+            answersForApi[question.id] = selectedAnswer.filter((ans): ans is string => typeof ans === 'string');
+          } else if (typeof selectedAnswer === 'string') {
+            answersForApi[question.id] = [selectedAnswer];
+          }
+        } else if (Array.isArray(selectedAnswer) && question.type === 'multiple_choice') {
+          const indices = selectedAnswer.filter((val): val is number => typeof val === 'number');
+          answersForApi[question.id] = indices.map(index => question.answers[index].id);
+        } else if (typeof selectedAnswer === 'number') {
+          answersForApi[question.id] = question.answers[selectedAnswer].id;
+        } else if (typeof selectedAnswer === 'string') {
+          answersForApi[question.id] = selectedAnswer;
+        }
+      }
+    });
+
+    try {
+      try {
+        const startResp = await learnerQuizApi.startQuizAttempt(quiz.id);
+        const attempt = startResp && (startResp as any).data ? (startResp as any).data : startResp;
+        const attemptId = attempt?.id;
+        if (attemptId) {
+          const answersForApiStringOnly: Record<string, string> = {};
+          Object.entries(answersForApi).forEach(([key, value]) => {
+            answersForApiStringOnly[key] = Array.isArray(value) ? value.join(',') : value;
+          });
+          await learnerQuizApi.submitQuizAttempt(attemptId, answersForApiStringOnly);
+        } else {
+          console.warn('Impossible de démarrer une tentative pour le quiz');
+        }
+      } catch (err) {
+        console.error('Erreur démarrage/soumission tentative (learner API):', err);
+      }
+    } catch (error) {
+      console.error('❌ Erreur lors de la sauvegarde des résultats:', error);
+    }
+
+    onComplete({
+      score: results.percentage,
+      isPassed: results.passed,
+      totalScore: results.totalPoints,
+      userScore: results.earnedPoints,
+      correctAnswers: results.correctAnswers,
+      totalQuestions: results.totalQuestions,
+      answers: selectedAnswers
+    });
+    setShowResults(true);
+    setIsSubmitting(false);
+  }, [selectedAnswers, quiz, onComplete]);
+
+  React.useEffect(() => {
+    if (quiz.timeLimit && !startTime && !showResults) {
+      setTimeLeft(quiz.timeLimit * 60);
+      setStartTime(new Date());
+    }
+  }, [quiz.timeLimit, startTime, showResults]);
+
+  React.useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0 || showResults) return;
+    const timer = setInterval(() => {
+      setTimeLeft(prev => {
+        if (prev === null || prev <= 1) {
+          handleSubmitQuiz();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, showResults, handleSubmitQuiz]);
+
+  const results = showResults ? calculateScore() : null;
+  const currentQuestion = quiz.questions[currentQuestionIndex];
+  const progress = ((currentQuestionIndex + 1) / quiz.questions.length) * 100;
+  const correctAnswersCount = currentQuestion ? currentQuestion.answers.filter(a => a.isCorrect).length : 0;
+  const isMultipleChoice = currentQuestion?.type === "multiple_choice" && correctAnswersCount > 1;
+
+  return (
+    <div className="h-full flex flex-col bg-white dark:bg-slate-950 overflow-hidden">
+      {!showResults ? (
+        <>
+          {/* Mode Quiz - Design minimaliste */}
+          <main className="w-full flex-1 flex flex-col items-center justify-center px-6 py-12 overflow-y-auto">
+            <div className="w-full max-w-4xl">
+              {/* Compteur et titre */}
+              <div className="text-center mb-16 space-y-4">
+                <span className="text-xs font-bold tracking-widest text-slate-400 dark:text-slate-600 uppercase">
+                  Question {currentQuestionIndex + 1} sur {quiz.questions.length}
+                </span>
+                <h1 className="text-3xl md:text-4xl font-medium text-slate-800 dark:text-slate-200 leading-tight max-w-2xl mx-auto">
+                  {currentQuestion?.question}
+                </h1>
+              </div>
+
+              {/* Réponses */}
+              <div className="w-full max-w-2xl mx-auto">
+                {currentQuestion?.type === 'text' ? (
+                  <textarea
+                    value={typeof selectedAnswers[currentQuestionIndex] === 'string' ? selectedAnswers[currentQuestionIndex] as string : ''}
+                    onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value, false)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                    rows={4}
+                  />
+                ) : currentQuestion?.type === 'fill_in_blank' ? (
+                  <div className="space-y-4">
+                    <div className="bg-gray-50 p-4 rounded-lg">{/* ... */}</div>
+                  </div>
+                ) : currentQuestion?.type === 'true_false' ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full mb-16">
+                    {currentQuestion.answers.map((answer, aIndex) => {
+                      const selected = selectedAnswers[currentQuestionIndex];
+                      const isSelected = selected === aIndex;
+                      return (
+                        <label key={aIndex} className="relative block cursor-pointer group">
+                          <input
+                            type="radio"
+                            name={`question-${currentQuestionIndex}`}
+                            className="peer sr-only"
+                            checked={isSelected}
+                            onChange={() => handleAnswerSelect(currentQuestionIndex, aIndex, false)}
+                          />
+                          <div className="relative flex flex-col items-center justify-center p-8 rounded-3xl border-2 border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all duration-300 hover:border-blue-500/30 hover:shadow-xl hover:shadow-blue-500/5 peer-checked:border-blue-600 peer-checked:bg-blue-50 dark:peer-checked:bg-blue-900/20 peer-checked:ring-4 peer-checked:ring-blue-500/10">
+                            <span className="text-2xl font-semibold text-slate-700 dark:text-slate-300">{answer.answer}</span>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-3 mb-12">
+                    {currentQuestion?.answers.map((answer, aIndex) => {
+                      const selected = selectedAnswers[currentQuestionIndex];
+                      const isSelected = currentQuestion?.type === "multiple_choice" ? Array.isArray(selected) && selected.some((val) => val === aIndex) : selected === aIndex;
+                      return (
+                        <label key={aIndex} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer">
+                          <input type={currentQuestion?.type === "multiple_choice" ? "checkbox" : "radio"} name={`question-${currentQuestionIndex}`} checked={isSelected} onChange={() => handleAnswerSelect(currentQuestionIndex, aIndex, currentQuestion?.type === "multiple_choice")} />
+                          <span className="text-gray-900">{answer.answer}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Boutons Précédent/Suivant */}
+              <div className="flex items-center justify-center gap-12 mt-8 w-full max-w-2xl mx-auto">
+                <button
+                  onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
+                  disabled={currentQuestionIndex === 0}
+                  className="group flex items-center gap-2 text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft className="text-xl transition-transform group-hover:-translate-x-1 h-5 w-5" />
+                  <span className="text-sm font-semibold uppercase tracking-wider">Précédent</span>
+                </button>
+                {currentQuestionIndex < quiz.questions.length - 1 ? (
+                  <button
+                    onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)}
+                    className="group flex items-center gap-2 text-blue-600 font-semibold hover:text-blue-700"
+                  >
+                    <span className="text-sm font-semibold uppercase tracking-wider">Suivant</span>
+                    <ChevronRight className="text-xl transition-transform group-hover:translate-x-1 h-5 w-5" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSubmitQuiz}
+                    disabled={isSubmitting}
+                    className="group flex items-center gap-2 text-blue-600 font-semibold hover:text-blue-700 disabled:opacity-50"
+                  >
+                    <span className="text-sm font-semibold uppercase tracking-wider">{isSubmitting ? 'Soumission...' : 'Terminer'}</span>
+                    <ChevronRight className="text-xl transition-transform group-hover:translate-x-1 h-5 w-5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          </main>
+
+          {/* Barre de progression en bas */}
+          <div className="fixed bottom-0 left-0 w-full h-1 bg-slate-50 dark:bg-slate-900/50">
+            <div
+              className="h-full bg-blue-500/40 dark:bg-blue-600/60 transition-all duration-700 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+        </>
+      ) : (
+          <div className="max-w-4xl mx-auto w-full h-full overflow-y-auto p-6">
+            {!showReview ? (
+              <>
+                {!results!.passed ? (
+                  <>
+                    {/* Écran d'échec - conformité maquette */}
+                    <div className="bg-white rounded-lg p-8">
+                      {/* Icône et titre */}
+                      <div className="text-center mb-8">
+                        <div className="inline-flex items-center justify-center h-16 w-16 bg-red-100 rounded-full mb-4">
+                          <HelpCircle className="h-8 w-8 text-red-500" />
+                        </div>
+                        <h1 className="text-3xl font-bold text-red-500 mb-2">Pas tout à fait...</h1>
+                        <p className="text-gray-600">Vous avez presque réussi ! Il ne reste qu'un petit pas à franchir.</p>
+                      </div>
+
+                      {/* Score vs Objectif */}
+                      <div className="grid grid-cols-2 gap-6 mb-8 pb-8 border-b border-gray-200">
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">VOTRE SCORE</div>
+                          <div className="text-3xl font-bold text-red-500 mb-1">{results!.percentage}%</div>
+                          <div className="text-sm text-gray-600">({results!.earnedPoints}/{results!.totalPoints} points)</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">OBJECTIF</div>
+                          <div className="text-3xl font-bold text-gray-900">{quiz.passingScore}%</div>
+                          <div className="text-sm text-gray-600">(seuil requis)</div>
+                        </div>
+                      </div>
+
+                      {/* Barre de progression */}
+                      <div className="mb-8">
+                        <div className="flex justify-between text-xs text-gray-500 mb-2">
+                          <span>0%</span>
+                          <span>100%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div className="bg-red-500 h-2 rounded-full transition-all duration-300" style={{ width: `${results!.percentage}%` }} />
+                        </div>
+                      </div>
+
+                      {/* Boutons d'action */}
+                      <div className="flex items-center justify-center gap-3 mb-4">
+                        <button onClick={() => setShowReview(true)} className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-colors">
+                          <BookOpen className="h-4 w-4" />
+                          Revue du quiz
+                        </button>
+                        <button onClick={() => { setCurrentQuestionIndex(0); setSelectedAnswers({}); setShowResults(false); setShowReview(false); setTimeLeft(quiz.timeLimit ? quiz.timeLimit * 60 : null); setStartTime(null); }} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 flex items-center gap-2 transition-colors">
+                          <RefreshCw className="h-4 w-4" />
+                          Recommencer le quiz
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Écran de succès */}
+                    <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+                      <div className="w-full max-w-[720px] bg-white rounded-xl shadow-sm border border-slate-200 p-8 md:p-12">
+                        <div className="text-center space-y-4">
+                          <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-green-100 text-green-600 mb-2">
+                            <span className="text-5xl">🏆</span>
+                          </div>
+                          <h1 className="text-4xl font-bold tracking-tight text-green-600">Félicitations !</h1>
+                          <p className="text-slate-600 text-lg">Excellent travail ! Vous avez brillamment validé ce module.</p>
+                        </div>
+
+                        <div className="mt-10 mb-12">
+                          <div className="flex flex-col md:flex-row gap-6 mb-8">
+                            <div className="flex-1 flex flex-col gap-2 rounded-lg p-6 border border-green-200 bg-green-50">
+                              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Score</p>
+                              <p className="text-3xl font-bold text-green-600">{results!.percentage}%</p>
+                            </div>
+                            <div className="flex-1 flex flex-col gap-2 rounded-lg p-6 border border-slate-100 bg-slate-50">
+                              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Objectif</p>
+                              <p className="text-3xl font-bold text-gray-700">{quiz.passingScore}%</p>
+                            </div>
+                          </div>
+
+                          <div className="relative pt-2">
+                            <div className="flex justify-between text-xs font-semibold text-gray-400 mb-2 px-1">
+                              <span>Progression du quiz</span>
+                              <span>{results!.percentage}%</span>
+                            </div>
+                            <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-green-600 rounded-full transition-all duration-1000" style={{ width: `${results!.percentage}%` }} />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-green-50 rounded-lg p-6 border border-green-100 mb-6">
+                          <h3 className="font-bold text-green-600 mb-2 flex items-center gap-2">
+                            <span className="text-xl">✅</span>
+                            Succès
+                          </h3>
+                          {/* <p className="text-gray-700 text-sm mb-4">Vous avez démontré une maîtrise complète des sujets abordés. Voici les compétences validées :</p>
+                          <div className="flex flex-wrap gap-2">
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-green-200 text-sm font-medium text-gray-700">Planification stratégique</div>
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-green-200 text-sm font-medium text-gray-700">Optimisation des processus</div>
+                            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-green-200 text-sm font-medium text-gray-700">Leadership d'équipe</div>
+                          </div> */}
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-4">
+                          <button onClick={onClose} className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg">
+                            <span>Continuer</span>
+                              <ChevronRight className="h-5 w-5" />
+                          </button>
+                          <button onClick={() => setShowReview(true)} className="flex-1 flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-gray-700 font-bold py-4 rounded-xl transition-all">
+                            <RefreshCw className="h-5 w-5" />
+                            Revoir le quiz
+                          </button>
+                        </div>
+
+                        <p className="text-center text-gray-400 text-xs mt-8">Ce module est désormais marqué comme complété dans votre parcours de formation.</p>
+                      </div>
+                    </main>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Revue du quiz */}
+                <div>
+                  <div className="mb-8">
+                    <div className="flex items-center gap-2 mb-6">
+                      <BookOpen className="h-5 w-5 text-blue-600" />
+                      <h2 className="text-xl font-bold text-gray-900">Revue du quiz</h2>
+                    </div>
+
+                    <div className="space-y-6">
+                      {quiz.questions.map((question, qIndex) => {
+                        const selected = selectedAnswers[qIndex];
+                        let isCorrect = false;
+                        let userAnswerText = '';
+
+                        if (question.type === 'multiple_choice') {
+                          const correctIndices = question.answers
+                            .map((a, i) => a.isCorrect ? i : -1)
+                            .filter(i => i !== -1);
+                          const selectedIndices = Array.isArray(selected) ? (selected as number[]) : (typeof selected === 'number' ? [selected] : []);
+                          isCorrect = correctIndices.length === selectedIndices.length && correctIndices.every(ci => selectedIndices.includes(ci));
+                          if (typeof selected === 'number') {
+                            userAnswerText = question.answers[selected]?.answer || '';
+                          }
+                        } else if (typeof selected === 'number') {
+                          const ans = question.answers[selected];
+                          isCorrect = !!ans && !!ans.isCorrect;
+                          userAnswerText = ans?.answer || '';
+                        } else if (typeof selected === 'string') {
+                          userAnswerText = selected;
+                          const normalized = selected.trim().toLowerCase();
+                          isCorrect = question.answers.some(a => typeof a.answer === 'string' && a.answer.trim().toLowerCase() === normalized);
+                        }
+
+                        return (
+                          <div key={qIndex} className="border border-gray-200 rounded-lg p-6">
+                            <div className="flex items-start justify-between mb-3">
+                              <h3 className="font-semibold text-gray-900 flex-1">
+                                <span className="text-xs text-gray-500 uppercase tracking-wide">QUESTION {qIndex + 1}</span>
+                                <div className="mt-1">{question.question}</div>
+                              </h3>
+                              <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold flex-shrink-0 ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                {isCorrect ? (
+                                  <>
+                                    <CheckCircle className="h-4 w-4" />
+                                    Correct
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle className="h-4 w-4" />
+                                    Incorrect
+                                  </>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Réponse de l'utilisateur */}
+                            <div className="mb-4 p-4 rounded-lg bg-green-50 border border-green-200">
+                              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Votre réponse</div>
+                              <div className="flex items-center gap-2">
+                                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                                <span className="text-gray-900">{userAnswerText}</span>
+                              </div>
+                            </div>
+
+
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Bouton retour */}
+                  <div className="flex justify-center pt-6 border-t border-gray-200">
+                    <button onClick={() => setShowReview(false)} className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
+                      ← Retour aux résultats
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+    </div>
+  );
+};
 
 export default function LessonPlayer({ formation, lessons: rawLessons, initialSelectedLesson, onClose, onProgressUpdate, onLessonUpdate }: LessonPlayerProps) {
   const { user } = useAuth();
@@ -735,509 +1233,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     );
   };
 
-  // Composant Quiz Player Inline - Inspiré de QuizPreviewModal
-  const InlineQuizPlayer = ({ quiz, onComplete, onClose }: { quiz: Quiz; onComplete: (result: any) => void; onClose: () => void }) => {
-    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number | number[] | string | string[]>>({});
-    const [showResults, setShowResults] = useState(false);
-    const [timeLeft, setTimeLeft] = useState<number | null>(null);
-    const [startTime, setStartTime] = useState<Date | null>(null);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const formatTime = (seconds: number): string => {
-      const minutes = Math.floor(seconds / 60);
-      const remainingSeconds = seconds % 60;
-      return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
-    };
-
-    const handleAnswerSelect = (questionIndex: number, answerIndex: number | string, isMultiple: boolean = false) => {
-      if (isMultiple && typeof answerIndex === 'number') {
-        // Pour choix multiples : toggle avec indices numériques
-        setSelectedAnswers(prev => {
-          const current = prev[questionIndex];
-          let currentArray: number[] = [];
-          if (Array.isArray(current)) {
-            currentArray = current.filter(c => typeof c === 'number') as number[];
-          } else if (typeof current === 'number') {
-            currentArray = [current];
-          }
-          
-          const newArray = currentArray.includes(answerIndex)
-            ? currentArray.filter(id => id !== answerIndex)
-            : [...currentArray, answerIndex];
-          
-          if (newArray.length === 0) {
-            const newPrev = { ...prev };
-            delete newPrev[questionIndex];
-            return newPrev;
-          }
-          return { ...prev, [questionIndex]: newArray as number[] };
-        });
-      } else if (!isMultiple) {
-        // Pour radio/text (une seule réponse)
-        setSelectedAnswers(prev => ({
-          ...prev,
-          [questionIndex]: answerIndex
-        }));
-      }
-    };
-
-    const calculateScore = () => {
-      let correctAnswers = 0;
-      let totalPoints = 0;
-      let earnedPoints = 0;
-
-      quiz.questions.forEach((question, qIndex) => {
-        const selectedAnswer = selectedAnswers[qIndex];
-        const points = question.points || 1;
-        totalPoints += points;
-
-        if (question.type === 'text') {
-          // Pour les questions texte libre, on considère qu'elles sont correctes (évaluation manuelle)
-          if (selectedAnswer && selectedAnswer.toString().trim()) {
-            earnedPoints += points;
-            correctAnswers++;
-          }
-        } else if (question.type === 'fill_in_blank') {
-          // Pour les phrases à trous : vérifier chaque trou
-          const expectedAnswers = question.answers.map(a => a.answer.toLowerCase().trim());
-          let userAnswers: string[] = [];
-          
-          if (Array.isArray(selectedAnswer)) {
-            userAnswers = selectedAnswer
-              .filter((ans): ans is string => typeof ans === 'string')
-              .map(ans => ans.toLowerCase().trim());
-          }
-          
-          // Vérifier si toutes les réponses sont correctes
-          const allCorrect = expectedAnswers.length > 0 &&
-            expectedAnswers.length === userAnswers.length &&
-            expectedAnswers.every((expected, idx) => expected === userAnswers[idx]);
-          
-          if (allCorrect) {
-            earnedPoints += points;
-            correctAnswers++;
-          }
-        } else if (question.type === 'multiple_choice') {
-          // Pour choix multiples : vérifier si toutes les bonnes réponses sont sélectionnées
-          const correctAnswerIndices = question.answers
-            .map((answer, aIndex) => answer.isCorrect ? aIndex : null)
-            .filter(index => index !== null) as number[];
-          
-          let userAnswers: number[] = [];
-          if (Array.isArray(selectedAnswer)) {
-            userAnswers = selectedAnswer.filter(a => typeof a === 'number') as number[];
-          } else if (typeof selectedAnswer === 'number') {
-            userAnswers = [selectedAnswer];
-          }
-          
-          const allCorrect = correctAnswerIndices.length > 0 && 
-            correctAnswerIndices.every(correctIndex => userAnswers.includes(correctIndex)) &&
-            userAnswers.length === correctAnswerIndices.length;
-          
-          if (allCorrect) {
-            earnedPoints += points;
-            correctAnswers++;
-          }
-        } else if (question.answers && typeof selectedAnswer === 'number') {
-          // Pour radio/vrai-faux
-          const answer = question.answers[selectedAnswer];
-          if (answer?.isCorrect) {
-            earnedPoints += points;
-            correctAnswers++;
-          }
-        }
-      });
-
-      const percentage = totalPoints > 0 ? Math.round((earnedPoints / totalPoints) * 100) : 0;
-      const passed = percentage >= quiz.passingScore;
-
-      return {
-        correctAnswers,
-        totalQuestions: quiz.questions.length,
-        earnedPoints,
-        totalPoints,
-        percentage,
-        passed
-      };
-    };
-
-    const handleSubmitQuiz = useCallback(async () => {
-      setIsSubmitting(true);
-      const results = calculateScore();
-      
-      // Convertir les réponses d'indices vers des IDs de questions/réponses pour l'API
-      const answersForApi: Record<string, string | string[]> = {};
-      quiz.questions.forEach((question, qIndex) => {
-        const selectedAnswer = selectedAnswers[qIndex];
-        if (selectedAnswer !== undefined) {
-          if (question.type === 'fill_in_blank') {
-            // Phrases à trous : garder le tableau de réponses (strings)
-            if (Array.isArray(selectedAnswer)) {
-              answersForApi[question.id] = selectedAnswer.filter((ans): ans is string => typeof ans === 'string');
-            } else if (typeof selectedAnswer === 'string') {
-              answersForApi[question.id] = [selectedAnswer];
-            }
-          } else if (Array.isArray(selectedAnswer) && question.type === 'multiple_choice') {
-            // Choix multiples : convertir les indices en IDs de réponses
-            const indices = selectedAnswer.filter((val): val is number => typeof val === 'number');
-            answersForApi[question.id] = indices.map(index => question.answers[index].id);
-          } else if (typeof selectedAnswer === 'number') {
-            // Radio/vrai-faux : convertir l'indice en ID de réponse
-            answersForApi[question.id] = question.answers[selectedAnswer].id;
-          } else if (typeof selectedAnswer === 'string') {
-            // Texte libre : garder tel quel
-            answersForApi[question.id] = selectedAnswer;
-          }
-        }
-      });
-
-      // Sauvegarder les résultats dans la base de données
-      try {
-        const timeSpent = timeLeft !== null && startTime !== null 
-          ? Math.floor((new Date().getTime() - startTime.getTime()) / 1000)
-          : undefined;
-        
-        // Pour les apprenants: démarrer une tentative via l'API learner, puis soumettre
-        try {
-          const startResp = await learnerQuizApi.startQuizAttempt(quiz.id);
-          console.log('📨 Démarrage tentative quiz (learner API) pour quizId:', quiz.id);
-          const attempt = startResp && (startResp as any).data ? (startResp as any).data : startResp;
-          const attemptId = attempt?.id;
-          if (attemptId) {
-            console.log('📨 Tentative démarrée, attemptId:', attemptId, 'soumission en cours...');
-            const submitResp = await learnerQuizApi.submitQuizAttempt(attemptId, answersForApi);
-            if (submitResp && (submitResp as any).data) {
-              // tentative soumise
-            }
-          } else {
-            console.warn('Impossible de démarrer une tentative pour le quiz');
-          }
-        } catch (err) {
-          console.error('Erreur démarrage/soumission tentative (learner API):', err);
-        }
-      } catch (error) {
-        console.error('❌ Erreur lors de la sauvegarde des résultats:', error);
-      }
-
-      // Appeler onComplete avec les résultats et les réponses
-      onComplete({
-        score: results.percentage,
-        isPassed: results.passed,
-        totalScore: results.totalPoints,
-        userScore: results.earnedPoints,
-        correctAnswers: results.correctAnswers,
-        totalQuestions: results.totalQuestions,
-        answers: selectedAnswers // Garder les réponses originales pour le récapitulatif
-      });
-      setShowResults(true);
-      setIsSubmitting(false);
-    }, [selectedAnswers, quiz, onComplete, timeLeft, startTime]);
-
-    // Initialiser le timer si nécessaire
-    useEffect(() => {
-      if (quiz.timeLimit && !startTime && !showResults) {
-        setTimeLeft(quiz.timeLimit * 60); // Convertir en secondes
-        setStartTime(new Date());
-      }
-    }, [quiz.timeLimit, startTime, showResults]);
-
-    // Timer countdown
-    useEffect(() => {
-      if (timeLeft === null || timeLeft <= 0 || showResults) return;
-
-      const timer = setInterval(() => {
-        setTimeLeft(prev => {
-          if (prev === null || prev <= 1) {
-            handleSubmitQuiz();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-
-      return () => clearInterval(timer);
-    }, [timeLeft, showResults, handleSubmitQuiz]);
-
-    const results = showResults ? calculateScore() : null;
-    const currentQuestion = quiz.questions[currentQuestionIndex];
-    const progress = ((currentQuestionIndex + 1) / quiz.questions.length) * 100;
-    const correctAnswersCount = currentQuestion ? currentQuestion.answers.filter(a => a.isCorrect).length : 0;
-    const isMultipleChoice = currentQuestion?.type === "multiple_choice" && correctAnswersCount > 1;
-
-    return (
-      <div className="h-full flex flex-col bg-white overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
-          <div className="flex items-center space-x-4">
-            <h2 className="text-xl font-semibold text-gray-900">
-              {quiz.title}
-            </h2>
-            {timeLeft !== null && (
-              <div className="flex items-center text-sm text-gray-600 bg-gray-100 px-2 py-1 rounded">
-                <Clock className="h-4 w-4 mr-1" />
-                {formatTime(timeLeft)}
-              </div>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="h-6 w-6" />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
-          {quiz.description && (
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-blue-800">{quiz.description}</p>
-            </div>
-          )}
-
-          {!showResults ? (
-            <>
-              {/* Progress bar */}
-              <div className="mb-6">
-                <div className="flex justify-between text-sm text-gray-600 mb-2">
-                  <span>Question {currentQuestionIndex + 1} sur {quiz.questions.length}</span>
-                  <span>Seuil de réussite : {quiz.passingScore}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  ></div>
-                </div>
-              </div>
-
-              {/* Question actuelle */}
-              {currentQuestion && (
-                <div className="space-y-4">
-                  <div className="flex items-start justify-between">
-                    <h3 className="text-lg font-medium text-gray-900 flex-1">
-                      {currentQuestion.question}
-                    </h3>
-                    <div className="ml-4 flex items-center space-x-2">
-                      <span className="text-sm text-gray-500">
-                        {currentQuestion.points || 1} point(s)
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Indication pour choix multiples */}
-                  {isMultipleChoice && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800 font-medium">
-                        Plusieurs réponses sont attendues
-                      </p>
-                    </div>
-                  )}
-
-                  {correctAnswersCount === 1 && currentQuestion.type === 'multiple_choice' && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800 font-medium">
-                        Une seule réponse attendue
-                      </p>
-                    </div>
-                  )}
-
-                      <div className="space-y-3">
-                        {currentQuestion.type === 'text' ? (
-                          <textarea
-                            value={typeof selectedAnswers[currentQuestionIndex] === 'string' 
-                              ? selectedAnswers[currentQuestionIndex] as string 
-                              : ''}
-                            onChange={(e) => handleAnswerSelect(currentQuestionIndex, e.target.value, false)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                            rows={4}
-                            placeholder="Tapez votre réponse ici..."
-                          />
-                        ) : currentQuestion.type === 'fill_in_blank' ? (
-                          // Phrases à trous
-                          <div className="space-y-4">
-                            {(() => {
-                              // Parser la phrase pour extraire les parties et les trous
-                              const parts = currentQuestion.question.split(/(\{[^}]+\})/g);
-                              const blanks = currentQuestion.question.match(/\{([^}]+)\}/g) || [];
-                              const rawAnswers = selectedAnswers[currentQuestionIndex];
-                              const currentAnswers: string[] = Array.isArray(rawAnswers) 
-                                ? rawAnswers.filter((ans): ans is string => typeof ans === 'string')
-                                : [];
-                              
-                              let blankIndex = 0;
-                              
-                              return (
-                                <div className="bg-gray-50 p-4 rounded-lg">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    {parts.map((part, partIdx) => {
-                                      if (part.match(/^\{[^}]+\}$/)) {
-                                        // C'est un trou
-                                        const currentBlankIndex = blankIndex;
-                                        blankIndex++;
-                                        return (
-                                          <input
-                                            key={partIdx}
-                                            type="text"
-                                            value={currentAnswers[currentBlankIndex] || ''}
-                                            onChange={(e) => {
-                                              const newAnswers: string[] = [...currentAnswers];
-                                              newAnswers[currentBlankIndex] = e.target.value;
-                                              setSelectedAnswers(prev => ({
-                                                ...prev,
-                                                [currentQuestionIndex]: newAnswers
-                                              }));
-                                            }}
-                                            className="px-3 py-1 border-2 border-blue-400 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-600 min-w-[120px] bg-white"
-                                            placeholder={`Trou ${currentBlankIndex + 1}`}
-                                          />
-                                        );
-                                      } else {
-                                        // C'est du texte normal
-                                        return (
-                                          <span key={partIdx} className="text-gray-900">
-                                            {part}
-                                          </span>
-                                        );
-                                      }
-                                    })}
-                                  </div>
-                                  <div className="mt-3 text-xs text-gray-500">
-                                    <AlertCircle className="h-3 w-3 inline mr-1" />
-                                    Remplissez les {blanks.length} trou{blanks.length > 1 ? 's' : ''} de la phrase
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        ) : (
-                          currentQuestion.answers.map((answer, aIndex) => {
-                            const selected = selectedAnswers[currentQuestionIndex];
-                            const isSelected = currentQuestion.type === "multiple_choice"
-                              ? Array.isArray(selected) && selected.some((val) => val === aIndex)
-                              : selected === aIndex;
-
-                        return (
-                          <label
-                            key={aIndex}
-                            className="flex items-center space-x-3 p-3 border border-gray-200 rounded-md hover:bg-gray-50 cursor-pointer"
-                          >
-                            <input
-                              type={currentQuestion.type === "multiple_choice" ? "checkbox" : "radio"}
-                              name={`question-${currentQuestionIndex}`}
-                              checked={isSelected}
-                              onChange={() => handleAnswerSelect(currentQuestionIndex, aIndex, currentQuestion.type === "multiple_choice")}
-                              className={currentQuestion.type === "multiple_choice" 
-                                ? "text-blue-600 focus:ring-blue-500 rounded" 
-                                : "text-blue-600 focus:ring-blue-500"}
-                            />
-                            <span className="text-gray-900">{answer.answer}</span>
-                          </label>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Navigation */}
-              <div className="flex justify-between mt-8">
-                <button
-                  onClick={() => setCurrentQuestionIndex(Math.max(0, currentQuestionIndex - 1))}
-                  disabled={currentQuestionIndex === 0}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Précédent
-                </button>
-
-                {currentQuestionIndex < quiz.questions.length - 1 ? (
-                  <button
-                    onClick={() => setCurrentQuestionIndex(currentQuestionIndex + 1)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                  >
-                    Suivant
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSubmitQuiz}
-                    disabled={isSubmitting}
-                    className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
-                  >
-                    {isSubmitting ? "Soumission..." : "Terminer le quiz"}
-                  </button>
-                )}
-              </div>
-            </>
-          ) : (
-            /* Résultats */
-            <div className="space-y-6">
-              <div className="text-center">
-                <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
-                  results!.passed ? 'bg-green-100' : 'bg-red-100'
-                }`}>
-                  {results!.passed ? (
-                    <CheckCircle className="h-8 w-8 text-green-600" />
-                  ) : (
-                    <AlertCircle className="h-8 w-8 text-red-600" />
-                  )}
-                </div>
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                  {results!.passed ? 'Quiz réussi !' : 'Quiz échoué'}
-                </h3>
-                <p className="text-gray-600">
-                  Vous avez obtenu {results!.percentage}% ({results!.earnedPoints}/{results!.totalPoints} points)
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-900">{results!.correctAnswers}</div>
-                  <div className="text-sm text-gray-600">Bonnes réponses</div>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-900">{results!.totalQuestions}</div>
-                  <div className="text-sm text-gray-600">Questions</div>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-900">{results!.earnedPoints}</div>
-                  <div className="text-sm text-gray-600">Points obtenus</div>
-                </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
-                  <div className="text-2xl font-bold text-gray-900">{results!.percentage}%</div>
-                  <div className="text-sm text-gray-600">Score final</div>
-                </div>
-              </div>
-
-              <div className="flex justify-center space-x-3">
-                <button
-                  onClick={() => {
-                    setCurrentQuestionIndex(0);
-                    setSelectedAnswers({});
-                    setShowResults(false);
-                    setTimeLeft(quiz.timeLimit ? quiz.timeLimit * 60 : null);
-                    setStartTime(null);
-                  }}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
-                >
-                  Recommencer
-                </button>
-                <button
-                  onClick={() => {
-                    setShowResults(false);
-                    setIsQuizSelected(false);
-                    setQuizResult(null);
-                  }}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                >
-                  Fermer
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+  // Inline quiz player has been moved to top-level `InlineQuizPlayer` to preserve state between renders
 
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
@@ -1451,21 +1447,22 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                 {/* Carte Quiz pour les apprenants (toujours visible si quiz configuré) */}
                 {quiz && !isAdmin() && (
                   <div
-                    className={`p-4 bg-white rounded-lg border-2 transition-all ${
-                      isQuizSelected
-                        ? 'border-purple-500 bg-purple-50 cursor-pointer hover:shadow-md'
-                        : quizAvailable
-                          ? 'border-yellow-400 bg-yellow-50 cursor-pointer hover:shadow-md'
-                          : 'border-purple-200 hover:border-purple-300 cursor-pointer hover:shadow-md'
+                    className={`p-4 rounded-lg border-2 transition-all ${
+                      !quizAvailable
+                        ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
+                        : isQuizSelected
+                          ? 'border-purple-500 bg-purple-50 cursor-pointer hover:shadow-md'
+                          : 'border-yellow-400 bg-yellow-50 cursor-pointer hover:shadow-md'
                     }`}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      if (!quizAvailable) return; // bloqué tant que quizAvailable === false
                       setIsQuizSelected(true);
                       setSelectedLesson(null);
                     }}
                   >
-                    <div className="flex items-start justify-between mb-2">
+                  <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center space-x-2 flex-1">
                         <div className={`p-2 rounded-md ${quiz ? 'bg-purple-100' : 'bg-gray-100'}`}>
                           <HelpCircle className={`h-5 w-5 ${quiz ? 'text-purple-600' : 'text-gray-400'}`} />
