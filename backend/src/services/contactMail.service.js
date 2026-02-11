@@ -3,31 +3,45 @@ import path from "path";
 import fs from "fs";
 
 export async function sendContactMail({ name, email, message, phone }) {
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: false,
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  });
+  try {
+    const smtpConfig = {
+      host: process.env.SMTP_HOST || "smtp.hostinger.com",
+      port: Number(process.env.SMTP_PORT) || 465,
+      secure: true,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    };
 
-  // Chemins relatifs aux logos (public du frontend)
-  const logoTop =
-    "https://olivedrab-hornet-656554.hostingersite.com/images/BAI%202-modified.png";
-  const logoBottom =
-    "https://olivedrab-hornet-656554.hostingersite.com/images/BAI-3.png";
+    console.log("=== Configuration SMTP utilisée ===");
+    console.log("Host:", smtpConfig.host);
+    console.log("Port:", smtpConfig.port);
+    console.log("Secure:", smtpConfig.secure);
+    console.log("Auth user:", smtpConfig.auth.user);
+    console.log("Auth pass:", smtpConfig.auth.pass);
+    console.log("Auth pass length:", smtpConfig.auth.pass?.length);
+    console.log("==================================\n");
 
-  const mailOptions = {
-    from: `"${name}" <${email}>`,
-    to: process.env.CONTACT_RECEIVER || "djibrilntamack@yahoo.fr",
-    subject:
-      "[CONTACT BAI CONSULTING] Nouveau message de contact de votre site BAI Consulting et Formation",
-    text: `Nom: ${name}\nEmail: ${email}\nTéléphone: ${
-      phone || "Non spécifié"
-    }\nMessage: ${message}`,
-    html: `
+    const transporter = nodemailer.createTransport(smtpConfig);
+
+    // Chemins relatifs aux logos (public du frontend)
+    const logoTop =
+      "https://olivedrab-hornet-656554.hostingersite.com/images/BAI%202-modified.png";
+    const logoBottom =
+      "https://olivedrab-hornet-656554.hostingersite.com/images/BAI-3.png";
+
+    const mailOptions = {
+      from: `"${process.env.SMTP_FROM_NAME}" <${process.env.SMTP_FROM}>`,
+      replyTo: email,
+      to:
+        process.env.CONTACT_RECEIVER || "banque@bai-consultingetformation.com",
+      subject:
+        "[CONTACT BAI CONSULTING] Nouveau message de contact de votre site BAI Consulting et Formation",
+      text: `Nom: ${name}\nEmail: ${email}\nTéléphone: ${
+        phone || "Non spécifié"
+      }\nMessage: ${message}`,
+      html: `
       <div style="font-family: 'Segoe UI', Arial, sans-serif; background: #FFF7F2; padding: 0; margin: 0;">
         <table width="100%" cellpadding="0" cellspacing="0" style="background: #FFF7F2; padding: 40px 0;">
           <tr>
@@ -81,28 +95,25 @@ export async function sendContactMail({ name, email, message, phone }) {
         </table>
       </div>
     `,
-    replyTo: email,
-  };
+      replyTo: email,
+    };
 
-  await transporter.sendMail(mailOptions);
+    await transporter.sendMail(mailOptions);
 
-  // Mail automatique à l'utilisateur
-  const userMailOptions = {
-    from:
-      "BAI Consulting <" +
-      (process.env.CONTACT_RECEIVER || "djibrilntamack@yahoo.fr") +
-      ">",
-    to: email,
-    subject: "[BAI CONSULTING] Confirmation de réception de votre message",
-    text: `Bonjour ${name},\n\nNous avons bien reçu votre message et vous répondrons sous 2 jours ouvrés.\n\nCeci est une confirmation automatique.\n\nL'équipe BAI Consulting.`,
-    html: `<div style="font-family: 'Segoe UI', Arial, sans-serif; background: #FFF7F2; padding: 0; margin: 0;">
+    // Mail automatique à l'utilisateur
+    const userMailOptions = {
+      from: `"${process.env.SMTP_FROM_NAME}" <${process.env.SMTP_FROM}>`,
+      to: email,
+      subject: "[BAI CONSULTING] Confirmation de réception de votre message",
+      text: `Bonjour ${name},\n\nNous avons bien reçu votre message et vous répondrons sous 2 jours ouvrés.\n\nCeci est une confirmation automatique.\n\nL'équipe BAI Consulting.`,
+      html: `<div style="font-family: 'Segoe UI', Arial, sans-serif; background: #FFF7F2; padding: 0; margin: 0;">
       <table width="100%" cellpadding="0" cellspacing="0" style="background: #FFF7F2; padding: 40px 0;">
         <tr>
           <td align="center">
             <table width="600" cellpadding="0" cellspacing="0" style="background: #fff; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); overflow: hidden; border: 2px solid #F5D6C6;">
               <tr>
                 <td style="background: #00314B; padding: 32px 0; text-align: center;">
-                  <div style="display: inline-block; background: rgba(255,255,255,0.7); border-radius: 18px; padding: 18px 24px 12px 24px;">
+                  <div style="display: inline-block; background: #00314B; border-radius: 18px; padding: 18px 24px 12px 24px;">
                     <img src="${logoTop}" alt="BAI Consulting" style="max-width: 90px; height: auto; display: block; margin: 0 auto;" />
                   </div>
                 </td>
@@ -129,7 +140,11 @@ export async function sendContactMail({ name, email, message, phone }) {
         </tr>
       </table>
     </div>`,
-  };
+    };
 
-  await transporter.sendMail(userMailOptions);
+    await transporter.sendMail(userMailOptions);
+  } catch (error) {
+    console.error("Erreur lors de l'envoi du mail de contact:", error.message);
+    throw new Error(`Erreur SMTP: ${error.message}`);
+  }
 }

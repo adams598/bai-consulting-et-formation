@@ -597,11 +597,20 @@ app.post(
     }
     const { name, email, message, phone } = req.body;
     try {
+      console.log("📧 Tentative d'envoi du mail de contact...", {
+        name,
+        email,
+      });
       await sendContactMail({ name, email, message, phone });
+      console.log("✅ Mail de contact envoyé avec succès");
       res.status(200).json({ message: "Message envoyé avec succès" });
     } catch (error) {
-      console.error("Erreur lors de l'envoi de l'email:", error);
-      res.status(500).json({ error: "Erreur lors de l'envoi du message" });
+      console.error("❌ Erreur lors de l'envoi de l'email:", error.message);
+      console.error("Stack trace:", error.stack);
+      res.status(500).json({
+        error: "Erreur lors de l'envoi du message",
+        details: error.message,
+      });
     }
   },
 );

@@ -5,7 +5,7 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 const calendarApi = {
   // Récupérer tous les événements de l'utilisateur
   getEvents: async () => {
-    const response = await api.get('/api/calendar/events');
+    const response = await api.get('/api/learner/calendar/events');
     return response.data;
   },
 
@@ -27,25 +27,25 @@ const calendarApi = {
     isRecurring?: boolean;
     recurrenceRule?: string;
   }) => {
-    const response = await api.post('/api/calendar/events', eventData);
+    const response = await api.post('/api/learner/calendar/events', eventData);
     return response.data;
   },
 
   // Mettre à jour un événement
   updateEvent: async (id: string, eventData: any) => {
-    const response = await api.put(`/api/calendar/events/${id}`, eventData);
+    const response = await api.put(`/api/learner/calendar/events/${id}`, eventData);
     return response.data;
   },
 
   // Supprimer un événement
   deleteEvent: async (id: string) => {
-    const response = await api.delete(`/api/calendar/events/${id}`);
+    const response = await api.delete(`/api/learner/calendar/events/${id}`);
     return response.data;
   },
 
   // Récupérer les événements dans une plage de dates
   getEventsByDateRange: async (startDate: string, endDate: string) => {
-    const response = await api.get('/api/calendar/events/range', {
+    const response = await api.get('/api/learner/calendar/events/range', {
       params: { startDate, endDate },
     });
     return response.data;
@@ -53,38 +53,38 @@ const calendarApi = {
 
   // Récupérer les prochaines échéances
   getUpcomingDeadlines: async () => {
-    const response = await api.get('/api/calendar/upcoming');
+    const response = await api.get('/api/learner/calendar/upcoming');
     return response.data;
   },
 
   // Intégrations calendrier
   getIntegrations: async () => {
-    const response = await api.get('/api/calendar/integrations');
+    const response = await api.get('/api/learner/calendar/integrations');
     return response.data;
   },
 
   initiateGoogleOAuth: async () => {
-    const response = await api.get('/api/calendar/oauth/google/init');
+    const response = await api.get('/api/learner/calendar/oauth/google/init');
     return response.data;
   },
 
   initiateOutlookOAuth: async () => {
-    const response = await api.get('/api/calendar/oauth/outlook/init');
+    const response = await api.get('/api/learner/calendar/oauth/outlook/init');
     return response.data;
   },
 
   disconnectIntegration: async (integrationId: string) => {
-    const response = await api.delete(`/api/calendar/integrations/${integrationId}`);
+    const response = await api.delete(`/api/learner/calendar/integrations/${integrationId}`);
     return response.data;
   },
 
   syncGoogleCalendar: async () => {
-    const response = await api.post('/api/calendar/sync/google');
+    const response = await api.post('/api/learner/calendar/sync/google');
     return response.data;
   },
 
   syncOutlookCalendar: async () => {
-    const response = await api.post('/api/calendar/sync/outlook');
+    const response = await api.post('/api/learner/calendar/sync/outlook');
     return response.data;
   },
 };
