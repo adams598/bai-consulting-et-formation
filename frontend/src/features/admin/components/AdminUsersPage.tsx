@@ -122,7 +122,7 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, isLoading 
                 required
               >
                 <option value="COLLABORATOR">Collaborateur</option>
-                <option value="BANK_ADMIN">Administrateur de banque</option>
+                {/* <option value="BANK_ADMIN">Administrateur de banque</option> */}
                 <option value="SUPER_ADMIN">Super administrateur</option>
               </select>
             </div>
@@ -522,7 +522,7 @@ export default function AdminUsersPage() {
           >
             <option value="">Tous les rôles</option>
             <option value="COLLABORATOR">Collaborateur</option>
-            <option value="BANK_ADMIN">Administrateur de banque</option>
+            {/* <option value="BANK_ADMIN">Administrateur de banque</option> */}
             <option value="SUPER_ADMIN">Super administrateur</option>
           </select>
 

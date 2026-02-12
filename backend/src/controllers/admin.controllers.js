@@ -4,6 +4,7 @@ import { PrismaClient } from "@prisma/client";
 import { generatePassword } from "../utils/password.js";
 import { sendEmail } from "../services/email.service.js";
 import progressService from "../services/progress.service.js";
+import { r2Service } from "../services/r2.service.js";
 // import { hostingerUploadService } from "../services/hostinger-upload.service.js";
 
 const prisma = new PrismaClient();
@@ -68,13 +69,13 @@ export const authController = {
       const accessToken = jwt.sign(
         { userId: user.id, role: user.role },
         process.env.JWT_SECRET,
-        { expiresIn: "24h" } // 24h au lieu de 1h - la session backend gère l'inactivité
+        { expiresIn: "24h" }, // 24h au lieu de 1h - la session backend gère l'inactivité
       );
 
       const refreshToken = jwt.sign(
         { userId: user.id },
         process.env.JWT_REFRESH_SECRET,
-        { expiresIn: "7d" }
+        { expiresIn: "7d" },
       );
 
       // Créer une session utilisateur avec timeout d'inactivité de 10 minutes
@@ -359,7 +360,7 @@ export const authController = {
       // Vérifier le mot de passe actuel
       const isValidCurrentPassword = await bcrypt.compare(
         currentPassword,
-        fullUser.password
+        fullUser.password,
       );
       if (!isValidCurrentPassword) {
         return res.status(400).json({
@@ -371,7 +372,7 @@ export const authController = {
       // Vérifier que le nouveau mot de passe est différent
       const isSamePassword = await bcrypt.compare(
         newPassword,
-        fullUser.password
+        fullUser.password,
       );
       if (isSamePassword) {
         return res.status(400).json({
@@ -434,7 +435,7 @@ export const banksController = {
             userCount,
             formationCount,
           };
-        })
+        }),
       );
 
       res.json({ success: true, data: banksWithStats });
@@ -777,7 +778,7 @@ export const formationsController = {
       console.log(
         `📊 Statistiques récupérées pour ${
           Object.keys(stats).length
-        } formations`
+        } formations`,
       );
 
       res.json({
@@ -1008,7 +1009,7 @@ export const formationsController = {
       const formationsWithStats = formations.map((formation) => {
         const totalDuration = formation.content.reduce(
           (sum, lesson) => sum + (lesson.duration || 0),
-          0
+          0,
         );
         const lessonCount = formation.content.length;
 
@@ -1037,7 +1038,7 @@ export const formationsController = {
       await cacheService.cacheFormations(
         { page, limit, search, universeId, isActive },
         paginationData,
-        300
+        300,
       );
 
       res.json({
@@ -1104,17 +1105,17 @@ export const formationsController = {
 
       // Organiser le contenu par sections et leçons
       const sections = formation.content.filter(
-        (item) => item.contentType === "SECTION"
+        (item) => item.contentType === "SECTION",
       );
       const lessons = formation.content.filter(
-        (item) => item.contentType === "LESSON" && !item.sectionId
+        (item) => item.contentType === "LESSON" && !item.sectionId,
       );
 
       const organizedContent = {
         sections: sections.map((section) => ({
           ...section,
           lessons: formation.content.filter(
-            (lesson) => lesson.sectionId === section.id
+            (lesson) => lesson.sectionId === section.id,
           ),
         })),
         lessons: lessons,
@@ -1157,6 +1158,12 @@ export const formationsController = {
       } = req.body;
       const userId = req.user.id;
 
+      const parseBoolean = (value, fallback) => {
+        if (value === undefined || value === null) return fallback;
+        if (typeof value === "boolean") return value;
+        return value === "true" || value === "1";
+      };
+
       // Validation
       if (!title) {
         return res.status(400).json({
@@ -1170,14 +1177,14 @@ export const formationsController = {
           title,
           description: description || "",
           duration: 0, // sera calculé automatiquement lors de l'ajout de leçons
-          isActive: isActive !== undefined ? isActive : true,
-          hasQuiz: hasQuiz !== undefined ? hasQuiz : false,
-          quizRequired: quizRequired !== undefined ? quizRequired : true,
+          isActive: parseBoolean(isActive, true),
+          hasQuiz: parseBoolean(hasQuiz, false),
+          quizRequired: parseBoolean(quizRequired, true),
           coverImage: coverImage || null,
           createdBy: userId,
           // Nouveaux champs pour les univers et opportunités
           universeId: universeId || null,
-          isOpportunity: isOpportunity !== undefined ? isOpportunity : false,
+          isOpportunity: parseBoolean(isOpportunity, false),
           // Nouveaux champs pour les informations détaillées
           code: code || null,
           pedagogicalModality: pedagogicalModality || null,
@@ -1207,6 +1214,52 @@ export const formationsController = {
             formationId: formation.id,
           },
         });
+      }
+
+      if (req.file) {
+        if (!r2Service.isEnabled()) {
+          return res.status(500).json({
+            success: false,
+            message:
+              "Le stockage R2 n'est pas configure. Verifiez les variables R2.",
+          });
+        }
+        try {
+          const uploadResult = await r2Service.uploadVideoBuffer({
+            buffer: req.file.buffer,
+            contentType: req.file.mimetype,
+            formationTitle: title,
+            filename: "video.mp4",
+            contentLength: req.file.size,
+          });
+
+          await prisma.formationContent.create({
+            data: {
+              formationId: formation.id,
+              title: title,
+              description: description || "",
+              type: "VIDEO",
+              contentType: "LESSON",
+              order: 0,
+              duration: null,
+              fileUrl: uploadResult.url,
+              fileSize: req.file.size,
+              metadata: JSON.stringify({
+                source: "r2",
+                key: uploadResult.key,
+                filename: "video.mp4",
+              }),
+            },
+          });
+        } catch (uploadError) {
+          console.error("Erreur upload R2:", uploadError);
+          await prisma.formation.delete({ where: { id: formation.id } });
+          return res.status(500).json({
+            success: false,
+            message: "Erreur lors de l'upload de la video sur R2",
+            error: uploadError?.message || "Erreur inconnue",
+          });
+        }
       }
 
       // Créer le dossier de formation sur Hostinger en production
@@ -1270,6 +1323,7 @@ export const formationsController = {
       res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
+        error: error?.message || "Erreur inconnue",
       });
     }
   },
@@ -2004,10 +2058,10 @@ export const dashboardController = {
           ? Math.round(
               completedProgress.reduce(
                 (sum, p) => sum + (p.totalTime || 0),
-                0
+                0,
               ) /
                 completedProgress.length /
-                60
+                60,
             ) // Convertir en minutes
           : 0;
 
@@ -2075,7 +2129,7 @@ export const dashboardController = {
         banks.map(async (bank) => {
           // Compter les utilisateurs actifs de cette banque
           const activeUserCount = bank.users.filter(
-            (user) => user.isActive
+            (user) => user.isActive,
           ).length;
 
           // Compter les formations assignées à cette banque
@@ -2116,13 +2170,13 @@ export const dashboardController = {
             totalAssignments: totalAssignments,
             completedAssignments: completedAssignments,
           };
-        })
+        }),
       );
 
       console.log(
         "🏦 Statistiques par banque calculées:",
         bankStats.length,
-        "banques"
+        "banques",
       );
 
       res.json({
@@ -2258,7 +2312,7 @@ export const dashboardController = {
       console.log(
         "📈 Activités récentes récupérées:",
         sortedActivities.length,
-        "activités"
+        "activités",
       );
 
       res.json({
@@ -2395,7 +2449,7 @@ export const dashboardController = {
       console.log(
         "📊 Performances des formations calculées:",
         performanceData.length,
-        "formations"
+        "formations",
       );
 
       res.json({
@@ -2462,7 +2516,7 @@ export const formationContentController = {
       if (userId) {
         globalProgress = await progressService.calculateFormationProgress(
           userId,
-          formationId
+          formationId,
         );
       }
 
@@ -2507,7 +2561,7 @@ export const formationContentController = {
         userId,
         lessonId,
         progress,
-        isCompleted || false
+        isCompleted || false,
       );
 
       res.json({
@@ -2544,7 +2598,7 @@ export const formationContentController = {
       // Récupérer les détails de progression
       const progressDetails = await progressService.getFormationProgressDetails(
         userId,
-        formationId
+        formationId,
       );
 
       res.json({
@@ -4002,7 +4056,7 @@ async function updateFormationDuration(formationId) {
 
     const totalDuration = lessons.reduce(
       (sum, lesson) => sum + (lesson.duration || 0),
-      0
+      0,
     );
 
     await prisma.formation.update({
@@ -4143,7 +4197,7 @@ export const universeController = {
       console.log(
         `🔄 Déplacement de la formation ${formationId} vers l'univers ${
           universeId || "opportunités commerciales"
-        }`
+        }`,
       );
 
       // Vérifier que la formation existe

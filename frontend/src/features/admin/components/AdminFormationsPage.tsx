@@ -70,7 +70,6 @@ const AdminFormationsPage: React.FC = () => {
   
   // États pour les suggestions de recherche
   const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
-  const [searchInputRef, setSearchInputRef] = useState<HTMLInputElement | null>(null);
 
   // États pour le système d'univers
   const [viewMode, setViewMode] = useState<'formations' | 'universes'>('formations');
@@ -1183,7 +1182,7 @@ const AdminFormationsPage: React.FC = () => {
 
       {/* Barre d'actions en lot - Visible uniquement pour les admins */}
       {showBulkActions && isAdmin() && (
-        <div className="bg-gray-200 border border-blue-200 rounded-lg p-4">
+        <div className="bg-white border border-blue-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-blue-900">
@@ -1241,7 +1240,6 @@ const AdminFormationsPage: React.FC = () => {
       {/* Barre de recherche */}
         <div className="relative flex-1 search-suggestions-container">
         <input
-          ref={setSearchInputRef}
           type="text"
             placeholder={viewMode === 'formations' ? "Rechercher une formation..." : "Rechercher un univers..."}
           value={searchTerm}
@@ -1336,7 +1334,7 @@ const AdminFormationsPage: React.FC = () => {
       </div>
 
       {/* Contenu principal */}
-      <div className="bg-gray-200 p-6">
+      <div className="bg-stone-100 p-2">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
           <h2 className="admin-title-md admin-title-spacing">
@@ -1672,22 +1670,19 @@ const AdminFormationsPage: React.FC = () => {
                     {group.formations.map((formation, index) => (
                       <div
                         key={formation.id}
-                        className="group rounded-lg overflow-hidden transition-all duration-300 ease-in-out bg-white hover:shadow-xl hover:scale-105 cursor-pointer border border-gray-200"
+                        className="group relative transition-all duration-300 ease-in-out overflow-hidden cursor-pointer"
                         onClick={() => handleFormationClick(formation)}
                       >
-                        {/* Section supérieure avec logo BAI centré */}
-                        <div 
-                          className="h-36 m-2 relative flex items-center justify-center transition-colors duration-300 bg-brand-blue group-hover:bg-brand-blue/90"
-                        >
-                          {/* Logo BAI centré */}
-                          <div className="flex items-center justify-center">
-                            <div className="w-16 h-16 flex items-center justify-center border border-brand-beige rounded-full hover:bg-brand-beige/85 transition-all duration-600">
+                        {/* Section supérieure - Fond brand-blue avec logo BAI */}
+                        <div className="h-36 bg-brand-blue transition-all duration-300 flex items-center justify-center relative">
+                          {/* Logo BAI au centre dans un cercle beige */}
+                          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-24 h-24 flex items-center justify-center">
+                            <div className="w-16 h-16 border-2 border-brand-beige rounded-full flex items-center justify-center">
                               <img 
                                 src="/images/BAI 2-modified.png" 
                                 alt="BAI Logo" 
-                                className="w-12 h-12 object-contain"
+                                className="w-10 h-10 object-contain"
                                 onError={(e) => {
-                                  // Fallback si l'image n'est pas trouvée
                                   const target = e.target as HTMLImageElement;
                                   target.style.display = 'none';
                                 }}
@@ -1695,42 +1690,76 @@ const AdminFormationsPage: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Point quiz discret en haut à droite */}
-                          <div className="absolute top-3 right-3">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleConfigureQuiz(formation);
-                              }}
-                              className={`w-3 h-3 rounded-full transition-all duration-200 ${
-                                formation.hasQuiz 
-                                  ? 'bg-green-500 hover:bg-green-600' 
-                                  : 'bg-gray-400 hover:bg-gray-500'
-                              }`}
-                              title={formation.hasQuiz ? 'Quiz configuré' : 'Configurer le quiz'}
-                            />
-                          </div>
+                          {/* Menu d'options */}
+                          {isAdmin() && (
+                            <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setActiveDropdown(activeDropdown === formation.id ? null : formation.id);
+                                }}
+                                className="dropdown-trigger w-6 h-6 rounded-full bg-white/80 hover:bg-white flex items-center justify-center"
+                                title="Options"
+                              >
+                                <MoreVertical className="h-3 w-3 text-gray-700" />
+                              </button>
+
+                              {activeDropdown === formation.id && (
+                                <div className="dropdown-menu absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-48 z-20">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdown(null);
+                                      handleConfigureQuiz(formation);
+                                    }}
+                                    className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                  >
+                                    <Settings className="h-4 w-4 mr-2" />
+                                    Configurer le quiz
+                                  </button>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdown(null);
+                                      handleAssignFormation(formation);
+                                    }}
+                                    className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                  >
+                                    <UserPlus className="h-4 w-4 mr-2" />
+                                    Assigner
+                                  </button>
+                                  <div className="border-t border-gray-200 my-1"></div>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdown(null);
+                                      handleDeleteFormation(formation);
+                                    }}
+                                    className="w-full flex items-center px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                                  >
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Supprimer
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        
-                        {/* Section inférieure */}
-                        <div className="p-4 transition-colors duration-300 bg-gray-50">
-                          <div className="space-y-3">
-                            {/* Titre de la formation */}
-                            <h3 className="font-bold text-md leading-tight text-gray-900">
-                              {formatFormationTitle(formation.title)}
-                            </h3>
-                            
-                            {/* Type de formation et durée */}
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-gray-600">
-                                {formation.pedagogicalModality || 'E-learning'}
+
+                        {/* Section inférieure - Fond blanc */}
+                        <div className="bg-white rounded-b-lg p-4 flex flex-col justify-between">
+                          <h3 className="font-semibold text-sm leading-tight text-gray-900 mb-1 truncate" title={formation.title}>
+                            {formation.title.length > 30 ? `${formation.title.substring(0, 30)}...` : formation.title}
+                          </h3>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500">
+                              {formation.pedagogicalModality || 'E-learning'}
+                            </span>
+                            <div className="flex items-center">
+                              <Clock className="w-3 h-3 mr-1 text-gray-400" />
+                              <span className="text-xs text-gray-500">
+                                {formatDuration(formation.duration || 0)}
                               </span>
-                              <div className="flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-gray-500" />
-                                <span className="text-xs text-gray-600">
-                                  {formatDuration(formation.duration || 0)}
-                                </span>
-                              </div>
                             </div>
                           </div>
                         </div>
@@ -1884,6 +1913,15 @@ const AdminFormationsPage: React.FC = () => {
           formationIds={selectedFormations}
           onClose={() => setShowBulkAssignModal(false)}
           onSave={handleBulkAssign}
+        />
+      )}
+
+      {showAssignmentModal && selectedFormation && (
+        <FormationAssignmentModal
+          isOpen={showAssignmentModal}
+          formation={selectedFormation}
+          onClose={() => setShowAssignmentModal(false)}
+          onSave={handleSaveAssignments}
         />
       )}
 

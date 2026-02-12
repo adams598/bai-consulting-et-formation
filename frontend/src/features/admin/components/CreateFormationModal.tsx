@@ -24,8 +24,26 @@ const CreateFormationModal: React.FC<CreateFormationModalProps> = ({
     hasQuiz: true,
     quizRequired: false
   });
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.includes('video/mp4')) {
+      toast({
+        title: "Format non supporte",
+        description: "Seuls les fichiers MP4 sont acceptes",
+        variant: "destructive",
+      });
+      e.target.value = '';
+      return;
+    }
+
+    setVideoFile(file);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +60,18 @@ const CreateFormationModal: React.FC<CreateFormationModalProps> = ({
     setIsLoading(true);
     
     try {
-      await formationsApi.createFormation(formData);
+      if (videoFile) {
+        const payload = new FormData();
+        Object.entries(formData).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            payload.append(key, String(value));
+          }
+        });
+        payload.append('video', videoFile);
+        await formationsApi.createFormation(payload);
+      } else {
+        await formationsApi.createFormation(formData);
+      }
       
       toast({
         title: "Succès",
@@ -57,6 +86,7 @@ const CreateFormationModal: React.FC<CreateFormationModalProps> = ({
         hasQuiz: true,
         quizRequired: false
       });
+      setVideoFile(null);
       
       onFormationCreated();
       onClose();
@@ -169,6 +199,23 @@ const CreateFormationModal: React.FC<CreateFormationModalProps> = ({
                   Quiz obligatoire pour valider la formation
                 </Label>
               </div>
+            )}
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium text-gray-700">
+              Video de formation (MP4 uniquement)
+            </Label>
+            <input
+              type="file"
+              accept=".mp4,video/mp4"
+              onChange={handleVideoChange}
+              className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+            />
+            {videoFile && (
+              <p className="text-sm text-green-600 mt-1">
+                Fichier selectionne: {videoFile.name}
+              </p>
             )}
           </div>
 

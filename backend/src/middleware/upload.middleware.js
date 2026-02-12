@@ -29,7 +29,7 @@ const getFileType = (filename) => {
 
   if (
     [".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx"].includes(
-      extension
+      extension,
     )
   ) {
     return "document";
@@ -63,56 +63,56 @@ const storage = multer.diskStorage({
     console.log("🔍 Multer destination - req.uploadType:", req.uploadType);
     console.log(
       "🔍 Multer destination - req.uploadType === 'lesson-file':",
-      req.uploadType === "lesson-file"
+      req.uploadType === "lesson-file",
     );
     console.log(
       "🔍 Multer destination - req.uploadType === 'lesson-cover':",
-      req.uploadType === "lesson-cover"
+      req.uploadType === "lesson-cover",
     );
     console.log(
       "🔍 Multer destination - req.body keys:",
-      Object.keys(req.body)
+      Object.keys(req.body),
     );
     console.log(
       "🔍 Multer destination - req.body.formationTitle:",
-      req.body.formationTitle
+      req.body.formationTitle,
     );
     console.log(
       "🔍 Multer destination - req.body.lessonTitle:",
-      req.body.lessonTitle
+      req.body.lessonTitle,
     );
     console.log(
       "🔍 Multer destination - Type de req.uploadType:",
-      typeof req.uploadType
+      typeof req.uploadType,
     );
     console.log(
       "🔍 Multer destination - Longueur de req.uploadType:",
-      req.uploadType ? req.uploadType.length : "undefined"
+      req.uploadType ? req.uploadType.length : "undefined",
     );
     console.log(
       "🔍 Multer destination - req.uploadType === 'lesson-file' (string):",
-      req.uploadType === "lesson-file"
+      req.uploadType === "lesson-file",
     );
     console.log(
       "🔍 Multer destination - req.uploadType === 'lesson-file' (charCode):",
-      req.uploadType === "lesson-file"
+      req.uploadType === "lesson-file",
     );
     console.log(
       "🔍 Multer destination - req.uploadType charCodeAt(0):",
-      req.uploadType ? req.uploadType.charCodeAt(0) : "undefined"
+      req.uploadType ? req.uploadType.charCodeAt(0) : "undefined",
     );
     console.log(
       "🔍 Multer destination - 'lesson-file' charCodeAt(0):",
-      "lesson-file".charCodeAt(0)
+      "lesson-file".charCodeAt(0),
     );
     console.log("🔍 Multer destination - AVANT LA CONDITION IF");
     console.log(
       "🔍 Multer destination - req.uploadType === 'profile':",
-      req.uploadType === "profile"
+      req.uploadType === "profile",
     );
     console.log(
       "🔍 Multer destination - req.uploadType === 'lesson-cover' || req.uploadType === 'lesson-file':",
-      req.uploadType === "lesson-cover" || req.uploadType === "lesson-file"
+      req.uploadType === "lesson-cover" || req.uploadType === "lesson-file",
     );
 
     // Déclarer uploadPath au bon endroit
@@ -133,22 +133,22 @@ const storage = multer.diskStorage({
         console.log("🔍 Middleware lesson-cover - req.body:", req.body);
         console.log(
           "🔍 Middleware lesson-cover - formationTitle reçu:",
-          req.body.formationTitle
+          req.body.formationTitle,
         );
         console.log(
           "🔍 Middleware lesson-cover - lessonTitle reçu:",
-          req.body.lessonTitle
+          req.body.lessonTitle,
         );
 
         if (!req.body.formationTitle || !req.body.lessonTitle) {
           console.error(
-            "❌ ERREUR: formationTitle ou lessonTitle manquant dans req.body"
+            "❌ ERREUR: formationTitle ou lessonTitle manquant dans req.body",
           );
           return cb(
             new Error(
-              "Le titre de la formation et de la leçon sont requis pour l'upload"
+              "Le titre de la formation et de la leçon sont requis pour l'upload",
             ),
-            null
+            null,
           );
         }
 
@@ -166,12 +166,12 @@ const storage = multer.diskStorage({
           "formations",
           sanitizedFormationTitle,
           "lessons",
-          sanitizedLessonTitle
+          sanitizedLessonTitle,
         );
 
         console.log(
           "🔍 Middleware lesson-cover - uploadPath final:",
-          uploadPath
+          uploadPath,
         );
         console.log("🔍 Middleware lesson-cover - FIN");
       } else if (req.uploadType === "lesson-file") {
@@ -179,24 +179,24 @@ const storage = multer.diskStorage({
         console.log("🔍 Middleware lesson-file - req.params:", req.params);
         console.log(
           "🔍 Middleware lesson-file - formationTitle reçu:",
-          req.params.formationTitle
+          req.params.formationTitle,
         );
         console.log(
           "🔍 Middleware lesson-file - lessonTitle reçu:",
-          req.params.lessonTitle
+          req.params.lessonTitle,
         );
 
         if (!req.params.formationTitle || !req.params.lessonTitle) {
           console.error(
-            "❌ ERREUR: formationTitle ou lessonTitle manquant dans req.params"
+            "❌ ERREUR: formationTitle ou lessonTitle manquant dans req.params",
           );
           console.error("❌ formationTitle:", req.params.formationTitle);
           console.error("❌ lessonTitle:", req.params.lessonTitle);
           return cb(
             new Error(
-              "Le titre de la formation et de la leçon sont requis pour l'upload"
+              "Le titre de la formation et de la leçon sont requis pour l'upload",
             ),
-            null
+            null,
           );
         }
 
@@ -204,7 +204,7 @@ const storage = multer.diskStorage({
         const lessonTitle = req.params.lessonTitle;
         console.log(
           "🔍 Middleware lesson-file - formationTitle:",
-          formationTitle
+          formationTitle,
         );
         console.log("🔍 Middleware lesson-file - lessonTitle:", lessonTitle);
 
@@ -220,12 +220,12 @@ const storage = multer.diskStorage({
           "formations",
           sanitizedFormationTitle,
           "lessons",
-          sanitizedLessonTitle
+          sanitizedLessonTitle,
         );
 
         console.log(
           "🔍 Middleware lesson-file - uploadPath final:",
-          uploadPath
+          uploadPath,
         );
         console.log("🔍 Middleware lesson-file - FIN");
       }
@@ -233,16 +233,16 @@ const storage = multer.diskStorage({
       console.log("🔍 Middleware formation - req.params:", req.params);
       console.log(
         "🔍 Middleware formation - formationTitle reçu (from params):",
-        req.params.formationTitle
+        req.params.formationTitle,
       );
 
       if (!req.params.formationTitle) {
         console.error("❌ ERREUR: formationTitle manquant dans req.params");
         return cb(
           new Error(
-            "Le titre de la formation est requis dans l'URL pour l'upload"
+            "Le titre de la formation est requis dans l'URL pour l'upload",
           ),
-          null
+          null,
         );
       }
 
@@ -251,7 +251,7 @@ const storage = multer.diskStorage({
 
       console.log(
         "🔍 Middleware formation - Titre sanitizé:",
-        sanitizedFormationTitle
+        sanitizedFormationTitle,
       );
 
       uploadPath = path.join("uploads", "formations", sanitizedFormationTitle);
@@ -261,16 +261,16 @@ const storage = multer.diskStorage({
       console.log("🔍 Middleware formation-video - req.body:", req.body);
       console.log(
         "🔍 Middleware formation-video - formationTitle reçu:",
-        req.body.formationTitle
+        req.body.formationTitle,
       );
 
       if (!req.body.formationTitle) {
         console.error("❌ ERREUR: formationTitle manquant dans req.body");
         return cb(
           new Error(
-            "Le titre de la formation est requis pour l'upload de vidéo"
+            "Le titre de la formation est requis pour l'upload de vidéo",
           ),
-          null
+          null,
         );
       }
 
@@ -279,20 +279,20 @@ const storage = multer.diskStorage({
 
       console.log(
         "🔍 Middleware formation-video - Titre sanitizé:",
-        sanitizedFormationTitle
+        sanitizedFormationTitle,
       );
 
       uploadPath = path.join("uploads", "formations", sanitizedFormationTitle);
       console.log(
         "🔍 Middleware formation-video - uploadPath final:",
-        uploadPath
+        uploadPath,
       );
     } else if (req.uploadType === "opportunities") {
       // Fichiers d'opportunités : uploads/OC/
       uploadPath = path.join("uploads", "OC");
       console.log(
         "🔍 Middleware opportunities - uploadPath final:",
-        uploadPath
+        uploadPath,
       );
     } else {
       // Fichiers génériques : uploads/files/{user}/
@@ -325,7 +325,7 @@ const storage = multer.diskStorage({
       // Pour les images, utiliser le format selon le type d'upload
       const userFolderName = `${user.firstName}_${user.lastName}`.replace(
         /[^a-zA-Z0-9_-]/g,
-        "_"
+        "_",
       );
       const timestamp = Date.now();
       const extension = path.extname(file.originalname);
@@ -366,7 +366,7 @@ const storage = multer.diskStorage({
         // Vidéos génériques : video-{nom de l'user}-{timestamp}.{ext}
         const userFolderName = `${user.firstName}_${user.lastName}`.replace(
           /[^a-zA-Z0-9_-]/g,
-          "_"
+          "_",
         );
         filename = `video-${userFolderName}-${timestamp}${extension}`;
       }
@@ -411,7 +411,7 @@ const storage = multer.diskStorage({
       // Pour les autres fichiers, utiliser le format file-{nom de l'user}
       const userFolderName = `${user.firstName}_${user.lastName}`.replace(
         /[^a-zA-Z0-9_-]/g,
-        "_"
+        "_",
       );
       const timestamp = Date.now();
       const extension = path.extname(file.originalname);
@@ -449,9 +449,9 @@ const fileFilter = (req, file, cb) => {
     `);
     return cb(
       new Error(
-        `Fichier trop volumineux. Taille maximale: ${maxSize / 1024 / 1024}MB`
+        `Fichier trop volumineux. Taille maximale: ${maxSize / 1024 / 1024}MB`,
       ),
-      false
+      false,
     );
   }
 
@@ -465,7 +465,7 @@ const fileFilter = (req, file, cb) => {
     `);
     return cb(
       new Error("Nom de fichier contenant des caractères non autorisés"),
-      false
+      false,
     );
   }
 
@@ -499,7 +499,7 @@ const fileFilter = (req, file, cb) => {
     `);
     return cb(
       new Error("Type de fichier potentiellement dangereux détecté"),
-      false
+      false,
     );
   }
 
@@ -509,7 +509,7 @@ const fileFilter = (req, file, cb) => {
     allowedImageTypes.includes(file.mimetype)
   ) {
     console.log(
-      `✅ Upload image autorisé: ${file.originalname} (${file.mimetype})`
+      `✅ Upload image autorisé: ${file.originalname} (${file.mimetype})`,
     );
     return cb(null, true);
   }
@@ -519,14 +519,14 @@ const fileFilter = (req, file, cb) => {
     allowedVideoTypes.includes(file.mimetype)
   ) {
     console.log(
-      `✅ Upload vidéo autorisé: ${file.originalname} (${file.mimetype})`
+      `✅ Upload vidéo autorisé: ${file.originalname} (${file.mimetype})`,
     );
     return cb(null, true);
   }
 
   if (allowedDocumentTypes.includes(file.mimetype)) {
     console.log(
-      `✅ Upload document autorisé: ${file.originalname} (${file.mimetype})`
+      `✅ Upload document autorisé: ${file.originalname} (${file.mimetype})`,
     );
     return cb(null, true);
   }
@@ -543,9 +543,9 @@ const fileFilter = (req, file, cb) => {
 
   cb(
     new Error(
-      "Type de fichier non autorisé. Types acceptés: JPG, PNG, WebP, MP4, WebM, PDF, DOC, DOCX, PPT, PPTX"
+      "Type de fichier non autorisé. Types acceptés: JPG, PNG, WebP, MP4, WebM, PDF, DOC, DOCX, PPT, PPTX",
     ),
-    false
+    false,
   );
 };
 
@@ -569,7 +569,7 @@ const opportunitiesFileFilter = (req, file, cb) => {
   console.log("🔍 opportunitiesFileFilter - Type de fichier:", file.mimetype);
   console.log(
     "🔍 opportunitiesFileFilter - Nom du fichier:",
-    file.originalname
+    file.originalname,
   );
   console.log("🔍 opportunitiesFileFilter - Taille du fichier:", file.size);
 
@@ -578,7 +578,7 @@ const opportunitiesFileFilter = (req, file, cb) => {
 
   console.log(
     "🔍 opportunitiesFileFilter - req.uploadType défini:",
-    req.uploadType
+    req.uploadType,
   );
   console.log("🔍 opportunitiesFileFilter - Appel de cb(null, true)");
 
@@ -611,15 +611,15 @@ export const createLessonFileUploadMiddleware = () => {
     console.log("🔍 createLessonFileUploadMiddleware - req.body:", req.body);
     console.log(
       "🔍 createLessonFileUploadMiddleware - req.params:",
-      req.params
+      req.params,
     );
     console.log(
-      "🔍 createLessonFileUploadMiddleware - req.uploadType sera défini à 'lesson-file'"
+      "🔍 createLessonFileUploadMiddleware - req.uploadType sera défini à 'lesson-file'",
     );
     req.uploadType = "lesson-file";
     console.log(
       "🔍 createLessonFileUploadMiddleware - req.uploadType défini:",
-      req.uploadType
+      req.uploadType,
     );
     console.log("🔍 createLessonFileUploadMiddleware - Appel de next()");
     next();
@@ -649,6 +649,24 @@ export const uploadFormationVideo = multer({
   fileFilter: lessonFileFilter, // Utiliser le filtre spécial pour lesson-file
   limits: {
     fileSize: 100 * 1024 * 1024, // 100MB pour les vidéos
+  },
+}).single("video");
+
+const formationCreateVideoStorage = multer.memoryStorage();
+
+const formationCreateVideoFilter = (req, file, cb) => {
+  const extension = path.extname(file.originalname).toLowerCase();
+  if (file.mimetype === "video/mp4" && extension === ".mp4") {
+    return cb(null, true);
+  }
+  return cb(new Error("Seuls les fichiers MP4 sont acceptes"), false);
+};
+
+export const uploadFormationCreateVideo = multer({
+  storage: formationCreateVideoStorage,
+  fileFilter: formationCreateVideoFilter,
+  limits: {
+    fileSize: 500 * 1024 * 1024, // 500MB max en memoire
   },
 }).single("video");
 

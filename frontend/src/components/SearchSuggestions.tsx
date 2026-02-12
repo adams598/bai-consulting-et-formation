@@ -60,7 +60,10 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
   // Générer les suggestions
   useEffect(() => {
     if (!isVisible) {
-      setSuggestions([]);
+      if (suggestions.length > 0) {
+        setSuggestions([]);
+        setSelectedIndex(0);
+      }
       return;
     }
 
@@ -157,7 +160,7 @@ const SearchSuggestions: React.FC<SearchSuggestionsProps> = ({
 
     setSuggestions(sortedSuggestions);
     setSelectedIndex(0);
-  }, [searchTerm, formations, universes, isVisible]);
+  }, [searchTerm, formations, universes, isVisible, suggestions]);
 
   // Gérer la navigation au clavier
   useEffect(() => {

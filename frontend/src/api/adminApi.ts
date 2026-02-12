@@ -61,7 +61,14 @@ export const formationsApi = {
   // Route spéciale pour les COLLABORATOR - récupère leurs formations assignées
   getMyAssignedFormations: () => api.get<ApiResponse<any[]>>('/api/admin/formations/my-assignments'),
   getFormationById: (id: string) => api.get<ApiResponse<Formation>>(`/api/admin/formations/${id}`),
-  createFormation: (data: Partial<Formation>) => api.post<ApiResponse<Formation>>('/api/admin/formations', data),
+  createFormation: (data: Partial<Formation> | FormData) => {
+    if (data instanceof FormData) {
+      return api.post<ApiResponse<Formation>>('/api/admin/formations', data, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+    }
+    return api.post<ApiResponse<Formation>>('/api/admin/formations', data);
+  },
   updateFormation: (id: string, data: Partial<Formation>) => api.put<ApiResponse<Formation>>(`/api/admin/formations/${id}`, data),
   deleteFormation: (id: string) => api.delete<ApiResponse<void>>(`/api/admin/formations/${id}`),
   toggleActive: (id: string) => api.patch<ApiResponse<Formation>>(`/api/admin/formations/${id}/toggle-active`),

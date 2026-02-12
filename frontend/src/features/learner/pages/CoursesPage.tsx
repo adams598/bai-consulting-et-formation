@@ -318,9 +318,7 @@ const CoursesPage: React.FC = () => {
                       <span className="text-sm font-medium text-gray-700">
                         {universe.name}
                       </span>
-                      <span className="ml-2 text-xs text-gray-500">
-                        ({formations.length} formation{formations.length > 1 ? 's' : ''})
-                      </span>
+                      
                     </div>
                   </div>
                   <div className="flex-1 border-t border-gray-200"></div>

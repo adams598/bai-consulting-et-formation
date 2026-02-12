@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, BookOpen, Clock, Database, Plus, Edit, Trash2, X, RefreshCw, Users, Play, Lock, GripVertical, ArrowUpDown, CheckCircle, Layers, User as UserIcon, Globe, Target, List } from 'lucide-react';
+import { ArrowLeft, BookOpen, Clock, Database, Edit, Trash2, X, Users, Play, CheckCircle, Layers, User as UserIcon, Globe, Target, List } from 'lucide-react';
 import { Formation, FormationContent } from '../types';
 import { getFormationCoverImageUrl, getLessonImageUrl } from '../../../utils/imageUtils';
 import { formationContentApi, progressApi } from '../../../api/adminApi';
@@ -7,7 +7,6 @@ import { authService } from '../../../services/authService';
 import ConfirmModal from './ConfirmModal';
 import { FormationModal } from './FormationModal';
 import BanksListView from './BanksListView';
-import LessonModal from './LessonModal';
 import LessonPlayer from './LessonPlayer';
 import { useAuth } from '../../../providers/auth-provider';
 import { 
@@ -43,13 +42,9 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
     completed: boolean;
   }}>({});
   const [lessons, setLessons] = useState<FormationContent[]>([]);
-  const [showLessonModal, setShowLessonModal] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState<FormationContent | null>(null);
-  const [action, setAction] = useState<'create' | 'edit'>('create');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // État pour vérifier le rôle de l'utilisateur
   const [userRole, setUserRole] = useState<string>('');
@@ -70,49 +65,8 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
   // État pour l'affichage complet de la description
   const [showFullDescription, setShowFullDescription] = useState(false);
   
-  // État pour afficher les leçons (après clic sur LANCER)
-  const [showLessons, setShowLessons] = useState(false);
   
-  // États pour le drag & drop
-  const [isDragging, setIsDragging] = useState(false);
-  const [draggedLesson, setDraggedLesson] = useState<FormationContent | null>(null);
-  
-  // État pour la modale de réorganisation des leçons
-  const [showReorderModal, setShowReorderModal] = useState(false);
-  const [reorderLessons, setReorderLessons] = useState<FormationContent[]>([]);
-  const [draggedReorderIndex, setDraggedReorderIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
 
-  // Fonctions utilitaires pour l'affichage des leçons
-  const getContentIcon = (type: string) => {
-    switch (type) {
-      case 'PRESENTATION':
-        return <BookOpen className="h-5 w-5 text-blue-600" />;
-      case 'VIDEO':
-        return <BookOpen className="h-5 w-5 text-green-600" />;
-      case 'DOCUMENT':
-        return <BookOpen className="h-5 w-5 text-blue-700" />;
-      case 'INTERACTIVE':
-        return <BookOpen className="h-5 w-5 text-purple-600" />;
-      default:
-        return <BookOpen className="h-5 w-5 text-gray-600" />;
-    }
-  };
-
-  const getContentTypeLabel = (type: string) => {
-    switch (type) {
-      case 'PRESENTATION':
-        return 'Présentation';
-      case 'VIDEO':
-        return 'Vidéo';
-      case 'DOCUMENT':
-        return 'Document';
-      case 'INTERACTIVE':
-        return 'Interactif';
-      default:
-        return 'Autre';
-    }
-  };
 
   useEffect(() => {
     checkUserRole();
@@ -171,6 +125,8 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
         .filter((content: FormationContent) => content.contentType === 'LESSON')
         .sort((a: FormationContent, b: FormationContent) => (a.order || 0) - (b.order || 0));
       setLessons(lessonsOnly);
+
+      return lessonsOnly;
       
       // console.log('📚 Leçons chargées:', lessonsOnly.length);
       
@@ -178,6 +134,7 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
       console.error('Erreur lors du chargement des leçons:', error);
       setError('Erreur lors du chargement des leçons');
       setLessons([]);
+      return [];
     } finally {
       setIsLoading(false);
     }
@@ -493,14 +450,15 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
   };
 
   // Fonction pour lancer la formation (affiche les leçons)
-  const handleLaunchFormation = () => {
-    // console.log('🚀 FormationDetailView - handleLaunchFormation appelé');
-    // console.log('🚀 FormationDetailView - Formation:', localFormation.title);
-    
-    // Afficher les leçons de la formation
-    setShowLessons(true);
-    
-    // console.log('🚀 FormationDetailView - Leçons vont s\'afficher');
+  const handleLaunchFormation = async () => {
+    const availableLessons = lessons.length > 0 ? lessons : await loadLessons();
+    if (!availableLessons || availableLessons.length === 0) {
+      setError("Aucune lecon disponible pour cette formation.");
+      return;
+    }
+
+    setSelectedLesson(availableLessons[0]);
+    setShowLessonPlayer(true);
   };
 
   // Fonction pour lancer une leçon (affiche l'interface de la leçon)
@@ -676,332 +634,6 @@ const FormationDetailView: React.FC<FormationDetailViewProps> = ({
           formation={localFormation}
           onBack={() => setShowBanksList(false)}
         />
-      ) : showLessons ? (
-        <>
-          {/* En-tête avec bouton retour */}
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => setShowLessons(false)}
-              className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
-            >
-              <ArrowLeft className="h-5 w-5 mr-2" />
-              Retour aux détails
-            </button>
-            
-            {isAdmin && (
-              <div className="flex space-x-3">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleEditFormation();
-                  }}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
-                >
-                  <Edit className="h-4 w-4 mr-2" />
-                  Modifier
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDeleteFormation();
-                  }}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md transition-colors flex items-center"
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Supprimer
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Section des leçons */}
-          <div className="bg-white rounded-xl shadow-lg border border-stone-200 overflow-hidden">
-            {/* En-tête de la section leçons */}
-            <div className="bg-slate-50 px-8 py-6 border-b border-gray-200">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center mr-4">
-                    <BookOpen className="h-5 w-5 text-slate-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-normal text-slate-900">Leçons de la formation</h2>
-                    <p className="text-slate-600 mt-1 text-sm">
-                      {isAdmin ? 'Gérez le contenu pédagogique de votre formation' : 'Consultez le contenu pédagogique de la formation'}
-                    </p>
-                  </div>
-                </div>
-                {isAdmin && (
-                  <div className="flex space-x-3">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCreateLesson();
-                      }}
-                      disabled={isLoading}
-                      className="bg-slate-900 hover:bg-slate-800 disabled:bg-gray-400 text-white px-5 py-2.5 rounded-md font-normal transition-colors duration-200 flex items-center"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      {isLoading ? 'Chargement...' : 'Ajouter une leçon'}
-                    </button>
-                    <button
-                      onClick={loadLessons}
-                      disabled={isLoading}
-                      className="border border-gray-300 hover:border-gray-400 text-slate-700 hover:text-slate-900 hover:bg-white px-5 py-2.5 rounded-md font-normal transition-colors duration-200 flex items-center"
-                    >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      Rafraîchir
-                    </button>
-
-                    {/* <button
-                      onClick={handleOpenReorderModal}
-                      disabled={isLoading || lessons.length === 0}
-                      className="border border-purple-300 hover:border-purple-400 text-purple-700 hover:text-purple-900 hover:bg-purple-50 px-5 py-2.5 rounded-md font-normal transition-colors duration-200 flex items-center"
-                    >
-                      <ArrowUpDown className="h-4 w-4 mr-2" />
-                      Réorganiser
-                    </button> */}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Contenu des leçons */}
-            <div className="p-8">
-
-            {isLoading ? (
-              <div className="text-center py-12">
-                <p className="text-gray-500 text-lg">Chargement des leçons...</p>
-              </div>
-            ) : error ? (
-              <div className="text-center py-12 text-red-600">
-                <p className="text-lg">{error}</p>
-                <p className="text-gray-400">Veuillez réessayer plus tard.</p>
-              </div>
-            ) : lessons.length === 0 ? (
-              <div className="text-center py-12">
-                <BookOpen className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500 text-lg">Aucune leçon pour le moment</p>
-                <p className="text-gray-400">Commencez par ajouter votre première leçon</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {lessons.map((lesson, index) => {
-                  const progressData = lessonProgress[lesson.id];
-                  const progress = progressData?.progress || 0;
-                  const isAccessible = isLessonAccessible(lesson, index);
-                  const isStarted = progress > 0;
-                  const unlockStatus = getLessonUnlockStatus(lesson, index);
-                  
-                  console.log(`📊 Leçon ${lesson.title} (ID: ${lesson.id}):`, {
-                    progressData,
-                    progress,
-                    isAccessible,
-                    isStarted,
-                    unlockStatus,
-                    lessonProgressMap: lessonProgress
-                  });
-                  
-                  return (
-                    <div 
-                      key={lesson.id} 
-                      className={`group relative bg-white rounded-lg border transition-all duration-200 ${
-                        !isStarted 
-                          ? 'border-gray-200 bg-gray-50' 
-                          : 'border-gray-200 hover:border-gray-300'
-                      } ${isDragging && isAdmin ? 'cursor-move' : ''}`}
-                      draggable={isAdmin}
-                      onDragStart={isAdmin ? (e) => handleDragStart(e, lesson) : undefined}
-                      onDragOver={isAdmin ? handleDragOver : undefined}
-                      onDrop={isAdmin ? (e) => handleDrop(e, lesson) : undefined}
-                    >
-                      {/* Header avec drag handle et ordre */}
-                      <div className="absolute top-3 left-3 z-10">
-                        <div className="flex items-center space-x-2">
-                          {isAdmin && (
-                            <div className="bg-white rounded-md p-1 shadow-sm border border-gray-200">
-                              <GripVertical className="h-3 w-3 text-gray-400 cursor-move" />
-                            </div>
-                          )}
-                          <span className="bg-slate-600 text-white text-xs font-semibold px-2 py-1 rounded-md">
-                            #{lesson.order || index + 1}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Actions en haut à droite - uniquement pour les admins */}
-                      {isAdmin && (
-                        <div className="absolute top-3 right-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                          <div className="flex space-x-1 bg-white rounded-md p-1 shadow-sm border border-gray-200">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleEditLesson(lesson);
-                              }}
-                              className="p-1.5 text-slate-600 hover:text-slate-800 hover:bg-slate-50 rounded transition-colors"
-                              title="Modifier la leçon"
-                            >
-                              <Edit className="h-3 w-3" />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleDeleteLesson(lesson);
-                              }}
-                              className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-50 rounded transition-colors"
-                              title="Supprimer la leçon"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Image de couverture */}
-                      <div className="relative h-32 overflow-hidden rounded-t-lg">
-                        {lesson.coverImage ? (
-                          <div className="relative h-full">
-                            <img 
-                              src={getLessonImageUrl(lesson.coverImage)} 
-                              alt={`Couverture de ${lesson.title}`}
-                              className={`w-full h-full object-cover ${
-                                !isAccessible ? 'filter grayscale opacity-50' : ''
-                              }`}
-                            />
-                            
-                            {/* Overlay de verrouillage */}
-                            {!isAccessible && (
-                              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                <div className="text-center text-white">
-                                  <Lock className="h-6 w-6 mx-auto mb-1" />
-                                  <p className="text-xs font-medium">Verrouillée</p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className={`h-full flex items-center justify-center ${
-                            !isAccessible 
-                              ? 'bg-gray-200' 
-                              : 'bg-slate-100'
-                          }`}>
-                            <div className="text-center">
-                              {!isAccessible ? (
-                                <div className="text-gray-500">
-                                  <Lock className="h-8 w-8 mx-auto mb-1" />
-                                  <div className="text-xs font-medium">Verrouillée</div>
-                                </div>
-                              ) : (
-                                <div className="text-slate-600">
-                                  <div className="w-12 h-12 bg-slate-200 rounded-lg flex items-center justify-center mx-auto mb-1">
-                                    {getContentIcon(lesson.type)}
-                                  </div>
-                                  <div className="text-xs font-medium">Leçon {lesson.order || index + 1}</div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Contenu de la carte */}
-                      <div className="p-4">
-                        <h3 className={`text-sm font-normal line-clamp-2 mb-2 ${
-                          !isStarted ? 'text-gray-500' : 'text-slate-900'
-                        }`}>
-                          {lesson.title}
-                        </h3>
-                        
-                        {lesson.description && (
-                          <p className={`text-xs mb-3 line-clamp-2 ${
-                            !isStarted ? 'text-gray-400' : 'text-slate-600'
-                          }`}>
-                            {lesson.description}
-                          </p>
-                        )}
-                        
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center text-xs text-slate-500">
-                            <Clock className="h-3 w-3 mr-1" />
-                            <span>{formatDuration(lesson.duration || 0)}</span>
-                          </div>
-                          <span className={`px-2 py-1 rounded-md font-normal text-xs ${
-                            !isStarted 
-                              ? 'bg-gray-200 text-gray-600' 
-                              : 'bg-slate-100 text-slate-700'
-                          }`}>
-                            {getContentTypeLabel(lesson.type)}
-                          </span>
-                        </div>
-                        
-                        {/* Barre de progression */}
-                        <div className="mb-3">
-                          <div className="flex items-center justify-between text-xs text-slate-600 mb-1">
-                            <span>Progression</span>
-                            <span className="font-normal">{Math.round(progress)}%</span>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-1.5">
-                            <div 
-                              className={`h-1.5 rounded-full transition-all duration-300 ${
-                                progress === 0 ? 'bg-gray-400' : 'bg-slate-600'
-                              }`} 
-                              style={{ width: `${progress}%` }}
-                            ></div>
-                          </div>
-                        </div>
-                        
-                        {/* Bouton de lancement */}
-                        <div className="relative">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (isAccessible) {
-                              handleLaunchLesson(lesson);
-                            }
-                          }}
-                          disabled={!isAccessible}
-                          className={`w-full py-2 px-3 text-xs font-normal rounded-md transition-colors duration-200 flex items-center justify-center ${
-                            !isAccessible
-                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                              : progress === 0
-                              ? 'bg-slate-900 hover:bg-slate-800 text-white'
-                              : 'bg-slate-600 hover:bg-slate-700 text-white'
-                          }`}
-                            title={!isAccessible ? unlockStatus.reason : undefined}
-                        >
-                          {!isAccessible ? (
-                            <>
-                              <Lock className="h-3 w-3 mr-1" />
-                              Verrouillée
-                            </>
-                          ) : (
-                            <>
-                              <Play className="h-3 w-3 mr-1" />
-                              {getButtonText(lesson)}
-                            </>
-                          )}
-                        </button>
-                          
-                          {/* Info-bulle pour les leçons verrouillées */}
-                          {!isAccessible && (
-                            <div className="absolute bottom-full left-0 right-0 mb-2 p-2 bg-gray-800 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
-                              <div className="text-center">
-                                <div className="font-medium mb-1">Leçon verrouillée</div>
-                                <div className="text-gray-300">{unlockStatus.reason}</div>
-                              </div>
-                              {/* Flèche vers le bas */}
-                              <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-            </div>
-          </div>
-        </>
       ) : (
         <>
           <div className="min-h-screen bg-[#fafafa] dark:bg-dark-bg-primary">

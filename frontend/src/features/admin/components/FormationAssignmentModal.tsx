@@ -3,12 +3,13 @@ import { X, Search, Calendar, Users, Plus, Trash2, Save, AlertCircle } from 'luc
 import ConfirmationModal from './ConfirmationModal';
 import { useConfirmation } from '../../../hooks/useConfirmation';
 import { Formation, User, Bank, UserFormationAssignment } from '../types';
-import { banksApi, usersApi } from '../../../api/adminApi';
+import { banksApi, usersApi, assignmentsApi } from '../../../api/adminApi';
 
 interface FormationAssignmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  formation: Formation;
+  formation?: Formation;
+  formationIds?: string[];
   onSave: (assignments: Partial<UserFormationAssignment>[]) => void;
 }
 
@@ -26,6 +27,8 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [loadingBanks, setLoadingBanks] = useState(false);
+  const [assignedUsers, setAssignedUsers] = useState<Record<string, string>>({});
+  const [loadingAssignedUsers, setLoadingAssignedUsers] = useState(false);
   
   // Hook de confirmation
   const confirmation = useConfirmation();
@@ -37,6 +40,7 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       loadBanks();
+      loadAssignedUsers();
       // Réinitialiser l'état quand le modal s'ouvre
       setSelectedBank('');
       setUsers([]);
@@ -160,6 +164,31 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
     }
   };
 
+  const loadAssignedUsers = async () => {
+    if (!formation?.id) {
+      setAssignedUsers({});
+      return;
+    }
+
+    try {
+      setLoadingAssignedUsers(true);
+      const response = await assignmentsApi.getByFormation(formation.id);
+      const data = response.data?.data || [];
+      const map: Record<string, string> = {};
+      data.forEach((assignment: any) => {
+        if (assignment.user?.id) {
+          map[assignment.user.id] = assignment.id;
+        }
+      });
+      setAssignedUsers(map);
+    } catch (error) {
+      console.error('❌ Erreur lors du chargement des assignations:', error);
+      setAssignedUsers({});
+    } finally {
+      setLoadingAssignedUsers(false);
+    }
+  };
+
   const filteredUsers = users.filter(user =>
     user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -167,6 +196,9 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
   );
 
   const addUserToAssignments = (user: User) => {
+    if (assignedUsers[user.id]) {
+      return;
+    }
     // Vérifier si l'utilisateur n'est pas déjà assigné
     if (assignments.some(a => a.userId === user.id)) {
       return;
@@ -192,6 +224,22 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
 
   const removeAssignment = (userId: string) => {
     setAssignments(prev => prev.filter(a => a.userId !== userId));
+  };
+
+  const handleUnassignUser = async (userId: string) => {
+    const assignmentId = assignedUsers[userId];
+    if (!assignmentId) return;
+
+    try {
+      await assignmentsApi.delete(assignmentId);
+      setAssignedUsers(prev => {
+        const next = { ...prev };
+        delete next[userId];
+        return next;
+      });
+    } catch (error) {
+      console.error('❌ Erreur lors de la désassignation:', error);
+    }
   };
 
   const updateAssignment = (userId: string, field: keyof UserFormationAssignment, value: any) => {
@@ -228,7 +276,7 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
   const addAllFilteredUsers = () => {
     // Ne sélectionner que les utilisateurs actifs
     filteredUsers
-      .filter(user => user.isActive && !assignments.some(a => a.userId === user.id))
+      .filter(user => user.isActive && !assignments.some(a => a.userId === user.id) && !assignedUsers[user.id])
       .forEach(user => addUserToAssignments(user));
   };
 
@@ -239,7 +287,9 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
       <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl mx-4 max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">
-            Attribuer la formation : {formation.title}
+            {formation
+              ? `Attribuer la formation : ${formation.title}`
+              : `Attribuer ${formationIds?.length || 0} formation(s)`}
           </h2>
           <button
             onClick={onClose}
@@ -373,7 +423,7 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
                       </span>
                       {(() => {
                         const availableUsers = filteredUsers.filter(user => 
-                          user.isActive && !assignments.some(a => a.userId === user.id)
+                          user.isActive && !assignments.some(a => a.userId === user.id) && !assignedUsers[user.id]
                         );
                         return availableUsers.length > 0 && (
                           <button
@@ -408,6 +458,7 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
                       ) : (
                         filteredUsers.map(user => {
                           const isAssigned = assignments.some(a => a.userId === user.id);
+                          const isAlreadyAssigned = Boolean(assignedUsers[user.id]);
                           return (
                             <div
                               key={user.id}
@@ -420,6 +471,11 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
                                   <div className="font-medium text-gray-900">
                                     {user.firstName} {user.lastName}
                                   </div>
+                                  {isAlreadyAssigned && (
+                                    <span className="ml-2 px-2 py-1 text-xs bg-amber-100 text-amber-700 rounded-full">
+                                      Deja assignee
+                                    </span>
+                                  )}
                                   {!user.isActive && (
                                     <span className="ml-2 px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full">
                                       Inactif
@@ -431,6 +487,17 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
                                   {user.department && ` • ${user.department}`}
                                 </div>
                               </div>
+                              {isAlreadyAssigned ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUnassignUser(user.id)}
+                                  disabled={loadingAssignedUsers}
+                                  className="px-3 py-1 rounded text-sm transition-colors bg-red-100 text-red-700 hover:bg-red-200"
+                                  title="Desassigner cet utilisateur"
+                                >
+                                  Desassigner
+                                </button>
+                              ) : (
                               <button
                                 type="button"
                                 onClick={() => addUserToAssignments(user)}
@@ -450,6 +517,7 @@ const FormationAssignmentModal: React.FC<FormationAssignmentModalProps> = ({
                               >
                                 {isAssigned ? '✓ Sélectionné' : 'Sélectionner'}
                               </button>
+                              )}
                             </div>
                           );
                         })

@@ -326,13 +326,30 @@ export const FormationModal: React.FC<FormationModalProps> = ({
           description: "Formation mise à jour avec succès",
         });
       } else {
-        // Mode création : créer la formation d'abord, puis uploader l'image
-        const newFormation = await formationsApi.createFormation({
+        // Mode creation : creation avec upload video si fournie
+        const createPayload = new FormData();
+        const dataForCreate = {
           ...finalFormData,
-          universeId: formData.isOpportunity ? null : (selectedUniverseId || universeId),
-          isOpportunity: formData.isOpportunity
+          universeId: formData.isOpportunity
+            ? null
+            : (selectedUniverseId || universeId),
+          isOpportunity: formData.isOpportunity,
+        } as Record<string, any>;
+
+        Object.entries(dataForCreate).forEach(([key, value]) => {
+          if (value !== undefined && value !== null && value !== "") {
+            createPayload.append(key, String(value));
+          }
         });
+
+        if (videoFile) {
+          createPayload.append('video', videoFile);
+        }
+
+        setIsUploadingVideo(!!videoFile);
+        const newFormation = await formationsApi.createFormation(createPayload);
         createdFormationId = newFormation.data.data.id;
+        setIsUploadingVideo(false);
         
         // Upload de l'image de couverture après la création
         if (coverImageFile) {
@@ -374,13 +391,17 @@ export const FormationModal: React.FC<FormationModalProps> = ({
       onClose();
     } catch (error: any) {
       console.error('Erreur lors de la sauvegarde:', error);
+      if (error?.response?.data) {
+        console.error('Erreur backend (payload):', error.response.data);
+      }
       toast({
         title: "Erreur",
-        description: error.response?.data?.message || "Erreur lors de la sauvegarde",
+        description: error.response?.data?.error || error.response?.data?.message || "Erreur lors de la sauvegarde",
         variant: "destructive",
       });
     } finally {
       setIsLoading(false);
+      setIsUploadingVideo(false);
     }
   };
 
@@ -581,50 +602,6 @@ export const FormationModal: React.FC<FormationModalProps> = ({
             </>
           )}
 
-          {/* Image de couverture */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Image de couverture
-            </label>
-            <div className="space-y-3">
-              {/* Aperçu de l'image actuelle */}
-              {formData.coverImage && (
-                <div className="relative">
-                  <img
-                    src={getFormationCoverImageUrl(formData.coverImage)}
-                    alt="Aperçu de la couverture"
-                    className="w-32 h-24 object-cover rounded-lg border"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setFormData(prev => ({ ...prev, coverImage: '' }));
-                      setCoverImageFile(null);
-                    }}
-                    className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs hover:bg-red-600"
-                  >
-                    ×
-                  </button>
-                </div>
-              )}
-              
-              {/* Upload de nouvelle image */}
-              <div className="flex items-center space-x-3">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleCoverImageChange}
-                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                />
-                {isUploadingImage && (
-                  <div className="text-sm text-blue-600">Upload en cours...</div>
-                )}
-              </div>
-              <p className="text-xs text-gray-500">
-                Formats acceptés : JPG, PNG, GIF. Taille recommandée : 800x600px
-              </p>
-            </div>
-          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>

@@ -255,7 +255,7 @@ const CreateUserModal: React.FC<CreateUserModalProps> = ({
               required
             >
               <option value="COLLABORATOR">Collaborateur</option>
-              <option value="BANK_ADMIN">Administrateur de banque</option>
+              {/* <option value="BANK_ADMIN">Administrateur de banque</option> */}
               <option value="SUPER_ADMIN">Super administrateur</option>
             </select>
           </div>

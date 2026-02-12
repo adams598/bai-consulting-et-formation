@@ -719,10 +719,10 @@ const UnifiedLayoutContent: React.FC = () => {
 
   // Interface admin avec sidebar (existante)
   return (
-    <div className="min-h-screen bg-white">
-      <div className="flex h-screen bg-gray-200">
+    <div className="min-h-screen bg-stone-100">
+      <div className="flex h-screen bg-stone-100">
         {/* Sidebar */}
-        <aside className={`hidden md:flex flex-col bg-gray-200 transition-all duration-300 ${
+        <aside className={`hidden md:flex flex-col bg-stone-100 transition-all duration-300 ${
           isSidebarCollapsed ? 'w-16' : 'w-64'
         }`}>
           <div className="flex flex-col flex-1 overflow-y-auto">
@@ -794,7 +794,7 @@ const UnifiedLayoutContent: React.FC = () => {
           </div>
 
           {/* Section Profil Utilisateur */}
-          <div className={`p-2 border-t border-gray-50 bg-gray-200 ${isSidebarCollapsed ? 'px-1' : ''}`}>
+          <div className={`p-2 border-t border-gray-50 bg-stone-100 ${isSidebarCollapsed ? 'px-1' : ''}`}>
             <div className="relative profile-menu">
               {/* Bouton profil */}
               <button
@@ -887,7 +887,7 @@ const UnifiedLayoutContent: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-8">
+          <div className="p-6">
             <div className="space-y-6">
               {/* Titre dynamique */}
               <div>

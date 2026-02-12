@@ -16,6 +16,7 @@ import {
   uploadLessonCoverImage,
   createLessonFileUploadMiddleware,
   createLessonCoverUploadMiddleware,
+  uploadFormationCreateVideo,
   handleMulterError,
 } from "../middleware/upload.middleware.js";
 import {
@@ -129,7 +130,7 @@ router.get("/auth/health", async (req, res) => {
 
     // Déterminer le statut global
     const allHealthy = Object.values(healthChecks).every(
-      (check) => check.status === "healthy"
+      (check) => check.status === "healthy",
     );
     const status = allHealthy ? "healthy" : "degraded";
 
@@ -177,43 +178,43 @@ router.get(
   "/banks",
   authMiddleware,
   adminMiddleware,
-  banksController.getAllBanks
+  banksController.getAllBanks,
 );
 router.get(
   "/banks/:id",
   authMiddleware,
   adminMiddleware,
-  banksController.getBankById
+  banksController.getBankById,
 );
 router.post(
   "/banks",
   authMiddleware,
   adminMiddleware,
-  banksController.createBank
+  banksController.createBank,
 );
-router.put(
-  "/banks/:id",
-  authMiddleware,
-  adminMiddleware,
-  banksController.updateBank
-);
+router.put("/banks/:id", authMiddleware, adminMiddleware, (req, res, next) => {
+  if (req.is("multipart/form-data")) {
+    return uploadFormationCreateVideo(req, res, next);
+  }
+  return next();
+});
 router.delete(
   "/banks/:id",
   authMiddleware,
   adminMiddleware,
-  banksController.deleteBank
+  banksController.deleteBank,
 );
 router.patch(
   "/banks/:id/archive",
   authMiddleware,
   adminMiddleware,
-  banksController.archiveBank
+  banksController.archiveBank,
 );
 router.patch(
   "/banks/:id/toggle",
   authMiddleware,
   adminMiddleware,
-  banksController.toggleActive
+  banksController.toggleActive,
 );
 
 // Routes des formations
@@ -221,7 +222,7 @@ router.get(
   "/formations",
   authMiddleware,
   adminMiddleware,
-  formationsController.getAllFormationsSimple
+  formationsController.getAllFormationsSimple,
 );
 
 // Route spéciale pour les COLLABORATOR - accès à leurs formations assignées
@@ -251,49 +252,56 @@ router.get(
         message: "Erreur interne du serveur",
       });
     }
-  }
+  },
 );
 router.get(
   "/formations/paginated",
   authMiddleware,
   adminMiddleware,
-  formationsController.getAllFormations
+  formationsController.getAllFormations,
 );
 router.get(
   "/formations/:id",
   authMiddleware,
   adminMiddleware,
-  formationsController.getFormationById
+  formationsController.getFormationById,
 );
 router.post(
   "/formations",
   authMiddleware,
   adminMiddleware,
-  formationsController.createFormation
+  (req, res, next) => {
+    if (req.is("multipart/form-data")) {
+      return uploadFormationCreateVideo(req, res, next);
+    }
+    return next();
+  },
+  handleMulterError,
+  formationsController.createFormation,
 );
 router.put(
   "/formations/:id",
   authMiddleware,
   adminMiddleware,
-  formationsController.updateFormation
+  formationsController.updateFormation,
 );
 router.delete(
   "/formations/:id",
   authMiddleware,
   adminMiddleware,
-  formationsController.deleteFormation
+  formationsController.deleteFormation,
 );
 router.patch(
   "/formations/:id/toggle-active",
   authMiddleware,
   adminMiddleware,
-  formationsController.toggleActive
+  formationsController.toggleActive,
 );
 router.patch(
   "/formations/:id/toggle-mandatory",
   authMiddleware,
   adminMiddleware,
-  formationsController.toggleMandatory
+  formationsController.toggleMandatory,
 );
 
 // Routes du contenu des formations
@@ -301,7 +309,7 @@ router.get(
   "/formations/:formationId/content",
   authMiddleware,
   adminOrCollaboratorMiddleware,
-  formationContentController.getByFormation
+  formationContentController.getByFormation,
 );
 
 // Routes de progression des leçons
@@ -309,63 +317,63 @@ router.put(
   "/lessons/:lessonId/progress",
   authMiddleware,
   adminOrCollaboratorMiddleware,
-  formationContentController.updateLessonProgress
+  formationContentController.updateLessonProgress,
 );
 
 router.get(
   "/formations/:formationId/progress-details",
   authMiddleware,
   adminOrCollaboratorMiddleware,
-  formationContentController.getFormationProgressDetails
+  formationContentController.getFormationProgressDetails,
 );
 
 router.post(
   "/formations/:formationId/sections",
   authMiddleware,
   adminMiddleware,
-  formationContentController.addSection
+  formationContentController.addSection,
 );
 
 router.post(
   "/formations/:formationId/lessons",
   authMiddleware,
   adminMiddleware,
-  formationContentController.addLesson
+  formationContentController.addLesson,
 );
 
 router.put(
   "/formations/sections/:id",
   authMiddleware,
   adminMiddleware,
-  formationContentController.updateSection
+  formationContentController.updateSection,
 );
 
 router.put(
   "/formations/lessons/:id",
   authMiddleware,
   adminMiddleware,
-  formationContentController.updateLesson
+  formationContentController.updateLesson,
 );
 
 router.delete(
   "/formations/sections/:id",
   authMiddleware,
   adminMiddleware,
-  formationContentController.deleteSection
+  formationContentController.deleteSection,
 );
 
 router.delete(
   "/formations/lessons/:id",
   authMiddleware,
   adminMiddleware,
-  formationContentController.deleteLesson
+  formationContentController.deleteLesson,
 );
 
 router.put(
   "/formations/:formationId/reorder",
   authMiddleware,
   adminMiddleware,
-  formationContentController.reorderContent
+  formationContentController.reorderContent,
 );
 
 // Routes des quiz
@@ -373,49 +381,49 @@ router.post(
   "/formations/:formationId/quiz",
   authMiddleware,
   adminMiddleware,
-  newQuizController.createQuiz
+  newQuizController.createQuiz,
 );
 
 router.put(
   "/quiz/:id",
   authMiddleware,
   adminMiddleware,
-  newQuizController.updateQuiz
+  newQuizController.updateQuiz,
 );
 
 router.delete(
   "/quiz/:id",
   authMiddleware,
   adminMiddleware,
-  newQuizController.deleteQuiz
+  newQuizController.deleteQuiz,
 );
 
 router.patch(
   "/quiz/:id/toggle",
   authMiddleware,
   adminMiddleware,
-  newQuizController.toggleQuizActive
+  newQuizController.toggleQuizActive,
 );
 
 router.get(
   "/quiz/:quizId/stats",
   authMiddleware,
   adminMiddleware,
-  newQuizController.getQuizStats
+  newQuizController.getQuizStats,
 );
 
 router.get(
   "/quiz/:quizId/last-attempt",
   authMiddleware,
   adminMiddleware,
-  newQuizController.getLastQuizAttempt
+  newQuizController.getLastQuizAttempt,
 );
 
 router.post(
   "/quiz/:quizId/submit",
   authMiddleware,
   adminMiddleware,
-  newQuizController.submitQuizAttempt
+  newQuizController.submitQuizAttempt,
 );
 
 // Routes des assignations banque-formation
@@ -423,14 +431,14 @@ router.post(
   "/bank-formations",
   authMiddleware,
   adminMiddleware,
-  bankFormationController.assignFormationToBank
+  bankFormationController.assignFormationToBank,
 );
 
 router.get(
   "/banks/:bankId/formations",
   authMiddleware,
   adminMiddleware,
-  bankFormationController.getBankFormations
+  bankFormationController.getBankFormations,
 );
 
 // Routes pour les statistiques des formations
@@ -438,35 +446,35 @@ router.get(
   "/formations/:formationId/banks",
   authMiddleware,
   adminMiddleware,
-  bankFormationController.getFormationBanks
+  bankFormationController.getFormationBanks,
 );
 
 router.get(
   "/formations/:formationId/stats",
   authMiddleware,
   adminMiddleware,
-  bankFormationController.getFormationStats
+  bankFormationController.getFormationStats,
 );
 
 router.get(
   "/formations/stats/all",
   authMiddleware,
   adminMiddleware,
-  formationsController.getAllFormationsStats
+  formationsController.getAllFormationsStats,
 );
 
 router.patch(
   "/bank-formations/:id/mandatory",
   authMiddleware,
   adminMiddleware,
-  bankFormationController.updateFormationMandatory
+  bankFormationController.updateFormationMandatory,
 );
 
 router.delete(
   "/bank-formations/:id",
   authMiddleware,
   adminMiddleware,
-  bankFormationController.removeFormationFromBank
+  bankFormationController.removeFormationFromBank,
 );
 
 // Routes des assignations utilisateurs aux formations
@@ -474,42 +482,42 @@ router.post(
   "/bank-formations/:bankFormationId/users",
   authMiddleware,
   adminMiddleware,
-  userFormationAssignmentController.assignUsersToFormation
+  userFormationAssignmentController.assignUsersToFormation,
 );
 
 router.post(
   "/bank-formations/:bankFormationId/users/group",
   authMiddleware,
   adminMiddleware,
-  userFormationAssignmentController.assignUsersByGroup
+  userFormationAssignmentController.assignUsersByGroup,
 );
 
 router.post(
   "/assignments/bulk-formations",
   authMiddleware,
   adminMiddleware,
-  userFormationAssignmentController.bulkAssignFormationsToUsers
+  userFormationAssignmentController.bulkAssignFormationsToUsers,
 );
 
 router.patch(
   "/user-formation-assignments/:id",
   authMiddleware,
   adminMiddleware,
-  userFormationAssignmentController.updateUserFormationMandatory
+  userFormationAssignmentController.updateUserFormationMandatory,
 );
 
 router.delete(
   "/user-formation-assignments/:id",
   authMiddleware,
   adminMiddleware,
-  userFormationAssignmentController.removeUserFromFormation
+  userFormationAssignmentController.removeUserFromFormation,
 );
 
 router.get(
   "/bank-formations/:bankFormationId/users",
   authMiddleware,
   adminMiddleware,
-  userFormationAssignmentController.getFormationUserAssignments
+  userFormationAssignmentController.getFormationUserAssignments,
 );
 
 // Routes des assignations avancées
@@ -517,35 +525,35 @@ router.post(
   "/assignments/bulk-banks",
   authMiddleware,
   adminMiddleware,
-  advancedAssignmentsController.bulkAssignToBanks
+  advancedAssignmentsController.bulkAssignToBanks,
 );
 
 router.post(
   "/assignments/bulk-users",
   authMiddleware,
   adminMiddleware,
-  advancedAssignmentsController.bulkAssignUsers
+  advancedAssignmentsController.bulkAssignUsers,
 );
 
 router.post(
   "/assignments/by-criteria",
   authMiddleware,
   adminMiddleware,
-  advancedAssignmentsController.assignByCriteria
+  advancedAssignmentsController.assignByCriteria,
 );
 
 router.post(
   "/assignments/send-reminders",
   authMiddleware,
   adminMiddleware,
-  advancedAssignmentsController.sendReminders
+  advancedAssignmentsController.sendReminders,
 );
 
 router.get(
   "/assignments/:bankFormationId/stats",
   authMiddleware,
   adminMiddleware,
-  advancedAssignmentsController.getAssignmentStats
+  advancedAssignmentsController.getAssignmentStats,
 );
 
 // Routes des certificats
@@ -553,39 +561,39 @@ router.post(
   "/certificates/generate/:userId/:formationId",
   authMiddleware,
   adminMiddleware,
-  certificatesController.generateCertificate
+  certificatesController.generateCertificate,
 );
 
 router.post(
   "/certificates/generate-bulk/:formationId",
   authMiddleware,
   adminMiddleware,
-  certificatesController.generateBulkCertificates
+  certificatesController.generateBulkCertificates,
 );
 
 router.get(
   "/certificates",
   authMiddleware,
   adminMiddleware,
-  certificatesController.getAllCertificates
+  certificatesController.getAllCertificates,
 );
 
 router.get(
   "/certificates/user/:userId",
   authMiddleware,
   adminMiddleware,
-  certificatesController.getUserCertificates
+  certificatesController.getUserCertificates,
 );
 
 router.get(
   "/certificates/:certificateId/download",
   authMiddleware,
-  certificatesController.downloadCertificate
+  certificatesController.downloadCertificate,
 );
 
 router.get(
   "/certificates/verify/:certificateNumber",
-  certificatesController.verifyCertificate
+  certificatesController.verifyCertificate,
 );
 
 // Routes des utilisateurs
@@ -593,49 +601,49 @@ router.get(
   "/users",
   authMiddleware,
   adminMiddleware,
-  usersController.getAllUsers
+  usersController.getAllUsers,
 );
 router.get(
   "/users/:id",
   authMiddleware,
   adminMiddleware,
-  usersController.getUserById
+  usersController.getUserById,
 );
 router.post(
   "/users",
   authMiddleware,
   adminMiddleware,
-  usersController.createUser
+  usersController.createUser,
 );
 router.put(
   "/users/:id",
   authMiddleware,
   adminMiddleware,
-  usersController.updateUser
+  usersController.updateUser,
 );
 router.delete(
   "/users/:id",
   authMiddleware,
   adminMiddleware,
-  usersController.deleteUser
+  usersController.deleteUser,
 );
 router.patch(
   "/users/:id/toggle-active",
   authMiddleware,
   adminMiddleware,
-  usersController.toggleActive
+  usersController.toggleActive,
 );
 router.post(
   "/users/:id/reset-password",
   authMiddleware,
   adminMiddleware,
-  usersController.resetPassword
+  usersController.resetPassword,
 );
 router.post(
   "/users/:id/send-credentials",
   authMiddleware,
   adminMiddleware,
-  usersController.sendCredentials
+  usersController.sendCredentials,
 );
 
 // Routes des assignations (à implémenter)
@@ -644,37 +652,37 @@ router.get(
   "/assignments",
   authMiddleware,
   adminMiddleware,
-  formationAssignmentsController.getAllAssignments
+  formationAssignmentsController.getAllAssignments,
 );
 router.get(
   "/assignments/:id",
   authMiddleware,
   adminMiddleware,
-  formationAssignmentsController.getAssignmentById
+  formationAssignmentsController.getAssignmentById,
 );
 router.post(
   "/assignments",
   authMiddleware,
   adminMiddleware,
-  formationAssignmentsController.createAssignment
+  formationAssignmentsController.createAssignment,
 );
 router.put(
   "/assignments/:id",
   authMiddleware,
   adminMiddleware,
-  formationAssignmentsController.updateAssignment
+  formationAssignmentsController.updateAssignment,
 );
 router.delete(
   "/assignments/:id",
   authMiddleware,
   adminMiddleware,
-  formationAssignmentsController.deleteAssignment
+  formationAssignmentsController.deleteAssignment,
 );
 router.post(
   "/assignments/bulk",
   authMiddleware,
   adminMiddleware,
-  formationAssignmentsController.bulkAssign
+  formationAssignmentsController.bulkAssign,
 );
 
 // Routes du tableau de bord
@@ -682,31 +690,31 @@ router.get(
   "/dashboard/stats",
   authMiddleware,
   adminMiddleware,
-  dashboardController.getStats
+  dashboardController.getStats,
 );
 router.get(
   "/dashboard/bank-stats",
   authMiddleware,
   adminMiddleware,
-  dashboardController.getBankStats
+  dashboardController.getBankStats,
 );
 router.get(
   "/dashboard/recent-activity",
   authMiddleware,
   adminMiddleware,
-  dashboardController.getRecentActivity
+  dashboardController.getRecentActivity,
 );
 router.get(
   "/dashboard/alerts",
   authMiddleware,
   adminMiddleware,
-  dashboardController.getAlerts
+  dashboardController.getAlerts,
 );
 router.get(
   "/dashboard/formation-performance",
   authMiddleware,
   adminMiddleware,
-  dashboardController.getFormationPerformance
+  dashboardController.getFormationPerformance,
 );
 
 // Routes des opportunités commerciales
@@ -714,7 +722,7 @@ router.get(
   "/opportunities/files",
   authMiddleware,
   adminMiddleware,
-  opportunitiesController.getPresentationFiles
+  opportunitiesController.getPresentationFiles,
 );
 
 router.post(
@@ -722,14 +730,14 @@ router.post(
   authMiddleware,
   adminMiddleware,
   uploadOpportunitiesFile,
-  opportunitiesController.uploadPresentationFile
+  opportunitiesController.uploadPresentationFile,
 );
 
 router.delete(
   "/opportunities/files/:fileName",
   authMiddleware,
   adminMiddleware,
-  opportunitiesController.deletePresentationFile
+  opportunitiesController.deletePresentationFile,
 );
 
 router.options("/opportunities/files/:fileName", (req, res) => {
@@ -745,7 +753,7 @@ router.options("/opportunities/files/:fileName", (req, res) => {
 router.get(
   "/opportunities/files/:fileName",
   authMiddleware,
-  opportunitiesController.servePresentationFile
+  opportunitiesController.servePresentationFile,
 );
 
 // Routes des quiz (à implémenter)
@@ -785,13 +793,13 @@ router.get(
   "/progress/user/:userId",
   authMiddleware,
   adminMiddleware,
-  progressController.getUserProgress
+  progressController.getUserProgress,
 );
 router.put(
   "/progress/:id",
   authMiddleware,
   adminMiddleware,
-  progressController.updateProgress
+  progressController.updateProgress,
 );
 
 // Route de test pour vérifier l'authentification
@@ -821,7 +829,7 @@ router.get("/progress/get", authMiddleware, progressController.getProgress);
 router.get(
   "/progress/user/:userId/all",
   authMiddleware,
-  progressController.getUserProgress
+  progressController.getUserProgress,
 );
 
 // Routes des notifications
@@ -829,31 +837,31 @@ router.get(
   "/notifications",
   authMiddleware,
   adminMiddleware,
-  notificationsController.getAllNotifications
+  notificationsController.getAllNotifications,
 );
 router.get(
   "/notifications/user/:userId",
   authMiddleware,
   adminMiddleware,
-  notificationsController.getUserNotificationsById
+  notificationsController.getUserNotificationsById,
 );
 router.post(
   "/notifications",
   authMiddleware,
   adminMiddleware,
-  notificationsController.createNotification
+  notificationsController.createNotification,
 );
 router.patch(
   "/notifications/:id/read",
   authMiddleware,
   adminMiddleware,
-  notificationsController.markNotificationAsRead
+  notificationsController.markNotificationAsRead,
 );
 router.delete(
   "/notifications/:id",
   authMiddleware,
   adminMiddleware,
-  notificationsController.deleteNotification
+  notificationsController.deleteNotification,
 );
 
 // Routes d'upload
@@ -869,7 +877,7 @@ router.post(
   adminMiddleware,
   uploadSingleImage,
   handleMulterError,
-  uploadController.uploadImage
+  uploadController.uploadImage,
 );
 
 router.post(
@@ -878,7 +886,7 @@ router.post(
   adminMiddleware,
   uploadFormationImage,
   handleMulterError,
-  uploadController.uploadFormationCoverImage
+  uploadController.uploadFormationCoverImage,
 );
 
 router.post(
@@ -888,7 +896,7 @@ router.post(
   createLessonCoverUploadMiddleware(),
   uploadSingleImage,
   handleMulterError,
-  uploadController.uploadLessonCoverImage
+  uploadController.uploadLessonCoverImage,
 );
 
 router.post(
@@ -897,7 +905,7 @@ router.post(
   adminMiddleware,
   uploadProfileImage,
   handleMulterError,
-  uploadController.uploadImage
+  uploadController.uploadImage,
 );
 
 router.post(
@@ -906,7 +914,7 @@ router.post(
   adminMiddleware,
   uploadSingleVideo,
   handleMulterError,
-  uploadController.uploadVideo
+  uploadController.uploadVideo,
 );
 
 router.post(
@@ -919,7 +927,7 @@ router.post(
   },
   uploadFormationVideo,
   handleMulterError,
-  uploadController.uploadVideo
+  uploadController.uploadVideo,
 );
 
 router.post(
@@ -928,7 +936,7 @@ router.post(
   adminMiddleware,
   uploadSingleFile,
   handleMulterError,
-  uploadController.uploadFile
+  uploadController.uploadFile,
 );
 
 router.post(
@@ -938,21 +946,21 @@ router.post(
   createLessonFileUploadMiddleware(),
   uploadSingleFile,
   uploadController.uploadLessonFile,
-  handleMulterError
+  handleMulterError,
 );
 
 // Route pour récupérer les fichiers des leçons
 router.get(
   "/lesson-file/:formationTitle/lessons/:lessonTitle/:filename",
   authMiddleware,
-  uploadController.getLessonFile
+  uploadController.getLessonFile,
 );
 
 // Route pour récupérer le fichier le plus récent d'une leçon
 router.get(
   "/lesson-file/:formationTitle/lessons/:lessonTitle",
   authMiddleware,
-  uploadController.getLessonFile
+  uploadController.getLessonFile,
 );
 
 // Routes de vérification et gestion
@@ -960,7 +968,7 @@ router.get(
   "/upload/check/:contentType/:userFolder/:filename",
   authMiddleware,
   adminMiddleware,
-  uploadController.checkFile
+  uploadController.checkFile,
 );
 
 // Route pour vérifier les fichiers existants d'une leçon
@@ -968,7 +976,7 @@ router.get(
   "/upload/check-lesson-files/:formationTitle/lessons/:lessonTitle",
   authMiddleware,
   adminMiddleware,
-  uploadController.checkLessonFiles
+  uploadController.checkLessonFiles,
 );
 
 // Route pour supprimer les fichiers existants d'une leçon
@@ -976,7 +984,7 @@ router.delete(
   "/upload/delete-lesson-files/:formationTitle/lessons/:lessonTitle",
   authMiddleware,
   adminMiddleware,
-  uploadController.deleteLessonFiles
+  uploadController.deleteLessonFiles,
 );
 
 // Route pour mettre à jour les types de fichiers existants
@@ -984,58 +992,58 @@ router.post(
   "/upload/update-file-types",
   authMiddleware,
   adminMiddleware,
-  uploadController.updateExistingFileTypes
+  uploadController.updateExistingFileTypes,
 );
 
 router.get(
   "/upload/files",
   authMiddleware,
   adminMiddleware,
-  uploadController.listUserFiles
+  uploadController.listUserFiles,
 );
 
 // Routes de conversion
 router.get(
   "/convert/status/:formationTitle/:lessonTitle/:filename",
   authMiddleware,
-  conversionController.getConversionStatus
+  conversionController.getConversionStatus,
 );
 
 router.post(
   "/convert/to-pdf/:formationTitle/:lessonTitle/:filename",
   authMiddleware,
-  conversionController.convertToPdf
+  conversionController.convertToPdf,
 );
 
 router.get(
   "/convert/extract-html/:formationTitle/:lessonTitle/:filename",
   authMiddleware,
-  conversionController.extractHtml
+  conversionController.extractHtml,
 );
 
 // Routes de progression
 router.get(
   "/progress/:userId/:lessonId",
   authMiddleware,
-  progressController.getUserProgress
+  progressController.getUserProgress,
 );
 
 router.put(
   "/progress/:userId/:lessonId",
   authMiddleware,
-  progressController.updateProgress
+  progressController.updateProgress,
 );
 
 router.get(
   "/progress/formation/:userId/:formationId",
   authMiddleware,
-  progressController.getFormationProgress
+  progressController.getFormationProgress,
 );
 
 router.post(
   "/progress/:userId/:lessonId/complete",
   authMiddleware,
-  progressController.markLessonCompleted
+  progressController.markLessonCompleted,
 );
 
 // Routes des univers
@@ -1043,14 +1051,14 @@ router.get(
   "/universes",
   authMiddleware,
   adminMiddleware,
-  universeController.getAllUniverses
+  universeController.getAllUniverses,
 );
 
 router.post(
   "/universes",
   authMiddleware,
   adminMiddleware,
-  universeController.createUniverse
+  universeController.createUniverse,
 );
 
 // Routes des paramètres système
@@ -1058,91 +1066,91 @@ router.get(
   "/settings",
   authMiddleware,
   adminMiddleware,
-  settingsController.getAllSettings
+  settingsController.getAllSettings,
 );
 
 router.get(
   "/settings/category/:category",
   authMiddleware,
   adminMiddleware,
-  settingsController.getSettingsByCategory
+  settingsController.getSettingsByCategory,
 );
 
 router.put(
   "/settings/:key",
   authMiddleware,
   adminMiddleware,
-  settingsController.updateSetting
+  settingsController.updateSetting,
 );
 
 router.get(
   "/settings/system-info",
   authMiddleware,
   adminMiddleware,
-  settingsController.getSystemInfo
+  settingsController.getSystemInfo,
 );
 
 router.get(
   "/settings/system-health",
   authMiddleware,
   adminMiddleware,
-  settingsController.getSystemHealth
+  settingsController.getSystemHealth,
 );
 
 router.get(
   "/settings/logs",
   authMiddleware,
   adminMiddleware,
-  settingsController.getSystemLogs
+  settingsController.getSystemLogs,
 );
 
 router.post(
   "/settings/test-email",
   authMiddleware,
   adminMiddleware,
-  settingsController.testEmailConfig
+  settingsController.testEmailConfig,
 );
 
 router.post(
   "/settings/backup",
   authMiddleware,
   adminMiddleware,
-  settingsController.backupSettings
+  settingsController.backupSettings,
 );
 
 router.post(
   "/settings/restore",
   authMiddleware,
   adminMiddleware,
-  settingsController.restoreSettings
+  settingsController.restoreSettings,
 );
 
 router.put(
   "/universes/:id",
   authMiddleware,
   adminMiddleware,
-  universeController.updateUniverse
+  universeController.updateUniverse,
 );
 
 router.delete(
   "/universes/:id",
   authMiddleware,
   adminMiddleware,
-  universeController.deleteUniverse
+  universeController.deleteUniverse,
 );
 
 router.post(
   "/universes/move-formation",
   authMiddleware,
   adminMiddleware,
-  universeController.moveFormationToUniverse
+  universeController.moveFormationToUniverse,
 );
 
 router.get(
   "/universes/:universeId/formations",
   authMiddleware,
   adminMiddleware,
-  universeController.getUniverseFormations
+  universeController.getUniverseFormations,
 );
 
 // Endpoints de monitoring (avec authentification admin)
@@ -1150,28 +1158,28 @@ router.get(
   "/monitoring/metrics",
   authMiddleware,
   adminMiddleware,
-  getMetricsMiddleware
+  getMetricsMiddleware,
 );
 
 router.get(
   "/monitoring/logs",
   authMiddleware,
   adminMiddleware,
-  getLogsMiddleware
+  getLogsMiddleware,
 );
 
 router.post(
   "/monitoring/reset",
   authMiddleware,
   adminMiddleware,
-  resetMetricsMiddleware
+  resetMetricsMiddleware,
 );
 
 router.post(
   "/monitoring/cleanup",
   authMiddleware,
   adminMiddleware,
-  cleanupLogsMiddleware
+  cleanupLogsMiddleware,
 );
 
 export default router;

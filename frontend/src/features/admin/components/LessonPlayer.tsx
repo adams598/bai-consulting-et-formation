@@ -1318,34 +1318,6 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                             : 'border-gray-200 hover:border-gray-300 cursor-pointer hover:shadow-md'
                       }`}
                     >
-                      {/* Image de couverture
-                      {lesson.coverImage ? (
-                        <div className="mb-3 relative overflow-hidden rounded-lg">
-                          <img
-                            src={getLessonImageUrl(lesson.coverImage)}
-                            alt={`Couverture de ${lesson.title}`}
-                            className={`w-full h-20 object-cover ${
-                              !isAccessible ? 'filter grayscale opacity-50' : ''
-                            }`}
-                          />
-                          {!isAccessible && (
-                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                              <Lock className="h-6 w-6 text-white" />
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className={`mb-3 w-full h-20 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg flex items-center justify-center ${
-                          !isAccessible ? 'opacity-50' : ''
-                        }`}>
-                          {!isAccessible ? (
-                            <Lock className="h-8 w-8 text-gray-400" />
-                          ) : (
-                            getFileIcon(lesson)
-                          )}
-                        </div>
-                      )} */}
-
                       {/* Titre et type */}
                       <div className="flex items-start justify-between mb-2">
                         <h3 className="font-medium text-gray-900 text-sm line-clamp-2 flex-1">
@@ -1833,28 +1805,6 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                   </div>
                 </div>
 
-                {/* Image de couverture */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Image de couverture
-                  </label>
-                  <div className="flex items-center space-x-4">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-                    />
-                    {selectedLesson.coverImage && (
-                      <div className="w-16 h-16 rounded-lg overflow-hidden">
-                        <img
-                          src={getLessonImageUrl(selectedLesson.coverImage)}
-                          alt="Couverture actuelle"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
             </div>
 
