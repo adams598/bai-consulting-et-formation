@@ -674,7 +674,7 @@ const LearnerFormationsPage: React.FC = () => {
 
 
       {/* Contenu principal */}
-      <div className="bg-neutral-50 shadow-md p-6">
+      <div className="bg-slate-50 shadow-md p-6">
         
 
         {allFormations.length === 0 ? (
@@ -742,7 +742,7 @@ const LearnerFormationsPage: React.FC = () => {
                           className="w-3 h-3"
                           style={{ backgroundColor: universe.color || '#6B7280' }}
                         ></div> */}
-                        <span className="text-2xl font-medium text-gray-700 uppercase mb-2">
+                        <span className="text-2xl font-medium text-brand-blue bg-stone-200 uppercase mb-2">
                           {universe.name}
                         </span>
                         
@@ -824,8 +824,8 @@ const LearnerFormationsPage: React.FC = () => {
                             {/* Badge code de la formation */}
                             {formation.code && formation.code.trim() !== '' && (
                               <div className="absolute top-3 left-3">
-                                <div className="px-3 py-1.5 border-2 border-white bg-transparent backdrop-blur-sm">
-                                  <span className="text-brand-beige font-bold text-sm tracking-wide">
+                                <div className="px-2 py-0.75 border-2 bg-brand-beige border-brand-beige backdrop-blur-sm">
+                                  <span className="text-white font-bold text-xs tracking-wide">
                                     {(formation.code || '').toString().trim().toUpperCase()}
                                   </span>
                                 </div>
@@ -834,7 +834,7 @@ const LearnerFormationsPage: React.FC = () => {
                           </div>
 
                           {/* Section inférieure - Fond blanc */}
-                          <div className="bg-gray-50 p-4 transition-colors duration-300">
+                          <div className="bg-white p-4 transition-colors duration-300">
                             <div className='space-y-3'>
                               {/* Titre de la formation */}
                               <h3 className="font-medium text-sm leading-tight text-gray-900" title={formation.title}>

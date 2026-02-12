@@ -151,7 +151,7 @@ export const usersApi = {
   getById: (id: string) => api.get<ApiResponse<User>>(`/api/admin/users/${id}`),
   
   // Créer un nouveau collaborateur
-  create: (data: Omit<User, 'id' | 'createdAt' | 'updatedAt'>) => 
+  create: (data: Omit<User, 'id' | 'createdAt' | 'updatedAt'> & { password?: string }) => 
     api.post<ApiResponse<User>>('/api/admin/users', data),
   
   // Mettre à jour un utilisateur

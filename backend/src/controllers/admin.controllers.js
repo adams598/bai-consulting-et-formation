@@ -1637,6 +1637,7 @@ export const usersController = {
         phone,
         isActive,
         bankId,
+        password,
       } = req.body;
 
       // Validation
@@ -1673,8 +1674,10 @@ export const usersController = {
         });
       }
 
-      // Générer un mot de passe temporaire
-      const tempPassword = Math.random().toString(36).slice(-8);
+      // Utiliser le mot de passe fourni ou générer un temporaire
+      const providedPassword =
+        typeof password === "string" ? password.trim() : "";
+      const tempPassword = providedPassword || generatePassword(12);
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
       // Définir l'expiration du mot de passe à 5 jours

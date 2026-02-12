@@ -13,7 +13,7 @@ import UserFormationAssignmentModal from './UserFormationAssignmentModal';
 
 // Type pour la création d'utilisateur avec mot de passe
 type CreateUserData = Omit<UserType, 'id' | 'createdAt' | 'updatedAt'> & {
-  password: string;
+  password?: string;
 };
 
 interface UserModalProps {
@@ -323,8 +323,7 @@ export default function AdminUsersPage() {
           role: data.role || 'COLLABORATOR',
           department: data.department || '',
           phone: data.phone || '',
-          isActive: data.isActive ?? true,
-          password: 'tempPassword123' // Mot de passe temporaire par défaut
+          isActive: data.isActive ?? true
         };
         
         // Mise à jour optimiste : créer immédiatement l'utilisateur dans l'interface

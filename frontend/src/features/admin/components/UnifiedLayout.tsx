@@ -502,7 +502,7 @@ const UnifiedLayoutContent: React.FC = () => {
   if (isLearner()) {
     // Interface apprenant avec navigation horizontale
     return (
-      <div className="min-h-screen bg-gray-200">
+      <div className="min-h-screen bg-slate-50">
         {/* Header */}
         <header className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-40">
           <div className="px-4 sm:px-6 lg:px-8">
