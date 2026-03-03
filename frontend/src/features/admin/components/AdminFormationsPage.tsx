@@ -1690,6 +1690,17 @@ const AdminFormationsPage: React.FC = () => {
                             </div>
                           </div>
 
+                          {/* Badge code de la formation */}
+                          {formation.code && formation.code.trim() !== '' && (
+                            <div className="absolute top-3 left-3">
+                              <div className="px-2 py-0.75 border-2 bg-brand-beige border-brand-beige backdrop-blur-sm">
+                                <span className="text-white font-bold text-xs tracking-wide">
+                                  {(formation.code || '').toString().trim().toUpperCase()}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Menu d'options */}
                           {isAdmin() && (
                             <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
@@ -1706,6 +1717,17 @@ const AdminFormationsPage: React.FC = () => {
 
                               {activeDropdown === formation.id && (
                                 <div className="dropdown-menu absolute right-0 top-8 bg-white border border-gray-200 rounded-md shadow-lg py-1 min-w-48 z-20">
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setActiveDropdown(null);
+                                      handleEditFormation(formation);
+                                    }}
+                                    className="w-full flex items-center px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                  >
+                                    <Edit className="h-4 w-4 mr-2" />
+                                    Modifier
+                                  </button>
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();

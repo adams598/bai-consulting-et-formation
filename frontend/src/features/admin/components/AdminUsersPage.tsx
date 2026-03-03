@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, User, Mail, Building, Shield, Clock, Grid, List, Phone, TrendingUp, BookOpen, Settings } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, User, Mail, Building, Shield, Clock, Grid, List, Phone, TrendingUp, BookOpen, Settings, Eye, EyeOff, Key } from 'lucide-react';
 import { User as UserType } from '../types';
 import { usersApi } from '../../../api/adminApi';
 import { Button } from '../../../components/ui/button';
@@ -16,10 +16,14 @@ type CreateUserData = Omit<UserType, 'id' | 'createdAt' | 'updatedAt'> & {
   password?: string;
 };
 
+type UserFormData = Partial<UserType> & {
+  password?: string;
+};
+
 interface UserModalProps {
   user?: UserType | null;
   onClose: () => void;
-  onSave: (data: Partial<UserType>) => void;
+  onSave: (data: UserFormData) => void;
   isLoading: boolean;
 }
 
@@ -31,8 +35,10 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, isLoading 
     role: user?.role || 'COLLABORATOR',
     department: user?.department || '',
     phone: user?.phone || '',
-    isActive: user?.isActive ?? true
+    isActive: user?.isActive ?? true,
+    password: ''
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -43,7 +49,8 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, isLoading 
         role: user.role,
         department: user.department || '',
         phone: user.phone || '',
-        isActive: user.isActive
+        isActive: user.isActive,
+        password: ''
       });
     }
   }, [user]);
@@ -152,6 +159,38 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, isLoading 
             />
           </div>
 
+          {user ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mot de passe
+              </label>
+              <div className="relative">
+                <Key className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <Input
+                  type={showPassword ? 'text' : 'password'}
+                  value={formData.password}
+                  onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                  className="pl-10 pr-10"
+                  placeholder="Nouveau mot de passe"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Laissez vide pour conserver le mot de passe actuel.
+              </p>
+            </div>
+          ) : (
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-sm text-blue-700">
+              Un mot de passe temporaire sera généré automatiquement à la création du compte.
+            </div>
+          )}
+
           <div className="flex items-center space-x-2">
             <input
               type="checkbox"
@@ -209,9 +248,27 @@ export default function AdminUsersPage() {
     title: string;
     message: string;
     onConfirm: () => void;
+    confirmText?: string;
+    cancelText?: string;
+    variant?: 'danger' | 'warning' | 'info';
+    copyText?: string;
+    copyButtonText?: string;
   } | null>(null);
 
   const { toast } = useToast();
+
+  const extractTempPassword = (payload: any): string | undefined => {
+    if (!payload) return undefined;
+    const direct = payload?.tempPassword || payload?.data?.tempPassword;
+    if (typeof direct === 'string' && direct.trim()) {
+      return direct.trim();
+    }
+
+    const message = typeof payload?.message === 'string' ? payload.message : '';
+    const createdMatch = message.match(/Mot de passe temporaire:\s*([^\s]+)/i);
+    const resetMatch = message.match(/Nouveau mot de passe temporaire:\s*([^\s]+)/i);
+    return resetMatch?.[1] || createdMatch?.[1];
+  };
   
   // Hook de confirmation
   const confirmation = useConfirmation();
@@ -296,20 +353,31 @@ export default function AdminUsersPage() {
   }, []);
 
   // Sauvegarder un utilisateur
-  const handleSaveUser = async (data: Partial<UserType>) => {
+  const handleSaveUser = async (data: UserFormData) => {
     try {
       setIsSaving(true);
       
       if (editingUser) {
+        const payload: UserFormData = {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          role: data.role,
+          department: data.department,
+          phone: data.phone,
+          isActive: data.isActive,
+          ...(data.password?.trim() ? { password: data.password.trim() } : {})
+        };
+
         // Mise à jour optimiste : modifier immédiatement l'utilisateur dans l'interface
-        const updatedUser = { ...editingUser, ...data };
+        const updatedUser = { ...editingUser, ...payload };
         setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
         
         setShowModal(false);
         setEditingUser(null);
         
         // Appel API en arrière-plan
-        await usersApi.update(editingUser.id, data);
+        await usersApi.update(editingUser.id, payload);
         toast({
           title: "Succès",
           description: "Utilisateur mis à jour avec succès",
@@ -363,13 +431,35 @@ export default function AdminUsersPage() {
         });
 
         // Afficher les identifiants avec le mot de passe généré
-        const generatedPassword = response.data.tempPassword || createData.password;
+        const apiResponse = response.data as any;
+        let generatedPassword = extractTempPassword(apiResponse);
+
+        // Fallback: si le backend de création ne renvoie pas le mot de passe,
+        // on génère immédiatement un temporaire via reset pour pouvoir l'afficher/copier.
+        if (!generatedPassword && response.data?.data?.id) {
+          try {
+            const resetResponse = await usersApi.resetPassword(response.data.data.id);
+            generatedPassword = extractTempPassword(resetResponse.data);
+          } catch (resetError) {
+            console.error('Impossible de récupérer un mot de passe temporaire via reset:', resetError);
+          }
+        }
+
+        const credentialsMessage = generatedPassword
+          ? `Identifiants de l'utilisateur :\n\nEmail: ${createData.email}\nMot de passe: ${generatedPassword}\n\n⚠️ IMPORTANT : Ce mot de passe est temporaire et expire dans 5 jours.\nL'utilisateur devra le changer lors de sa première connexion.`
+          : `Identifiants de l'utilisateur :\n\nEmail: ${createData.email}\nMot de passe: non renvoyé par le serveur\n\n⚠️ IMPORTANT : Le mot de passe temporaire n'a pas été retourné. Veuillez régénérer un mot de passe temporaire pour cet utilisateur.`;
+
         setConfirmModalData({
           title: "Compte créé avec succès",
-          message: `Identifiants de l'utilisateur :\n\nEmail: ${createData.email}\nMot de passe: ${generatedPassword}\n\n⚠️ IMPORTANT : Ce mot de passe est temporaire et expire dans 5 jours.\nL'utilisateur devra le changer lors de sa première connexion.`,
+          message: credentialsMessage,
           onConfirm: () => {
             setShowConfirmModal(false);
-          }
+          },
+          confirmText: 'Fermer',
+          cancelText: 'Fermer',
+          variant: 'info',
+          copyText: generatedPassword,
+          copyButtonText: 'Copier le mot de passe'
         });
         setShowConfirmModal(true);
       }
@@ -935,6 +1025,11 @@ export default function AdminUsersPage() {
           message={confirmModalData.message}
           onConfirm={confirmModalData.onConfirm}
           onCancel={() => setShowConfirmModal(false)}
+          confirmText={confirmModalData.confirmText}
+          cancelText={confirmModalData.cancelText}
+          variant={confirmModalData.variant}
+          copyText={confirmModalData.copyText}
+          copyButtonText={confirmModalData.copyButtonText}
         />
       )}
 

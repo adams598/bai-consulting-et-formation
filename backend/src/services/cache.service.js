@@ -137,12 +137,25 @@ class CacheService {
   }
 
   async invalidate(pattern) {
+    const invalidateMemoryCache = (patternToClear) => {
+      const escapedPattern = patternToClear
+        .replace(/[.+?^${}()|[\]\\]/g, "\\$&")
+        .replace(/\\\*/g, ".*");
+      const regex = new RegExp(`^${escapedPattern}$`);
+      for (const key of this.memoryCache.keys()) {
+        if (regex.test(key)) {
+          this.memoryCache.delete(key);
+        }
+      }
+    };
+
     if (!this.isConnected) {
       console.warn(
-        "⚠️ Redis non connecté, impossible d'invalider le pattern:",
+        "⚠️ Redis non connecté, invalidation du cache mémoire pour le pattern:",
         pattern
       );
-      return false;
+      invalidateMemoryCache(pattern);
+      return true;
     }
 
     try {
@@ -153,6 +166,7 @@ class CacheService {
           `🗑️ ${keys.length} clés supprimées pour le pattern: ${pattern}`
         );
       }
+      invalidateMemoryCache(pattern);
       return true;
     } catch (error) {
       console.error(

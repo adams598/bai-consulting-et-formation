@@ -1316,6 +1316,7 @@ export const formationsController = {
       const cacheService = (await import("../services/cache.service.js"))
         .default;
       await cacheService.invalidate("formations-simple:*");
+      await cacheService.invalidate("formations:*");
 
       res.status(201).json({ success: true, data: formation });
     } catch (error) {
@@ -1339,7 +1340,29 @@ export const formationsController = {
         hasQuiz,
         quizRequired,
         coverImage,
+        universeId,
+        isOpportunity,
+        code,
+        pedagogicalModality,
+        organization,
+        prerequisites,
+        objectives,
+        detailedProgram,
+        targetAudience,
       } = req.body;
+
+      const normalizeOptionalString = (value) => {
+        if (value === undefined) return undefined;
+        const trimmed = typeof value === "string" ? value.trim() : value;
+        if (trimmed === "") return null;
+        return value;
+      };
+
+      const parseBoolean = (value, fallback) => {
+        if (value === undefined || value === null) return fallback;
+        if (typeof value === "boolean") return value;
+        return value === "true" || value === "1";
+      };
 
       // Validation
       if (!title) {
@@ -1382,6 +1405,42 @@ export const formationsController = {
             coverImage !== undefined
               ? coverImage
               : existingFormation.coverImage,
+          universeId:
+            universeId !== undefined
+              ? universeId || null
+              : existingFormation.universeId,
+          isOpportunity:
+            isOpportunity !== undefined
+              ? parseBoolean(isOpportunity, existingFormation.isOpportunity)
+              : existingFormation.isOpportunity,
+          code:
+            code !== undefined
+              ? normalizeOptionalString(code)
+              : existingFormation.code,
+          pedagogicalModality:
+            pedagogicalModality !== undefined
+              ? normalizeOptionalString(pedagogicalModality)
+              : existingFormation.pedagogicalModality,
+          organization:
+            organization !== undefined
+              ? normalizeOptionalString(organization)
+              : existingFormation.organization,
+          prerequisites:
+            prerequisites !== undefined
+              ? normalizeOptionalString(prerequisites)
+              : existingFormation.prerequisites,
+          objectives:
+            objectives !== undefined
+              ? normalizeOptionalString(objectives)
+              : existingFormation.objectives,
+          detailedProgram:
+            detailedProgram !== undefined
+              ? normalizeOptionalString(detailedProgram)
+              : existingFormation.detailedProgram,
+          targetAudience:
+            targetAudience !== undefined
+              ? normalizeOptionalString(targetAudience)
+              : existingFormation.targetAudience,
         },
         include: {
           creator: {
@@ -1582,7 +1641,11 @@ export const usersController = {
         },
       });
 
-      res.json({ success: true, data: users });
+      const sanitizedUsers = users.map(
+        ({ password, ...userWithoutPassword }) => userWithoutPassword,
+      );
+
+      res.json({ success: true, data: sanitizedUsers });
     } catch (error) {
       console.error("Erreur getAllUsers:", error);
       res.status(500).json({
@@ -1615,7 +1678,8 @@ export const usersController = {
         });
       }
 
-      res.json({ success: true, data: user });
+      const { password, ...userWithoutPassword } = user;
+      res.json({ success: true, data: userWithoutPassword });
     } catch (error) {
       console.error("Erreur getUserById:", error);
       res.status(500).json({
@@ -1637,7 +1701,6 @@ export const usersController = {
         phone,
         isActive,
         bankId,
-        password,
       } = req.body;
 
       // Validation
@@ -1674,10 +1737,8 @@ export const usersController = {
         });
       }
 
-      // Utiliser le mot de passe fourni ou générer un temporaire
-      const providedPassword =
-        typeof password === "string" ? password.trim() : "";
-      const tempPassword = providedPassword || generatePassword(12);
+      // Générer systématiquement un mot de passe temporaire
+      const tempPassword = generatePassword(12);
       const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
       // Définir l'expiration du mot de passe à 5 jours
@@ -1708,9 +1769,11 @@ export const usersController = {
         },
       });
 
+      const { password, ...userWithoutPassword } = user;
+
       res.status(201).json({
         success: true,
-        data: user,
+        data: userWithoutPassword,
         tempPassword: tempPassword,
         message: `Utilisateur créé avec succès. Mot de passe temporaire: ${tempPassword}`,
       });
@@ -1735,6 +1798,7 @@ export const usersController = {
         phone,
         bankId,
         isActive,
+        password,
       } = req.body;
 
       console.log("🔄 updateUser appelé pour ID:", id);
@@ -1788,6 +1852,21 @@ export const usersController = {
 
       console.log("🔄 Mise à jour de l'utilisateur avec bankId:", bankId);
 
+      let hashedPassword;
+      const providedPassword =
+        typeof password === "string" ? password.trim() : "";
+
+      if (providedPassword && providedPassword.length < 8) {
+        return res.status(400).json({
+          success: false,
+          message: "Le mot de passe doit contenir au moins 8 caractères",
+        });
+      }
+
+      if (providedPassword) {
+        hashedPassword = await bcrypt.hash(providedPassword, 10);
+      }
+
       const user = await prisma.user.update({
         where: { id },
         data: {
@@ -1799,6 +1878,16 @@ export const usersController = {
           phone: phone || null,
           bankId: bankId || null,
           isActive: isActive !== undefined ? isActive : existingUser.isActive,
+          ...(hashedPassword
+            ? {
+                password: hashedPassword,
+                passwordExpiresAt: (() => {
+                  const expiresAt = new Date();
+                  expiresAt.setDate(expiresAt.getDate() + 5);
+                  return expiresAt;
+                })(),
+              }
+            : {}),
         },
         include: {
           bank: {
@@ -1812,7 +1901,8 @@ export const usersController = {
       });
 
       console.log("✅ Utilisateur mis à jour avec succès:", user);
-      res.json({ success: true, data: user });
+      const { password: _, ...userWithoutPassword } = user;
+      res.json({ success: true, data: userWithoutPassword });
     } catch (error) {
       console.error("Erreur updateUser:", error);
       res.status(500).json({

@@ -10,6 +10,8 @@ interface ConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'info';
+  copyText?: string;
+  copyButtonText?: string;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -19,8 +21,23 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onCancel,
   confirmText = 'Confirmer',
   cancelText = 'Annuler',
-  variant = 'danger'
+  variant = 'danger',
+  copyText,
+  copyButtonText = 'Copier'
 }) => {
+  const [copied, setCopied] = React.useState(false);
+
+  const handleCopy = async () => {
+    if (!copyText) return;
+    try {
+      await navigator.clipboard.writeText(copyText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch (error) {
+      setCopied(false);
+    }
+  };
+
   const getVariantStyles = () => {
     switch (variant) {
       case 'danger':
@@ -60,9 +77,17 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         </div>
         
-        <p className="text-gray-600 mb-6">{message}</p>
+        <p className="text-gray-600 mb-6 whitespace-pre-line">{message}</p>
         
         <div className="flex justify-end gap-3">
+          {copyText && (
+            <Button
+              variant="outline"
+              onClick={handleCopy}
+            >
+              {copied ? 'Copié' : copyButtonText}
+            </Button>
+          )}
           <Button
             variant="outline"
             onClick={onCancel}

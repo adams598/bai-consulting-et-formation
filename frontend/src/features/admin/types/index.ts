@@ -8,6 +8,7 @@ export interface ApiResponse<T> {
 export interface User {
   id: string;
   email: string;
+  password?: string;
   firstName: string;
   lastName: string;
   role: string;

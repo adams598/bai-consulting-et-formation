@@ -416,6 +416,7 @@ export default function Chatbot() {
             <div className="flex space-x-2">
               <input
                 type="text"
+                className="dark:text-gray-900"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Décrivez ce que vous cherchez..."

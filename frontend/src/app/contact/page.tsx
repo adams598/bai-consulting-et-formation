@@ -121,6 +121,7 @@ export default function ContactPage() {
                     <Input
                       id="name"
                       name="name"
+                      className="dark:text-gray-900"
                       placeholder="Votre nom"
                       value={formData.name}
                       onChange={handleChange}
@@ -132,6 +133,7 @@ export default function ContactPage() {
                     <Input
                       id="email"
                       name="email"
+                      className="dark:text-gray-900"
                       type="email"
                       placeholder="Votre email"
                       value={formData.email}
@@ -144,6 +146,7 @@ export default function ContactPage() {
                     <Input
                       id="phone"
                       name="phone"
+                      className="dark:text-gray-900"
                       type="tel"
                       placeholder="Votre numéro de téléphone (optionnel)"
                       value={formData.phone}
@@ -155,6 +158,7 @@ export default function ContactPage() {
                     <Textarea
                       id="message"
                       name="message"
+                      className="dark:text-gray-900"
                       placeholder="Votre message"
                       value={formData.message}
                       onChange={handleChange}
