@@ -328,210 +328,224 @@ const InlineQuizPlayer = ({ quiz, onComplete, onClose }: { quiz: Quiz; onComplet
           </div>
         </>
       ) : (
-          <div className="max-w-4xl mx-auto w-full h-full overflow-y-auto p-6">
-            {!showReview ? (
-              <>
-                {!results!.passed ? (
-                  <>
-                    {/* Écran d'échec - conformité maquette */}
-                    <div className="bg-white rounded-lg p-8">
-                      {/* Icône et titre */}
-                      <div className="text-center mb-8">
-                        <div className="inline-flex items-center justify-center h-16 w-16 bg-red-100 rounded-full mb-4">
-                          <HelpCircle className="h-8 w-8 text-red-500" />
-                        </div>
-                        <h1 className="text-3xl font-bold text-red-500 mb-2">Pas tout à fait...</h1>
-                        <p className="text-gray-600">Vous avez presque réussi ! Il ne reste qu'un petit pas à franchir.</p>
+        <div className="max-w-4xl mx-auto w-full h-full overflow-y-auto p-6">
+          {!showReview ? (
+            <>
+              {!results!.passed ? (
+                <>
+                  {/* Écran d'échec - conformité maquette */}
+                  <div className="bg-white rounded-lg p-8">
+                    {/* Icône et titre */}
+                    <div className="text-center mb-8">
+                      <div className="inline-flex items-center justify-center h-16 w-16 bg-red-100 rounded-full mb-4">
+                        <HelpCircle className="h-8 w-8 text-red-500" />
                       </div>
+                      <h1 className="text-3xl font-bold text-red-500 mb-2">Pas tout à fait...</h1>
+                      <p className="text-gray-600">Vous avez presque réussi ! Il ne reste qu'un petit pas à franchir.</p>
+                    </div>
 
-                      {/* Score vs Objectif */}
-                      <div className="grid grid-cols-2 gap-6 mb-8 pb-8 border-b border-gray-200">
-                        <div className="text-center">
-                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">VOTRE SCORE</div>
-                          <div className="text-3xl font-bold text-red-500 mb-1">{results!.percentage}%</div>
-                          <div className="text-sm text-gray-600">({results!.earnedPoints}/{results!.totalPoints} points)</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">OBJECTIF</div>
-                          <div className="text-3xl font-bold text-gray-900">{quiz.passingScore}%</div>
-                          <div className="text-sm text-gray-600">(seuil requis)</div>
-                        </div>
+                    {/* Score vs Objectif */}
+                    <div className="grid grid-cols-2 gap-6 mb-8 pb-8 border-b border-gray-200">
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">VOTRE SCORE</div>
+                        <div className="text-3xl font-bold text-red-500 mb-1">{results!.percentage}%</div>
+                        <div className="text-sm text-gray-600">({results!.earnedPoints}/{results!.totalPoints} points)</div>
                       </div>
-
-                      {/* Barre de progression */}
-                      <div className="mb-8">
-                        <div className="flex justify-between text-xs text-gray-500 mb-2">
-                          <span>0%</span>
-                          <span>100%</span>
-                        </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div className="bg-red-500 h-2 rounded-full transition-all duration-300" style={{ width: `${results!.percentage}%` }} />
-                        </div>
-                      </div>
-
-                      {/* Boutons d'action */}
-                      <div className="flex items-center justify-center gap-3 mb-4">
-                        <button onClick={() => setShowReview(true)} className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-colors">
-                          <BookOpen className="h-4 w-4" />
-                          Revue du quiz
-                        </button>
-                        <button onClick={() => { setCurrentQuestionIndex(0); setSelectedAnswers({}); setShowResults(false); setShowReview(false); setTimeLeft(quiz.timeLimit ? quiz.timeLimit * 60 : null); setStartTime(null); }} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 flex items-center gap-2 transition-colors">
-                          <RefreshCw className="h-4 w-4" />
-                          Recommencer le quiz
-                        </button>
+                      <div className="text-center">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">OBJECTIF</div>
+                        <div className="text-3xl font-bold text-gray-900">{quiz.passingScore}%</div>
+                        <div className="text-sm text-gray-600">(seuil requis)</div>
                       </div>
                     </div>
-                  </>
-                ) : (
-                  <>
-                    {/* Écran de succès */}
-                    <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
-                      <div className="w-full max-w-[720px] bg-white rounded-xl shadow-sm border border-slate-200 p-8 md:p-12">
-                        <div className="text-center space-y-4">
-                          <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-green-100 text-green-600 mb-2">
-                            <span className="text-5xl">🏆</span>
+
+                    {/* Barre de progression */}
+                    <div className="mb-8">
+                      <div className="flex justify-between text-xs text-gray-500 mb-2">
+                        <span>0%</span>
+                        <span>100%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="bg-red-500 h-2 rounded-full transition-all duration-300" style={{ width: `${results!.percentage}%` }} />
+                      </div>
+                    </div>
+
+                    {/* Boutons d'action */}
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                      <button onClick={() => setShowReview(true)} className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-semibold flex items-center gap-2 transition-colors">
+                        <BookOpen className="h-4 w-4" />
+                        Revue du quiz
+                      </button>
+                      <button onClick={() => { setCurrentQuestionIndex(0); setSelectedAnswers({}); setShowResults(false); setShowReview(false); setTimeLeft(quiz.timeLimit ? quiz.timeLimit * 60 : null); setStartTime(null); }} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-semibold hover:bg-gray-50 flex items-center gap-2 transition-colors">
+                        <RefreshCw className="h-4 w-4" />
+                        Recommencer le quiz
+                      </button>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Écran de succès */}
+                  <main className="flex-1 flex flex-col items-center justify-center px-4 py-8">
+                    <div className="w-full max-w-[720px] bg-white rounded-xl shadow-sm border border-slate-200 p-8 md:p-12">
+                      <div className="text-center space-y-4">
+                        <div className="inline-flex items-center justify-center h-20 w-20 rounded-full bg-green-100 text-green-600 mb-2">
+                          <span className="text-5xl">🏆</span>
+                        </div>
+                        <h1 className="text-4xl font-bold tracking-tight text-green-600">Félicitations !</h1>
+                        <p className="text-slate-600 text-lg">Excellent travail ! Vous avez brillamment validé ce module.</p>
+                      </div>
+
+                      <div className="mt-10 mb-12">
+                        <div className="flex flex-col md:flex-row gap-6 mb-8">
+                          <div className="flex-1 flex flex-col gap-2 rounded-lg p-6 border border-green-200 bg-green-50">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Score</p>
+                            <p className="text-3xl font-bold text-green-600">{results!.percentage}%</p>
                           </div>
-                          <h1 className="text-4xl font-bold tracking-tight text-green-600">Félicitations !</h1>
-                          <p className="text-slate-600 text-lg">Excellent travail ! Vous avez brillamment validé ce module.</p>
+                          <div className="flex-1 flex flex-col gap-2 rounded-lg p-6 border border-slate-100 bg-slate-50">
+                            <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Objectif</p>
+                            <p className="text-3xl font-bold text-gray-700">{quiz.passingScore}%</p>
+                          </div>
                         </div>
 
-                        <div className="mt-10 mb-12">
-                          <div className="flex flex-col md:flex-row gap-6 mb-8">
-                            <div className="flex-1 flex flex-col gap-2 rounded-lg p-6 border border-green-200 bg-green-50">
-                              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Score</p>
-                              <p className="text-3xl font-bold text-green-600">{results!.percentage}%</p>
-                            </div>
-                            <div className="flex-1 flex flex-col gap-2 rounded-lg p-6 border border-slate-100 bg-slate-50">
-                              <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Objectif</p>
-                              <p className="text-3xl font-bold text-gray-700">{quiz.passingScore}%</p>
-                            </div>
+                        <div className="relative pt-2">
+                          <div className="flex justify-between text-xs font-semibold text-gray-400 mb-2 px-1">
+                            <span>Progression du quiz</span>
+                            <span>{results!.percentage}%</span>
                           </div>
-
-                          <div className="relative pt-2">
-                            <div className="flex justify-between text-xs font-semibold text-gray-400 mb-2 px-1">
-                              <span>Progression du quiz</span>
-                              <span>{results!.percentage}%</span>
-                            </div>
-                            <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-green-600 rounded-full transition-all duration-1000" style={{ width: `${results!.percentage}%` }} />
-                            </div>
+                          <div className="h-4 w-full bg-slate-100 rounded-full overflow-hidden">
+                            <div className="h-full bg-green-600 rounded-full transition-all duration-1000" style={{ width: `${results!.percentage}%` }} />
                           </div>
                         </div>
+                      </div>
 
-                        <div className="bg-green-50 rounded-lg p-6 border border-green-100 mb-6">
-                          <h3 className="font-bold text-green-600 mb-2 flex items-center gap-2">
-                            <span className="text-xl">✅</span>
-                            Succès
-                          </h3>
-                          {/* <p className="text-gray-700 text-sm mb-4">Vous avez démontré une maîtrise complète des sujets abordés. Voici les compétences validées :</p>
+                      <div className="bg-green-50 rounded-lg p-6 border border-green-100 mb-6">
+                        <h3 className="font-bold text-green-600 mb-2 flex items-center gap-2">
+                          <span className="text-xl">✅</span>
+                          Succès
+                        </h3>
+                        {/* <p className="text-gray-700 text-sm mb-4">Vous avez démontré une maîtrise complète des sujets abordés. Voici les compétences validées :</p>
                           <div className="flex flex-wrap gap-2">
                             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-green-200 text-sm font-medium text-gray-700">Planification stratégique</div>
                             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-green-200 text-sm font-medium text-gray-700">Optimisation des processus</div>
                             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-green-200 text-sm font-medium text-gray-700">Leadership d'équipe</div>
                           </div> */}
-                        </div>
-
-                        <div className="flex flex-col sm:flex-row gap-4">
-                          <button onClick={onClose} className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg">
-                            <span>Continuer</span>
-                              <ChevronRight className="h-5 w-5" />
-                          </button>
-                          <button onClick={() => setShowReview(true)} className="flex-1 flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-gray-700 font-bold py-4 rounded-xl transition-all">
-                            <RefreshCw className="h-5 w-5" />
-                            Revoir le quiz
-                          </button>
-                        </div>
-
-                        <p className="text-center text-gray-400 text-xs mt-8">Ce module est désormais marqué comme complété dans votre parcours de formation.</p>
                       </div>
-                    </main>
-                  </>
-                )}
-              </>
-            ) : (
-              <>
-                {/* Revue du quiz */}
-                <div>
-                  <div className="mb-8">
-                    <div className="flex items-center gap-2 mb-6">
-                      <BookOpen className="h-5 w-5 text-blue-600" />
-                      <h2 className="text-xl font-bold text-gray-900">Revue du quiz</h2>
+
+                      <div className="flex flex-col sm:flex-row gap-4">
+                        <button onClick={onClose} className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-emerald-600 text-white font-bold py-4 rounded-xl transition-all shadow-lg">
+                          <span>Continuer</span>
+                          <ChevronRight className="h-5 w-5" />
+                        </button>
+                        <button onClick={() => setShowReview(true)} className="flex-1 flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-gray-700 font-bold py-4 rounded-xl transition-all">
+                          <RefreshCw className="h-5 w-5" />
+                          Revoir le quiz
+                        </button>
+                      </div>
+
+                      <p className="text-center text-gray-400 text-xs mt-8">Ce module est désormais marqué comme complété dans votre parcours de formation.</p>
                     </div>
-
-                    <div className="space-y-6">
-                      {quiz.questions.map((question, qIndex) => {
-                        const selected = selectedAnswers[qIndex];
-                        let isCorrect = false;
-                        let userAnswerText = '';
-
-                        if (question.type === 'multiple_choice') {
-                          const correctIndices = question.answers
-                            .map((a, i) => a.isCorrect ? i : -1)
-                            .filter(i => i !== -1);
-                          const selectedIndices = Array.isArray(selected) ? (selected as number[]) : (typeof selected === 'number' ? [selected] : []);
-                          isCorrect = correctIndices.length === selectedIndices.length && correctIndices.every(ci => selectedIndices.includes(ci));
-                          if (typeof selected === 'number') {
-                            userAnswerText = question.answers[selected]?.answer || '';
-                          }
-                        } else if (typeof selected === 'number') {
-                          const ans = question.answers[selected];
-                          isCorrect = !!ans && !!ans.isCorrect;
-                          userAnswerText = ans?.answer || '';
-                        } else if (typeof selected === 'string') {
-                          userAnswerText = selected;
-                          const normalized = selected.trim().toLowerCase();
-                          isCorrect = question.answers.some(a => typeof a.answer === 'string' && a.answer.trim().toLowerCase() === normalized);
-                        }
-
-                        return (
-                          <div key={qIndex} className="border border-gray-200 rounded-lg p-6">
-                            <div className="flex items-start justify-between mb-3">
-                              <h3 className="font-semibold text-gray-900 flex-1">
-                                <span className="text-xs text-gray-500 uppercase tracking-wide">QUESTION {qIndex + 1}</span>
-                                <div className="mt-1">{question.question}</div>
-                              </h3>
-                              <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold flex-shrink-0 ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                {isCorrect ? (
-                                  <>
-                                    <CheckCircle className="h-4 w-4" />
-                                    Correct
-                                  </>
-                                ) : (
-                                  <>
-                                    <XCircle className="h-4 w-4" />
-                                    Incorrect
-                                  </>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Réponse de l'utilisateur */}
-                            <div className="mb-4 p-4 rounded-lg bg-green-50 border border-green-200">
-                              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Votre réponse</div>
-                              <div className="flex items-center gap-2">
-                                <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
-                                <span className="text-gray-900">{userAnswerText}</span>
-                              </div>
-                            </div>
-
-
-                          </div>
-                        );
-                      })}
-                    </div>
+                  </main>
+                </>
+              )}
+            </>
+          ) : (
+            <>
+              {/* Revue du quiz */}
+              <div>
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-6">
+                    <BookOpen className="h-5 w-5 text-blue-600" />
+                    <h2 className="text-xl font-bold text-gray-900">Revue du quiz</h2>
                   </div>
 
-                  {/* Bouton retour */}
-                  <div className="flex justify-center pt-6 border-t border-gray-200">
-                    <button onClick={() => setShowReview(false)} className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
-                      ← Retour aux résultats
-                    </button>
+                  <div className="space-y-6">
+                    {quiz.questions.map((question, qIndex) => {
+                      const selected = selectedAnswers[qIndex];
+                      let isCorrect = false;
+                      let userAnswerText = '';
+                      const correctAnswersText = question.answers
+                        .filter((a) => a.isCorrect)
+                        .map((a) => a.answer)
+                        .join(' / ');
+
+                      if (question.type === 'multiple_choice') {
+                        const correctIndices = question.answers
+                          .map((a, i) => a.isCorrect ? i : -1)
+                          .filter(i => i !== -1);
+                        const selectedIndices = Array.isArray(selected) ? (selected as number[]) : (typeof selected === 'number' ? [selected] : []);
+                        isCorrect = correctIndices.length === selectedIndices.length && correctIndices.every(ci => selectedIndices.includes(ci));
+                        if (typeof selected === 'number') {
+                          userAnswerText = question.answers[selected]?.answer || '';
+                        }
+                      } else if (typeof selected === 'number') {
+                        const ans = question.answers[selected];
+                        isCorrect = !!ans && !!ans.isCorrect;
+                        userAnswerText = ans?.answer || '';
+                      } else if (typeof selected === 'string') {
+                        userAnswerText = selected;
+                        const normalized = selected.trim().toLowerCase();
+                        isCorrect = question.answers.some(a => typeof a.answer === 'string' && a.answer.trim().toLowerCase() === normalized);
+                      }
+
+                      return (
+                        <div key={qIndex} className="border border-gray-200 rounded-lg p-6">
+                          <div className="flex items-start justify-between mb-3">
+                            <h3 className="font-semibold text-gray-900 flex-1">
+                              <span className="text-xs text-gray-500 uppercase tracking-wide">QUESTION {qIndex + 1}</span>
+                              <div className="mt-1">{question.question}</div>
+                            </h3>
+                            <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold flex-shrink-0 ${isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                              {isCorrect ? (
+                                <>
+                                  <CheckCircle className="h-4 w-4" />
+                                  Correct
+                                </>
+                              ) : (
+                                <>
+                                  <XCircle className="h-4 w-4" />
+                                  Incorrect
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Réponse de l'utilisateur */}
+                          <div className="mb-4 p-4 rounded-lg bg-green-50 border border-green-200">
+                            <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Votre réponse</div>
+                            <div className="flex items-center gap-2">
+                              <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                              <span className="text-gray-900">{userAnswerText}</span>
+                            </div>
+                          </div>
+
+                          {!isCorrect && (
+                            <div className="p-4 rounded-lg bg-blue-50 border border-blue-200">
+                              <div className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">Bonne réponse</div>
+                              <div className="flex items-center gap-2">
+                                <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                                <span className="text-gray-900">{correctAnswersText || 'Aucune réponse configurée'}</span>
+                              </div>
+                            </div>
+                          )}
+
+
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
-              </>
-            )}
-          </div>
-        )}
+
+                {/* Bouton retour */}
+                <div className="flex justify-center pt-6 border-t border-gray-200">
+                  <button onClick={() => setShowReview(false)} className="px-6 py-3 border border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors">
+                    ← Retour aux résultats
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
@@ -539,11 +553,11 @@ const InlineQuizPlayer = ({ quiz, onComplete, onClose }: { quiz: Quiz; onComplet
 export default function LessonPlayer({ formation, lessons: rawLessons, initialSelectedLesson, onClose, onProgressUpdate, onLessonUpdate }: LessonPlayerProps) {
   const { user } = useAuth();
   const [selectedLesson, setSelectedLesson] = useState<FormationContent | null>(null);
-  const [lessonProgress, setLessonProgress] = useState<{[key: string]: LessonProgress}>({});
+  const [lessonProgress, setLessonProgress] = useState<{ [key: string]: LessonProgress }>({});
   const [showLessonModal, setShowLessonModal] = useState(false);
   const [isCalculatingDuration, setIsCalculatingDuration] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  
+
   // États pour la gestion du quiz
   const [quiz, setQuiz] = useState<Quiz | null>(null);
   const [showQuizModal, setShowQuizModal] = useState(false);
@@ -600,7 +614,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     if (user && user.id) {
       return user.id;
     }
-    
+
     // Fallback : essayer de récupérer depuis le localStorage
     const userInfo = localStorage.getItem('userInfo');
     if (userInfo) {
@@ -611,7 +625,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         console.error('Erreur parsing userInfo:', error);
       }
     }
-    
+
     // Essayer de récupérer depuis le token JWT
     const accessToken = localStorage.getItem('accessToken');
     if (accessToken) {
@@ -624,7 +638,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         console.error('Erreur décodage token JWT:', error);
       }
     }
-    
+
     return 'default-user-id';
   };
 
@@ -680,11 +694,11 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   const areAllLessonsCompleted = () => {
     // Filtrer uniquement les leçons (pas les sections)
     const actualLessons = lessons.filter(lesson => lesson.contentType === 'LESSON');
-    
+
     if (actualLessons.length === 0) {
       return true; // Pas de leçons, le quiz peut être joué
     }
-    
+
     // Vérifier que toutes les leçons sont complétées
     return actualLessons.every(lesson => {
       const progress = lessonProgress[lesson.id];
@@ -695,7 +709,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   // Fonction pour déterminer l'état du quiz et les actions disponibles
   const getQuizState = () => {
     const allLessonsCompleted = areAllLessonsCompleted();
-    
+
     if (!quiz) {
       return {
         canPlay: false,
@@ -805,7 +819,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   const handleSaveQuiz = async (quizData: any) => {
     try {
       // console.log('💾 Sauvegarde du quiz:', quizData);
-      
+
       if (quiz && quiz.id) {
         // Mise à jour du quiz existant (admin API)
         const response = await adminQuizApi.updateQuiz(quiz.id, {
@@ -813,9 +827,12 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
           description: quizData.description || '',
           passingScore: quizData.passingScore || 80,
           timeLimit: quizData.timeLimit || undefined,
+          questionTimeLimitSec: quizData.questionTimeLimitSec || undefined,
+          triggerType: quizData.triggerType || 'END',
+          triggerTime: quizData.triggerType === 'MID_VIDEO' ? quizData.triggerTime : undefined,
           questions: quizData.questions || []
-        });
-        
+        } as any);
+
         if (response.data && response.data.success) {
           setQuiz(response.data.data);
           setSuccessMessage('Quiz mis à jour avec succès !');
@@ -829,9 +846,12 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
           description: quizData.description || '',
           passingScore: quizData.passingScore || 80,
           timeLimit: quizData.timeLimit || undefined,
+          questionTimeLimitSec: quizData.questionTimeLimitSec || undefined,
+          triggerType: quizData.triggerType || 'END',
+          triggerTime: quizData.triggerType === 'MID_VIDEO' ? quizData.triggerTime : undefined,
           questions: quizData.questions || []
-        });
-        
+        } as any);
+
         if (response.data && response.data.success) {
           setQuiz(response.data.data);
           setSuccessMessage('Quiz créé avec succès !');
@@ -850,7 +870,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   // Fonction pour calculer la durée réelle de la vidéo
   const calculateVideoDuration = async (lessonId: string): Promise<number> => {
     // console.log('🔄 Calcul de la durée pour la leçon:', lessonId);
-    
+
     // Essayer d'abord l'API (même si elle n'existe pas encore)
     try {
       const response = await fetch(`http://localhost:3000/api/admin/lessons/${lessonId}/duration`, {
@@ -860,7 +880,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
           'Content-Type': 'application/json'
         }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         const duration = data.duration || 0;
@@ -872,49 +892,49 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     } catch (apiError) {
       console.log('⚠️ Erreur API, passage au fallback:', apiError);
     }
-    
+
     // Fallback: utiliser fetch authentifié pour récupérer la vidéo
     try {
       // console.log('🔄 Tentative avec fetch authentifié...');
-      
+
       const videoUrl = buildLessonFileUrl(selectedLesson!);
       // console.log('🎥 URL de la vidéo:', videoUrl);
-      
+
       // Essayer de récupérer la vidéo avec authentification
       const videoResponse = await fetch(videoUrl, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
         }
       });
-      
+
       if (!videoResponse.ok) {
         throw new Error(`Erreur fetch vidéo: ${videoResponse.status}`);
       }
-      
+
       // Créer un blob URL temporaire
       const videoBlob = await videoResponse.blob();
       const blobUrl = URL.createObjectURL(videoBlob);
-      
+
       return new Promise((resolve, reject) => {
         const video = document.createElement('video');
         video.preload = 'metadata';
-        
+
         video.onloadedmetadata = () => {
           const duration = Math.round(video.duration);
           // console.log('🎥 Durée calculée via blob:', duration, 'secondes');
           URL.revokeObjectURL(blobUrl); // Nettoyer le blob URL
           resolve(duration);
         };
-        
+
         video.onerror = (e) => {
           console.error('❌ Erreur lors du chargement de la vidéo blob:', e);
           URL.revokeObjectURL(blobUrl); // Nettoyer le blob URL
           reject(new Error('Impossible de charger la vidéo blob'));
         };
-        
+
         video.src = blobUrl;
       });
-      
+
     } catch (fallbackError) {
       console.error('❌ Erreur fallback:', fallbackError);
       throw new Error('Impossible de calculer la durée de la vidéo');
@@ -930,20 +950,20 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
 
     setIsCalculatingDuration(true);
     setSuccessMessage(null);
-    
+
     try {
       // console.log('🔄 Calcul de la durée pour la leçon:', selectedLesson.title);
-      
+
       // Calculer la durée via l'API ou fallback
       const realDuration = await calculateVideoDuration(selectedLesson.id);
-      
+
       // console.log('✅ Durée réelle calculée:', realDuration, 'secondes');
       // console.log('📊 Durée actuelle de la formation:', formation.duration, 'secondes');
-      
+
       // Mettre à jour la formation dans la base de données
       try {
         // console.log('💾 Mise à jour de la formation dans la BDD...');
-        
+
         const response = await fetch(`http://localhost:3000/api/admin/formations/${formation.id}`, {
           method: 'PUT',
           headers: {
@@ -956,63 +976,63 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
             duration: realDuration
           })
         });
-        
+
         if (response.ok) {
           // console.log('✅ Formation mise à jour dans la BDD avec la durée:', realDuration, 'secondes');
-          
+
           // Mettre à jour la leçon avec la durée réelle
           const updatedLesson = {
             ...selectedLesson,
             duration: realDuration
           };
-          
+
           setSelectedLesson(updatedLesson);
-          
+
           // Appeler la fonction parent pour sauvegarder
           if (onLessonUpdate) {
             onLessonUpdate(updatedLesson);
           }
-          
+
           // Afficher le message de succès
           setSuccessMessage(`✅ Durée mise à jour avec succès ! Nouvelle durée : ${realDuration} secondes`);
-          
+
           // Masquer le message après 5 secondes
           setTimeout(() => {
             setSuccessMessage(null);
           }, 5000);
-          
+
           // console.log('💾 Leçon mise à jour avec la durée réelle:', realDuration, 'secondes');
-          
+
         } else {
           throw new Error(`Erreur lors de la mise à jour de la formation: ${response.status}`);
         }
-        
+
       } catch (dbError) {
         console.error('❌ Erreur lors de la mise à jour de la BDD:', dbError);
-        
+
         // Mettre à jour quand même localement
         const updatedLesson = {
           ...selectedLesson,
           duration: realDuration
         };
-        
+
         setSelectedLesson(updatedLesson);
-        
+
         if (onLessonUpdate) {
           onLessonUpdate(updatedLesson);
         }
-        
+
         setSuccessMessage(`⚠️ Durée calculée (${realDuration}s) mais erreur lors de la sauvegarde en BDD`);
-        
+
         setTimeout(() => {
           setSuccessMessage(null);
         }, 5000);
       }
-      
+
     } catch (error) {
       console.error('❌ Erreur lors du calcul de la durée:', error);
       setSuccessMessage('❌ Erreur lors du calcul de la durée de la vidéo');
-      
+
       setTimeout(() => {
         setSuccessMessage(null);
       }, 5000);
@@ -1037,7 +1057,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     if (lessons.length > 0) {
       loadProgressions();
     }
-    
+
     // Recharger les progressions périodiquement pour détecter les changements
     // (utile quand une leçon est complétée dans un autre onglet ou composant)
     const interval = setInterval(() => {
@@ -1045,7 +1065,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         loadProgressions();
       }
     }, 3000); // Recharger toutes les 3 secondes
-    
+
     return () => clearInterval(interval);
   }, [formation.id, lessons]);
 
@@ -1076,25 +1096,25 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   const isLessonAccessible = (lesson: FormationContent, index: number) => {
     // La première leçon est toujours accessible
     if (index === 0) return true;
-    
+
     // Pour les autres leçons, vérifier que TOUTES les leçons précédentes sont terminées
     for (let i = 0; i < index; i++) {
       const previousLesson = lessons[i];
       if (!previousLesson) continue;
-      
+
       const previousProgress = lessonProgress[previousLesson.id];
       if (!previousProgress?.completed) {
         return false; // Une leçon précédente n'est pas terminée
       }
     }
-    
+
     return true; // Toutes les leçons précédentes sont terminées
   };
 
   const handleLessonSelect = (lesson: FormationContent) => {
     const lessonIndex = lessons.findIndex(l => l.id === lesson.id);
     const isAccessible = isLessonAccessible(lesson, lessonIndex);
-    
+
     if (isAccessible) {
       setSelectedLesson(lesson);
       setIsQuizSelected(false); // Désélectionner le quiz si une leçon est sélectionnée
@@ -1112,7 +1132,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
 
     // Vérifier si la leçon est accessible
     const isAccessible = isLessonAccessible(lessons[lessonIndex], lessonIndex);
-    
+
     if (!isAccessible) {
       // console.log('🚫 Progression bloquée pour', lessons[lessonIndex].title, '- Leçon non accessible');
       return;
@@ -1125,7 +1145,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
       progress: progress.progress || 0,
       completed: progress.completed || false
     });
-    
+
     // Mettre à jour l'état local
     setLessonProgress(prev => ({
       ...prev,
@@ -1148,7 +1168,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         console.log('⚠️ Progression à 100% mais aucun quiz trouvé');
       }
     }
-    
+
     // Appeler la fonction parent si elle existe
     if (onProgressUpdate) {
       onProgressUpdate(lessonId, {
@@ -1176,7 +1196,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     // console.log('🔍 buildLessonFileUrl - formation.title:', formation.title);
     // console.log('🔍 buildLessonFileUrl - lesson.title:', lesson.title);
     // console.log('🔍 buildLessonFileUrl - lesson.fileUrl:', lesson.fileUrl);
-    
+
     // Utiliser la fonction importée de imageUtils avec l'URL Cloudinary si disponible
     const url = getLessonFileUrl(formation.title, lesson.title, undefined, lesson.fileUrl);
     // console.log('🔍 buildLessonFileUrl - URL générée:', url);
@@ -1192,7 +1212,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     // Utiliser TestViewer pour tous les types pour le moment
     // buildLessonFileUrl utilise déjà lesson.fileUrl si c'est une URL Cloudinary
     const fileUrl = buildLessonFileUrl(selectedLesson);
-    
+
     // console.log('🎬 LessonPlayer - renderLessonContent:', {
     //   lessonId: selectedLesson.id,
     //   lessonTitle: selectedLesson.title,
@@ -1200,7 +1220,15 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     //   builtFileUrl: fileUrl,
     //   isCloudinary: selectedLesson.fileUrl?.startsWith('https://res.cloudinary.com') || selectedLesson.fileUrl?.startsWith('http://res.cloudinary.com')
     // });
-    
+
+    const midVideoQuizzes = (quiz && quiz.triggerType === 'MID_VIDEO' && quiz.triggerTime !== undefined)
+      ? [{
+        triggerTimeSec: quiz.triggerTime,
+        questionTimeLimitSec: quiz.questionTimeLimitSec,
+        questions: quiz.questions
+      }]
+      : undefined;
+
     return (
       <TestViewer
         lesson={selectedLesson}
@@ -1208,6 +1236,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
         formationId={formation.id}
         userId={getCurrentUserId()}
         onProgressUpdate={(progress: Partial<LessonProgress>) => updateLessonProgress(selectedLesson.id, progress)}
+        midVideoQuizzes={midVideoQuizzes}
       />
     );
   };
@@ -1247,7 +1276,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
   // Fonction pour formater la durée de la leçon (provenant de la BDD)
   const formatDuration = (seconds: number) => {
     if (!seconds || seconds === 0) return 'N/A';
-    
+
     if (seconds < 60) {
       return `${seconds}s`;
     } else if (seconds < 3600) {
@@ -1263,15 +1292,15 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
     <>
       {/* Overlay sombre */}
       <div className="fixed inset-0 bg-black bg-opacity-75 z-[9998]" onClick={onClose} />
-      
+
       {/* Modale */}
-      <div 
-        className="fixed inset-0 bg-white z-[9999] flex flex-col shadow-2xl" 
-        style={{ 
-          position: 'fixed', 
-          top: 0, 
-          left: 0, 
-          right: 0, 
+      <div
+        className="fixed inset-0 bg-white z-[9999] flex flex-col shadow-2xl"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
           bottom: 0,
           width: '100vw',
           height: '100vh',
@@ -1292,7 +1321,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
               <h1 className="text-lg font-semibold text-gray-900">{formation.title}</h1>
             </div>
           </div>
-          
+
         </div>
 
         {/* Main Content */}
@@ -1310,13 +1339,12 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                     <div
                       key={lesson.id}
                       onClick={() => handleLessonSelect(lesson)}
-                      className={`p-4 bg-white rounded-lg border-2 transition-all ${
-                        !isAccessible
+                      className={`p-4 bg-white rounded-lg border-2 transition-all ${!isAccessible
                           ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
-                          : isSelected 
-                            ? 'border-blue-500 bg-blue-50 cursor-pointer hover:shadow-md' 
+                          : isSelected
+                            ? 'border-blue-500 bg-blue-50 cursor-pointer hover:shadow-md'
                             : 'border-gray-200 hover:border-gray-300 cursor-pointer hover:shadow-md'
-                      }`}
+                        }`}
                     >
                       {/* Titre et type */}
                       <div className="flex items-start justify-between mb-2">
@@ -1339,7 +1367,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                               }}
                               className="p-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                               title="Modifier cette leçon"
-                              style={{ 
+                              style={{
                                 zIndex: 10,
                                 position: 'relative'
                               }}
@@ -1363,7 +1391,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                           <Clock className="h-3 w-3" />
                           <span>{formatDuration(lesson.duration || 0)}</span>
                         </div>
-                       
+
                       </div>
 
                       {/* Bouton d'action
@@ -1419,13 +1447,12 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                 {/* Carte Quiz pour les apprenants (toujours visible si quiz configuré) */}
                 {quiz && !isAdmin() && (
                   <div
-                    className={`p-4 rounded-lg border-2 transition-all ${
-                      !quizAvailable
+                    className={`p-4 rounded-lg border-2 transition-all ${!quizAvailable
                         ? 'border-gray-200 bg-gray-50 cursor-not-allowed opacity-60'
                         : isQuizSelected
                           ? 'border-purple-500 bg-purple-50 cursor-pointer hover:shadow-md'
                           : 'border-yellow-400 bg-yellow-50 cursor-pointer hover:shadow-md'
-                    }`}
+                      }`}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -1434,7 +1461,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                       setSelectedLesson(null);
                     }}
                   >
-                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center space-x-2 flex-1">
                         <div className={`p-2 rounded-md ${quiz ? 'bg-purple-100' : 'bg-gray-100'}`}>
                           <HelpCircle className={`h-5 w-5 ${quiz ? 'text-purple-600' : 'text-gray-400'}`} />
@@ -1479,13 +1506,12 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                 {/* Carte Quiz pour les admins */}
                 {isAdmin() && (
                   <div
-                    className={`p-4 bg-white rounded-lg border-2 transition-all ${
-                      !quiz
+                    className={`p-4 bg-white rounded-lg border-2 transition-all ${!quiz
                         ? 'border-dashed border-gray-300 hover:border-blue-400 cursor-pointer hover:shadow-md'
                         : isQuizSelected
                           ? 'border-purple-500 bg-purple-50 cursor-pointer hover:shadow-md'
                           : 'border-purple-200 hover:border-purple-300 cursor-pointer hover:shadow-md'
-                    }`}
+                      }`}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -1500,16 +1526,14 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex items-center space-x-2 flex-1">
-                        <div className={`p-2 rounded-md ${
-                          quiz 
-                            ? 'bg-purple-100' 
+                        <div className={`p-2 rounded-md ${quiz
+                            ? 'bg-purple-100'
                             : 'bg-gray-100'
-                        }`}>
-                          <HelpCircle className={`h-5 w-5 ${
-                            quiz 
-                              ? 'text-purple-600' 
+                          }`}>
+                          <HelpCircle className={`h-5 w-5 ${quiz
+                              ? 'text-purple-600'
                               : 'text-gray-400'
-                          }`} />
+                            }`} />
                         </div>
                         <div>
                           <h3 className="font-medium text-gray-900 text-sm">
@@ -1557,14 +1581,14 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                             <span>Pas encore joué</span>
                           )}
                         </div>
-                        
+
                         {/* Boutons d'action selon l'état */}
                         {(() => {
                           const quizState = getQuizState();
                           const canPlayQuiz = quizState.allLessonsCompleted;
                           const actualLessons = lessons.filter(l => l.contentType === 'LESSON');
                           const completedLessons = actualLessons.filter(l => lessonProgress[l.id]?.completed).length;
-                          
+
                           return (
                             <div className="mt-3 flex flex-col space-y-2">
                               {/* Message informatif si toutes les leçons ne sont pas complétées */}
@@ -1579,7 +1603,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                                   </p>
                                 </div>
                               )}
-                              
+
                               {quizState.canPlay && (
                                 <button
                                   onClick={(e) => {
@@ -1592,16 +1616,15 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                                     }
                                   }}
                                   disabled={!canPlayQuiz}
-                                  className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
-                                    canPlayQuiz
+                                  className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${canPlayQuiz
                                       ? 'bg-blue-600 text-white hover:bg-blue-700'
                                       : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                  }`}
+                                    }`}
                                 >
                                   Jouer
                                 </button>
                               )}
-                              
+
                               {quizState.canRetry && (
                                 <button
                                   onClick={(e) => {
@@ -1614,18 +1637,17 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                                     }
                                   }}
                                   disabled={!canPlayQuiz}
-                                  className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
-                                    !canPlayQuiz
+                                  className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${!canPlayQuiz
                                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                       : quizState.buttonVariant === 'warning'
-                                      ? 'bg-orange-600 text-white hover:bg-orange-700'
-                                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                  }`}
+                                        ? 'bg-orange-600 text-white hover:bg-orange-700'
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    }`}
                                 >
                                   Rejouer
                                 </button>
                               )}
-                              
+
                               {quizState.canFinish && (
                                 <button
                                   onClick={(e) => {
@@ -1635,16 +1657,15 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                                     setIsQuizSelected(false);
                                     setQuizResult(null);
                                   }}
-                                  className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${
-                                    quizState.primaryAction === 'finish'
+                                  className={`w-full px-3 py-2 text-sm rounded-md transition-colors ${quizState.primaryAction === 'finish'
                                       ? 'bg-green-600 text-white hover:bg-green-700'
                                       : 'bg-green-500 text-white hover:bg-green-600'
-                                  }`}
+                                    }`}
                                 >
                                   Terminer
                                 </button>
                               )}
-                              
+
                               {lastAttempt && (
                                 <button
                                   onClick={(e) => {
@@ -1701,7 +1722,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
       {/* Modal d'édition de leçon personnalisé */}
       {showLessonModal && selectedLesson && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-[10000] flex items-center justify-center p-4">
-          <div 
+          <div
             className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
@@ -1922,13 +1943,13 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                           }
                         }
                         const userAnswer = userAnswers[question.id];
-                        
+
                         // Vérifier si la réponse est correcte
                         let isCorrect: boolean = false;
                         if (question.type === 'fill_in_blank') {
                           // Phrases à trous : comparer les réponses
                           const expectedAnswers = question.answers.map(a => a.answer.toLowerCase().trim());
-                          const userAnswersArray = Array.isArray(userAnswer) 
+                          const userAnswersArray = Array.isArray(userAnswer)
                             ? userAnswer.map((ans: string) => ans.toLowerCase().trim())
                             : [];
                           isCorrect = expectedAnswers.length > 0 &&
@@ -1937,7 +1958,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                         } else if (question.type === 'multiple_choice') {
                           const correctAnswerIds = question.answers.filter(a => a.isCorrect).map(a => a.id);
                           const userAnswerIds = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
-                          isCorrect = correctAnswerIds.length > 0 && 
+                          isCorrect = correctAnswerIds.length > 0 &&
                             correctAnswerIds.every(id => userAnswerIds.includes(id)) &&
                             userAnswerIds.length === correctAnswerIds.length;
                         } else if (question.type === 'true_false') {
@@ -1949,11 +1970,10 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                           <button
                             key={question.id}
                             onClick={() => setSelectedQuestionIndex(index)}
-                            className={`w-10 h-10 flex items-center justify-center rounded-md font-semibold text-sm transition-all hover:scale-110 ${
-                              isCorrect
+                            className={`w-10 h-10 flex items-center justify-center rounded-md font-semibold text-sm transition-all hover:scale-110 ${isCorrect
                                 ? 'bg-green-500 text-white hover:bg-green-600'
                                 : 'bg-red-500 text-white hover:bg-red-600'
-                            }`}
+                              }`}
                           >
                             {index + 1}
                           </button>
@@ -2001,13 +2021,13 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                       }
                     }
                     const userAnswer = question.id ? userAnswers[question.id] : undefined;
-                    
+
                     // Vérifier si la réponse est correcte
                     let isCorrect: boolean = false;
                     if (question.type === 'fill_in_blank') {
                       // Phrases à trous : comparer les réponses
                       const expectedAnswers = question.answers.map(a => a.answer.toLowerCase().trim());
-                      const userAnswersArray = Array.isArray(userAnswer) 
+                      const userAnswersArray = Array.isArray(userAnswer)
                         ? userAnswer.map((ans: string) => ans.toLowerCase().trim())
                         : [];
                       isCorrect = expectedAnswers.length > 0 &&
@@ -2016,7 +2036,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                     } else if (question.type === 'multiple_choice') {
                       const correctAnswerIds = question.answers.filter(a => a.isCorrect).map(a => a.id);
                       const userAnswerIds = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
-                      isCorrect = correctAnswerIds.length > 0 && 
+                      isCorrect = correctAnswerIds.length > 0 &&
                         correctAnswerIds.every(id => userAnswerIds.includes(id)) &&
                         userAnswerIds.length === correctAnswerIds.length;
                     } else if (question.type === 'true_false') {
@@ -2031,11 +2051,10 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                             <h3 className="text-xl font-semibold text-gray-900">
                               Question {selectedQuestionIndex + 1}
                             </h3>
-                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                              isCorrect 
-                                ? 'bg-green-100 text-green-800' 
+                            <span className={`px-3 py-1 rounded-full text-sm font-medium ${isCorrect
+                                ? 'bg-green-100 text-green-800'
                                 : 'bg-red-100 text-red-800'
-                            }`}>
+                              }`}>
                               {isCorrect ? '✓ Correcte' : '✗ Incorrecte'}
                             </span>
                           </div>
@@ -2053,7 +2072,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                                     const parts = question.question.split(/(\{[^}]+)\}/g);
                                     const userAnswersArray = Array.isArray(userAnswer) ? userAnswer : [];
                                     let blankIdx = 0;
-                                    
+
                                     return (
                                       <p className="text-gray-900">
                                         {parts.map((part, idx) => {
@@ -2073,7 +2092,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                                   })()}
                                 </div>
                               </div>
-                              
+
                               {!isCorrect && (
                                 <div>
                                   <h4 className="font-semibold text-gray-900 mb-2">Phrase correcte :</h4>
@@ -2082,7 +2101,7 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                                       const parts = question.question.split(/(\{[^}]+)\}/g);
                                       const correctAnswers = question.answers.map(a => a.answer);
                                       let blankIdx = 0;
-                                      
+
                                       return (
                                         <p className="text-gray-900">
                                           {parts.map((part, idx) => {
@@ -2114,15 +2133,14 @@ export default function LessonPlayer({ formation, lessons: rawLessons, initialSe
                                   {question.answers.map((answer) => {
                                     const userAnswerIds = Array.isArray(userAnswer) ? userAnswer : [userAnswer];
                                     const isSelected = userAnswerIds.includes(answer.id);
-                                    
+
                                     return (
                                       <div
                                         key={answer.id}
-                                        className={`p-3 rounded-lg border-2 ${
-                                          isSelected
+                                        className={`p-3 rounded-lg border-2 ${isSelected
                                             ? 'border-blue-500 bg-blue-50'
                                             : 'border-gray-200'
-                                        }`}
+                                          }`}
                                       >
                                         <div className="flex items-center justify-between">
                                           <span className={isSelected ? 'font-medium text-gray-900' : 'text-gray-600'}>
