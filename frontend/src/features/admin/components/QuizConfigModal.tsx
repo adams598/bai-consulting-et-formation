@@ -34,7 +34,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
   const [questions, setQuestions] = useState<Partial<QuizQuestion>[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [loadedQuizId, setLoadedQuizId] = useState<string | null>(null);
+  const [loadedQuizId, setLoadedQuizId] = useState<string | 'new' | null>(null);
 
   // Hook de confirmation
   const confirmation = useConfirmation();
@@ -46,8 +46,9 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     }
 
     if (existingQuiz) {
-      if (loadedQuizId === existingQuiz.id) return; // déjà initialisé, ne pas reset
+      if (loadedQuizId === existingQuiz.id) return;
       setLoadedQuizId(existingQuiz.id);
+
       setQuizData({
         title: existingQuiz.title,
         description: existingQuiz.description,
@@ -59,27 +60,29 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
         triggerTime: existingQuiz.triggerTime,
       });
 
-      if (existingQuiz.questions) {
-        setQuestions(existingQuiz.questions.map(q => ({
-          ...q,
-          answers: q.answers || [],
-          triggerTime: q.triggerTime ?? 0, // <--- force un nombre
-        })));
-      }
-    } else {
-      // Nouveau quiz - ajouter une première question
-      setQuestions([{
-        question: '',
-        type: 'single_choice',
-        answers: [],
-        order: 1,
-        triggerTime: 0,
-        id: '',
-        questionId: '',
-        createdAt: new Date(),
-        updatedAt: new Date()
-      }]);
+      setQuestions((existingQuiz.questions || []).map(q => ({
+        ...q,
+        answers: q.answers || [],
+        triggerTime: q.triggerTime ?? 0,
+      })));
+
+      return;
     }
+
+    if (loadedQuizId === 'new') return;
+    setLoadedQuizId('new');
+
+    setQuestions([{
+      question: '',
+      type: 'single_choice',
+      answers: [],
+      order: 1,
+      triggerTime: 0,
+      id: '',
+      questionId: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }]);
   }, [isOpen, existingQuiz, loadedQuizId]);
 
   const handleQuizDataChange = (field: keyof Quiz, value: any) => {
@@ -107,8 +110,8 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
         id: '',
         questionId: '',
         createdAt: new Date(),
-        updatedAt: new Date()
-      } as Partial<QuizQuestion>
+        updatedAt: new Date(),
+      } as Partial<QuizQuestion>,
     ]);
   };
 
@@ -119,9 +122,9 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     });
   };
 
-  const updateQuestion = (questionIndex: number, field: keyof Partial<QuizQuestion>, value: any) => {
+  const updateQuestion = (idx: number, field: keyof Partial<QuizQuestion>, value: any) => {
     const normalized = field === 'triggerTime' ? normalizeTriggerTime(value) : value;
-    setQuestions(prev => prev.map((q, i) => (i === questionIndex ? { ...q, [field]: normalized } : q)));
+    setQuestions(prev => prev.map((q, i) => (i === idx ? { ...q, [field]: normalized } : q)));
   };
 
   const validateQuiz = (): boolean => {
@@ -133,7 +136,13 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     for (let i = 0; i < questions.length; i += 1) {
       const q = questions[i];
       if (q.triggerTime == null || q.triggerTime < 0) {
-        confirmation.showConfirmation({ title: 'Moment manquant', message: `Question ${i + 1} : indiquez un moment >= 0.`, confirmText: 'OK', type: 'warning', onConfirm: () => {} });
+        confirmation.showConfirmation({
+          title: 'Moment manquant',
+          message: `Question ${i + 1} : indiquez un moment >= 0.`,
+          confirmText: 'OK',
+          type: 'warning',
+          onConfirm: () => {},
+        });
         return false;
       }
     }
@@ -154,8 +163,8 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
           ...q,
           order: index + 1,
           triggerTime: normalizeTriggerTime(q.triggerTime) ?? 0,
-          answers: q.answers?.map((a, aIndex) => ({ ...a, order: aIndex + 1 })) || []
-        })) as QuizQuestion[]
+          answers: q.answers?.map((a, aIndex) => ({ ...a, order: aIndex + 1 })) || [],
+        })) as QuizQuestion[],
       };
       await onSave(quizToSave);
       onClose();
@@ -173,13 +182,11 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
 
   const normalizeTriggerTime = (raw: number | string | undefined): number | undefined => {
     if (raw === undefined || raw === null || raw === '') return undefined;
-    const str = typeof raw === 'string' ? raw.replace(',', '.') : String(raw);
+    const str = String(raw).trim().replace(',', '.');
     const n = Number(str);
     if (Number.isNaN(n) || n < 0) return undefined;
-
-    // 0.3 -> 30s (et 0.05 -> 5s, etc.)
-    if (n < 1) return n * 100;
-    return n;
+    if (n < 1) return Math.round(n * 100); // 0.3 => 30
+    return Math.round(n);
   };
 
   if (!isOpen) return null;
@@ -312,7 +319,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                 <input
                   type="number"
                   min="0"
-                  step="0.1"
+                  step="0.01"
                   value={quizData.triggerTime !== undefined ? ((quizData.triggerTime || 0) / 60) : ''}
                   onChange={(e) => {
                     const value = e.target.value;

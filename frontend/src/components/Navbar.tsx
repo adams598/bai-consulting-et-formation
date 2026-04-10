@@ -11,6 +11,41 @@ const navItems = [
   //   icon: <Home className="inline mr-2 w-5 h-5" />,
   //   to: "/",
   // },
+   {
+    label: "Courtage Diaspora",
+    icon: <PiggyBank className="inline mr-2 w-5 h-5" />,
+    to: "/courtage",
+    submenu: [
+      { label: "Les problèmes (Contexte actuel)", to: "/courtage#problemes" },
+      { label: "Les solutions", to: "/courtage#solutions" },
+      { label: "Focus pays", to: "/courtage#focuspays" },
+      { label: "Notre process client", to: "/courtage#process" },
+      { label: "Preuve sociale", to: "/courtage#preuvesociale" },
+      { label: "Notre storytelling", to: "/courtage#storytelling" },
+    ],
+  },
+     {
+    label: "Formation et employabilité",
+    icon: <PiggyBank className="inline mr-2 w-5 h-5" />,
+    to: "/formation",
+    submenu: [
+      { label: "Nos formations", to: "/formation#nosformations"},
+      { label: "Pour Qui ?", to: "/formation#pourqui"},
+      { label: "Notre objectif", to: "/formation#objectifs"},
+      { label: "Notre Opportunités", to: "/formation#opportunites"},
+    ],
+  },
+  // {
+  //   label: "Conseil aux entreprises",
+  //   icon: <PiggyBank className="inline mr-2 w-5 h-5" />,
+  //   to: "/conseil",
+  //   submenu: [
+  //     { label: "Nos formations", to: "/formation#nosformations"},
+  //     { label: "Pour Qui ?", to: "/formation#pourqui"},
+  //     { label: "Notre objectif", to: "/formation#objectifs"},
+  //     { label: "Notre Opportunités", to: "/formation#opportunites"},
+  //   ],
+  // },
   {
     label: "Banque",
     icon: <PiggyBank className="inline mr-2 w-5 h-5" />,
@@ -74,23 +109,15 @@ const navItems = [
 
 export default function Navbar() {
   const location = useLocation();
-  const [openIndex, setOpenIndex] = React.useState<number | null>(null);
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [mobileOpenIndex, setMobileOpenIndex] = React.useState<number | null>(null);
   const { theme, toggleTheme } = useTheme();
+  const [isExpanded, setIsExpanded] = React.useState(false);
 
   // Mémoriser les éléments de navigation pour éviter les re-renders
   const memoizedNavItems = useMemo(() => navItems, []);
 
   // Callbacks optimisés
-  const handleMouseEnter = useCallback((idx: number) => {
-    setOpenIndex(idx);
-  }, []);
-
-  const handleMouseLeave = useCallback(() => {
-    setOpenIndex(null);
-  }, []);
-
   const handleMobileToggle = useCallback(() => {
     setMobileOpen((prev) => !prev);
   }, []);
@@ -100,88 +127,104 @@ export default function Navbar() {
   }, []);
 
   return (
-    <nav className="w-full bg-[#F8F6F2] dark:bg-dark-bg-primary text-[#00314B] dark:text-dark-text-primary shadow-lg z-50 relative transition-colors duration-200">
-      <div className="container mx-auto flex items-center justify-between py-3 px-4">
-        <Link to="/" className="flex items-center gap-2">
-          {/* <img src="/logo-bai-fc.svg" alt="BAI Formation Consulting" className="h-10 w-auto" /> */}
-          <span className="text-2xl font-extrabold tracking-tight">BAI</span>
-          <span className="ml-1 text-[#C7B299] dark:text-dark-accent text-lg font-bold">Formation & Consulting</span>
-        </Link>
+    <nav 
+      className="w-full bg-[#F8F6F2] dark:bg-dark-bg-primary text-[#00314B] dark:text-dark-text-primary shadow-lg z-50 relative h-16 transition-all duration-500"
+      onMouseEnter={() => setIsExpanded(true)}
+      onMouseLeave={() => setIsExpanded(false)}
+    >
 
-        <div className="flex items-center gap-4">
-          {/* Barre de recherche */}
-          <SearchBar />
+        <div className="container mx-auto flex items-center justify-between py-3 px-4 h-full">
+          <Link to="/" className="flex items-center gap-2">
+            {/* <img src="/logo-bai-fc.svg" alt="BAI Formation Consulting" className="h-10 w-auto" /> */}
+            <span className="text-2xl font-extrabold tracking-tight">BAI</span>
+            <span className="ml-1 text-[#C7B299] dark:text-dark-accent text-lg font-bold">Formation & Consulting</span>
+          </Link>
 
-          {/* Bouton de basculement du thème */}
-          <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-dark-bg-secondary transition-colors"
-            aria-label={theme === 'dark' ? 'Passer au mode clair' : 'Passer au mode sombre'}
-          >
-            {theme === 'dark' ? (
-              <Sun className="w-5 h-5 text-yellow-400" />
-            ) : (
-              <Moon className="w-5 h-5 text-gray-600" />
-            )}
-          </button>
+          <div className="flex items-center gap-4">
+            {/* Barre de recherche */}
+            <SearchBar />
 
-          {/* Hamburger pour mobile */}
-          <button
-            className="xl:hidden p-2 rounded focus:outline-none focus:ring-2 focus:ring-[#C7B299]"
-            onClick={handleMobileToggle}
-            aria-label={mobileOpen ? "Fermer le menu" : "Ouvrir le menu"}
-          >
-            {mobileOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
-          </button>
+            {/* Bouton de basculement du thème */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-dark-bg-secondary transition-colors"
+              aria-label={theme === 'dark' ? 'Passer au mode clair' : 'Passer au mode sombre'}
+            >
+              {theme === 'dark' ? (
+                <Sun className="w-5 h-5 text-yellow-400" />
+              ) : (
+                <Moon className="w-5 h-5 text-gray-600" />
+              )}
+            </button>
+
+            {/* Hamburger pour mobile */}
+            <button
+              className="xl:hidden p-2 rounded focus:outline-none focus:ring-2 focus:ring-[#C7B299]"
+              onClick={handleMobileToggle}
+              aria-label={mobileOpen ? "Fermer le menu" : "Ouvrir le menu"}
+            >
+              {mobileOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
+            </button>
+          </div>
+
+          {/* Menu desktop - liens principaux seulement */}
+          <ul className="hidden xl:flex gap-6 items-center">
+            {memoizedNavItems.map((item) => (
+              <li key={item.label}>
+                <Link
+                  to={item.to}
+                  className={`flex items-center px-3 py-2 rounded transition-colors font-medium hover:text-[#C7B299] dark:hover:text-dark-accent ${
+                    location.pathname.startsWith(item.to) ? 'text-[#C7B299] dark:text-dark-accent font-bold' : ''
+                  }`}
+                >
+                  {item.icon}
+                  {item.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden xl:block">
+            <Link to="/admin/login">
+              <Button variant="secondary" className="flex items-center gap-2 bg-[#C7B299] text-[#00314B] hover:bg-[#00314B] hover:text-white border-none">
+                <User className="w-5 h-5" />
+                Espace apprenant
+              </Button>
+            </Link>
+          </div>
         </div>
 
-        {/* Menu desktop */}
-        <ul className="hidden xl:flex gap-6 items-center">
-          {memoizedNavItems.map((item, idx) => (
-            <li key={item.label} className="relative group">
-              <Link
-                to={item.to}
-                className={`flex items-center px-3 py-2 rounded transition-colors font-medium hover:text-[#C7B299] dark:hover:text-dark-accent ${
-                  location.pathname.startsWith(item.to) ? 'text-[#C7B299] dark:text-dark-accent font-bold' : ''
-                }`}
-                onMouseEnter={() => handleMouseEnter(idx)}
-                onMouseLeave={handleMouseLeave}
-              >
-                {item.icon}
-                {item.label}
-              </Link>
-              {item.submenu && (
-                <div
-                  className={`absolute left-0 mt-2 min-w-[220px] bg-white dark:bg-dark-bg-secondary text-[#00314B] dark:text-dark-text-primary rounded shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all z-50 ${
-                    openIndex === idx ? 'opacity-100 pointer-events-auto' : ''
-                  }`}
-                  onMouseEnter={() => handleMouseEnter(idx)}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  <ul className="py-2">
-                    {item.submenu.map((sub) => (
-                      <li key={sub.to}>
-                        <Link
-                          to={sub.to}
-                          className="block px-4 py-2 hover:bg-[#C7B299]/20 dark:hover:bg-dark-accent/20 rounded transition-colors"
-                        >
-                          {sub.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+        {/* Panneau étendu au survol */}
+        <div className={`hidden xl:block absolute top-0 left-0 w-full bg-[#F8F6F2] dark:bg-dark-bg-secondary shadow-lg border-b border-gray-200 dark:border-dark-bg-primary z-40 transition-opacity duration-500 ${isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+        <div className="h-full bg-[#F8F6F2] dark:bg-dark-bg-secondary shadow-lg border-b border-gray-200 dark:border-dark-bg-primary">
+          <div className="container mx-auto py-4 h-full flex items-center">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 w-full">
+              {memoizedNavItems.map((item) => (
+                <div key={item.label} className="flex flex-col">
+                  <Link
+                    to={item.to}
+                    className="font-semibold text-[#00314B] dark:text-dark-text-primary hover:text-[#C7B299] dark:hover:text-dark-accent mb-3 text-base"
+                  >
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                  {item.submenu && (
+                    <ul className="space-y-2">
+                      {item.submenu.map((sub) => (
+                        <li key={sub.to}>
+                          <Link
+                            to={sub.to}
+                            className="text-sm text-gray-700 dark:text-dark-text-secondary hover:text-[#C7B299] dark:hover:text-dark-accent transition-colors hover:bg-gray-100 dark:hover:bg-dark-bg-primary rounded px-2 py-1"
+                          >
+                            {sub.label}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
-              )}
-            </li>
-          ))}
-        </ul>
-        <div className="hidden xl:block">
-          <Link to="/admin/login">
-            <Button variant="secondary" className="flex items-center gap-2 bg-[#C7B299] text-[#00314B] hover:bg-[#00314B] hover:text-white border-none">
-              <User className="w-5 h-5" />
-              Espace apprenant
-            </Button>
-          </Link>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
       {/* Menu mobile */}
