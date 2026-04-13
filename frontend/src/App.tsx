@@ -131,10 +131,13 @@ function ScrollToAnchor() {
 const LoginPage = lazy(() => import('./pages/Login'));
 const DashboardPage = lazy(() => import('./pages/Dashboard'));
 const ContactPage = lazy(() => import('./app/contact/page'));
+const FormationPage = lazy(() => import('./app/formation/page'));
 const BanquePage = lazy(() => import('./app/banque/page'));
 const AssurancePage = lazy(() => import('./app/assurance/page'));
 const ImmobilierPage = lazy(() => import('./app/immobilier/page'));
 const SolutionsPage = lazy(() => import('./app/solutions/page'));
+const CourtageAboutPage = lazy(() => import('./app/courtage/page'));
+const ConseillPage = lazy(() => import('./app/conseil/page'));
 // Pages de formation pour apprenants
 const CoursesPage = lazy(() => import('./features/learner/pages/CoursesPage'));
 const CourseDetailPage = lazy(() => import('./features/learner/pages/CourseDetailPage'));
@@ -231,11 +234,14 @@ function App() {
           } />
           {/* Routes Publiques */}
           <Route path="/" element={<HomePage />} />
+          <Route path="/formation" element={<FormationPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/banque" element={<BanquePage />} />
           <Route path="/assurance" element={<AssurancePage />} />
           <Route path="/immobilier" element={<ImmobilierPage />} />
           <Route path="/solutions" element={<SolutionsPage />} />
+          <Route path="/courtage" element={<CourtageAboutPage />} />
+          <Route path="/conseil" element={<ConseillPage />} />
         </Routes>
       </Suspense>
     </RootLayout>

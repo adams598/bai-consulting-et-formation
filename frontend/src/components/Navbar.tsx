@@ -29,72 +29,75 @@ const navItems = [
     icon: <PiggyBank className="inline mr-2 w-5 h-5" />,
     to: "/formation",
     submenu: [
-      { label: "Nos formations", to: "/formation#nosformations"},
+      {
+        label: "Nos formations",
+        to: "/formation#nosformations",
+        submenu: [
+          {
+            label: "Banque",
+            to: "/banque",
+            submenu: [
+              { label: "Banque au quotidien & PNB", to: "/banque#quotidien" },
+              { label: "Activité choisie vs subie", to: "/banque#activite" },
+              { label: "Epargne", to: "/banque#epargne" },
+              { label: "Spécificités métiers", to: "/banque#metiers" },
+              { label: "Conquête client", to: "/banque#conquete" },
+              { label: "Démarche commerciale", to: "/banque#demarche" },
+              { label: "Rendez-vous téléphonique", to: "/banque#rdv" },
+              { label: "KYC", to: "/banque#kyc" },
+              { label: "Digitalisation", to: "/banque#digital" },
+              { label: "Satisfaction client (NPS)", to: "/banque#nps" },
+            ],
+          },
+          {
+            label: "Assurance",
+            to: "/assurance",
+            submenu: [
+              { label: "IARD Part (MRH, Auto, PNO)", to: "/assurance#iard-part" },
+              { label: "Prévoyance Particulier", to: "/assurance#prev-part" },
+              { label: "IARD Pro", to: "/assurance#iard-pro" },
+              { label: "Prévoyance Pro", to: "/assurance#prev-pro" },
+            ],
+          },
+          {
+            label: "Immobilier",
+            to: "/immobilier",
+            submenu: [
+              { label: "Location immobilière", to: "/immobilier#location" },
+              { label: "Vente immobilière", to: "/immobilier#vente" },
+              { label: "Programmes immobiliers (VEFA)", to: "/immobilier#vefa" },
+              { label: "Immobilier Haut de Gamme", to: "/immobilier#hautdegamme" },
+            ],
+          },
+        ],
+      },
       { label: "Pour Qui ?", to: "/formation#pourqui"},
       { label: "Notre objectif", to: "/formation#objectifs"},
       { label: "Notre Opportunités", to: "/formation#opportunites"},
     ],
   },
+  {
+    label: "Conseil aux entreprises",
+    icon: <PiggyBank className="inline mr-2 w-5 h-5" />,
+    to: "/conseil",
+    submenu: [
+      { label: "Notre mission", to: "/conseil#mission"},
+      { label: "Vos enjeux", to: "/conseil#enjeux"},
+      { label: "Nos solutions", to: "/conseil#solutions"},
+      { label: "Pour qui ?", to: "/conseil#pourqui"},
+      { label: "Notre valeur ajoutée", to: "/conseil#valeurajoutee"},
+    ],
+  },
   // {
-  //   label: "Conseil aux entreprises",
-  //   icon: <PiggyBank className="inline mr-2 w-5 h-5" />,
-  //   to: "/conseil",
+  //   label: "Nos solutions",
+  //   icon: <Lightbulb className="inline mr-2 w-5 h-5" />,
+  //   to: "/solutions",
   //   submenu: [
-  //     { label: "Nos formations", to: "/formation#nosformations"},
-  //     { label: "Pour Qui ?", to: "/formation#pourqui"},
-  //     { label: "Notre objectif", to: "/formation#objectifs"},
-  //     { label: "Notre Opportunités", to: "/formation#opportunites"},
+  //     { label: "Conférence", to: "/solutions#conference" },
+  //     { label: "Consulting", to: "/solutions#consulting" },
+  //     { label: "Formations", to: "/solutions#formations" },
   //   ],
   // },
-  {
-    label: "Banque",
-    icon: <PiggyBank className="inline mr-2 w-5 h-5" />,
-    to: "/banque",
-    submenu: [
-      { label: "Banque au quotidien & PNB", to: "/banque#quotidien" },
-      { label: "Activité choisie vs subie", to: "/banque#activite" },
-      { label: "Epargne", to: "/banque#epargne" },
-      { label: "Spécificités métiers", to: "/banque#metiers" },
-      { label: "Conquête client", to: "/banque#conquete" },
-      { label: "Démarche commerciale", to: "/banque#demarche" },
-      { label: "Rendez-vous téléphonique", to: "/banque#rdv" },
-      { label: "KYC", to: "/banque#kyc" },
-      { label: "Digitalisation", to: "/banque#digital" },
-      { label: "Satisfaction client (NPS)", to: "/banque#nps" },
-    ],
-  },
-  {
-    label: "Assurance",
-    icon: <ShieldCheck className="inline mr-2 w-5 h-5" />,
-    to: "/assurance",
-    submenu: [
-      { label: "IARD Part (MRH, Auto, PNO)", to: "/assurance#iard-part" },
-      { label: "Prévoyance Particulier", to: "/assurance#prev-part" },
-      { label: "IARD Pro", to: "/assurance#iard-pro" },
-      { label: "Prévoyance Pro", to: "/assurance#prev-pro" },
-    ],
-  },
-  {
-    label: "Immobilier",
-    icon: <Building2 className="inline mr-2 w-5 h-5" />,
-    to: "/immobilier",
-    submenu: [
-      { label: "Location immobilière", to: "/immobilier#location" },
-      { label: "Vente immobilière", to: "/immobilier#vente" },
-      { label: "Programmes immobiliers (VEFA)", to: "/immobilier#vefa" },
-      { label: "Immobilier Haut de Gamme", to: "/immobilier#hautdegamme" },
-    ],
-  },
-  {
-    label: "Nos solutions",
-    icon: <Lightbulb className="inline mr-2 w-5 h-5" />,
-    to: "/solutions",
-    submenu: [
-      { label: "Conférence", to: "/solutions#conference" },
-      { label: "Consulting", to: "/solutions#consulting" },
-      { label: "Formations", to: "/solutions#formations" },
-    ],
-  },
   {
     label: "Contact",
     icon: <Mail className="inline mr-2 w-5 h-5" />,
@@ -112,10 +115,82 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = React.useState(false);
   const [mobileOpenIndex, setMobileOpenIndex] = React.useState<number | null>(null);
   const { theme, toggleTheme } = useTheme();
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [openSubmenus, setOpenSubmenus] = React.useState<Set<string>>(new Set());
 
-  // Mémoriser les éléments de navigation pour éviter les re-renders
   const memoizedNavItems = useMemo(() => navItems, []);
+
+  // Fonction récursive pour rendre les sous-menus
+  const renderSubmenu = (submenu: any[], level: number = 0) => {
+    return (
+      <ul className={`space-y-2 ${level > 0 ? 'ml-4' : ''}`}>
+        {submenu.map((sub) => (
+          <li key={sub.to} className={sub.submenu ? 'relative group' : undefined}>
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                to={sub.to}
+                className={`text-sm text-gray-700 dark:text-dark-text-secondary hover:text-[#C7B299] dark:hover:text-dark-accent transition-colors hover:bg-gray-100 dark:hover:bg-dark-bg-primary rounded px-2 py-1 block ${level > 0 ? 'text-xs' : ''}`}
+              >
+                {sub.label}
+              </Link>
+              {sub.submenu && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    toggleSubmenu(sub.to);
+                  }}
+                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-dark-bg-primary transition-colors"
+                  aria-label={openSubmenus.has(sub.to) ? `Fermer ${sub.label}` : `Ouvrir ${sub.label}`}
+                >
+                  {openSubmenus.has(sub.to) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              )}
+            </div>
+            {sub.submenu && openSubmenus.has(sub.to) && (
+              <div className="mt-2 transition-all duration-200 opacity-100">
+                {renderSubmenu(sub.submenu, level + 1)}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
+  const renderMobileSubmenu = (submenu: any[], level: number = 0) => {
+    return (
+      <ul className={`space-y-2 ${level > 0 ? 'ml-4' : ''}`}>
+        {submenu.map((sub) => (
+          <li key={sub.to}>
+            <div className="flex items-center justify-between gap-2">
+              <Link
+                to={sub.to}
+                className={`block text-base text-[#00314B] dark:text-dark-text-secondary hover:text-[#C7B299] dark:hover:text-[#C7B299] rounded px-2 py-2 transition-colors ${level > 0 ? 'text-sm' : ''}`}
+                onClick={handleMobileClose}
+              >
+                {sub.label}
+              </Link>
+              {sub.submenu && (
+                <button
+                  type="button"
+                  onClick={() => toggleSubmenu(sub.to)}
+                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-dark-bg-secondary transition-colors"
+                  aria-label={openSubmenus.has(sub.to) ? `Fermer ${sub.label}` : `Ouvrir ${sub.label}`}
+                >
+                  {openSubmenus.has(sub.to) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+              )}
+            </div>
+            {sub.submenu && openSubmenus.has(sub.to) && (
+              <div className="mt-2 transition-all duration-200 opacity-100">
+                {renderMobileSubmenu(sub.submenu, level + 1)}
+              </div>
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  };
 
   // Callbacks optimisés
   const handleMobileToggle = useCallback(() => {
@@ -126,113 +201,94 @@ export default function Navbar() {
     setMobileOpen(false);
   }, []);
 
+  const toggleSubmenu = useCallback((key: string) => {
+    setOpenSubmenus((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(key)) {
+        newSet.delete(key);
+      } else {
+        newSet.add(key);
+      }
+      return newSet;
+    });
+  }, []);
+
   return (
     <nav 
-      className="w-full bg-[#F8F6F2] dark:bg-dark-bg-primary text-[#00314B] dark:text-dark-text-primary shadow-lg z-50 relative h-16 transition-all duration-500"
-      onMouseEnter={() => setIsExpanded(true)}
-      onMouseLeave={() => setIsExpanded(false)}
+      className="w-full bg-[#F8F6F2] dark:bg-dark-bg-primary text-[#00314B] dark:text-dark-text-primary shadow-lg z-50 relative h-16"
     >
+      <div className="container mx-auto flex items-center justify-between py-3 px-4 h-full">
+        <Link to="/" className="flex items-center gap-2">
+          <span className="text-2xl font-extrabold tracking-tight">BAI</span>
+          <span className="ml-1 text-[#C7B299] dark:text-dark-accent text-lg font-bold">Formation & Consulting</span>
+        </Link>
 
-        <div className="container mx-auto flex items-center justify-between py-3 px-4 h-full">
-          <Link to="/" className="flex items-center gap-2">
-            {/* <img src="/logo-bai-fc.svg" alt="BAI Formation Consulting" className="h-10 w-auto" /> */}
-            <span className="text-2xl font-extrabold tracking-tight">BAI</span>
-            <span className="ml-1 text-[#C7B299] dark:text-dark-accent text-lg font-bold">Formation & Consulting</span>
-          </Link>
+        <div className="flex items-center gap-4">
+          <SearchBar />
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-dark-bg-secondary transition-colors"
+            aria-label={theme === 'dark' ? 'Passer au mode clair' : 'Passer au mode sombre'}
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-5 h-5 text-yellow-400" />
+            ) : (
+              <Moon className="w-5 h-5 text-gray-600" />
+            )}
+          </button>
+          <button
+            className="xl:hidden p-2 rounded focus:outline-none focus:ring-2 focus:ring-[#C7B299]"
+            onClick={handleMobileToggle}
+            aria-label={mobileOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          >
+            {mobileOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
+          </button>
+        </div>
 
-          <div className="flex items-center gap-4">
-            {/* Barre de recherche */}
-            <SearchBar />
-
-            {/* Bouton de basculement du thème */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-dark-bg-secondary transition-colors"
-              aria-label={theme === 'dark' ? 'Passer au mode clair' : 'Passer au mode sombre'}
-            >
-              {theme === 'dark' ? (
-                <Sun className="w-5 h-5 text-yellow-400" />
-              ) : (
-                <Moon className="w-5 h-5 text-gray-600" />
-              )}
-            </button>
-
-            {/* Hamburger pour mobile */}
-            <button
-              className="xl:hidden p-2 rounded focus:outline-none focus:ring-2 focus:ring-[#C7B299]"
-              onClick={handleMobileToggle}
-              aria-label={mobileOpen ? "Fermer le menu" : "Ouvrir le menu"}
-            >
-              {mobileOpen ? <X className="w-7 h-7" /> : <Menu className="w-7 h-7" />}
-            </button>
-          </div>
-
-          {/* Menu desktop - liens principaux seulement */}
-          <ul className="hidden xl:flex gap-6 items-center">
-            {memoizedNavItems.map((item) => (
-              <li key={item.label}>
+        <ul className="hidden xl:flex gap-6 items-center">
+          {memoizedNavItems.map((item) => (
+            <li key={item.label} className="relative group py-2">
+              <div className="flex items-center gap-2">
                 <Link
                   to={item.to}
-                  className={`flex items-center px-3 py-2 rounded transition-colors font-medium hover:text-[#C7B299] dark:hover:text-dark-accent ${
+                  className={`flex items-center text-xs px-1 py-1 rounded transition-colors font-medium hover:text-[#C7B299] dark:hover:text-dark-accent ${
                     location.pathname.startsWith(item.to) ? 'text-[#C7B299] dark:text-dark-accent font-bold' : ''
                   }`}
                 >
                   {item.icon}
                   {item.label}
                 </Link>
-              </li>
-            ))}
-          </ul>
-          <div className="hidden xl:block">
-            <Link to="/admin/login">
-              <Button variant="secondary" className="flex items-center gap-2 bg-[#C7B299] text-[#00314B] hover:bg-[#00314B] hover:text-white border-none">
-                <User className="w-5 h-5" />
-                Espace apprenant
-              </Button>
-            </Link>
-          </div>
-        </div>
+                {item.submenu && (
+                  <ChevronDown className="w-4 h-4 opacity-70" />
+                )}
+              </div>
 
-        {/* Panneau étendu au survol */}
-        <div className={`hidden xl:block absolute top-0 left-0 w-full bg-[#F8F6F2] dark:bg-dark-bg-secondary shadow-lg border-b border-gray-200 dark:border-dark-bg-primary z-40 transition-opacity duration-500 ${isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-        <div className="h-full bg-[#F8F6F2] dark:bg-dark-bg-secondary shadow-lg border-b border-gray-200 dark:border-dark-bg-primary">
-          <div className="container mx-auto py-4 h-full flex items-center">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6 w-full">
-              {memoizedNavItems.map((item) => (
-                <div key={item.label} className="flex flex-col">
-                  <Link
-                    to={item.to}
-                    className="font-semibold text-[#00314B] dark:text-dark-text-primary hover:text-[#C7B299] dark:hover:text-dark-accent mb-3 text-base"
-                  >
-                    {item.icon}
-                    {item.label}
-                  </Link>
-                  {item.submenu && (
-                    <ul className="space-y-2">
-                      {item.submenu.map((sub) => (
-                        <li key={sub.to}>
-                          <Link
-                            to={sub.to}
-                            className="text-sm text-gray-700 dark:text-dark-text-secondary hover:text-[#C7B299] dark:hover:text-dark-accent transition-colors hover:bg-gray-100 dark:hover:bg-dark-bg-primary rounded px-2 py-1"
-                          >
-                            {sub.label}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+              {item.submenu && (
+                <div className="absolute left-0 top-full pt-1 min-w-[240px] rounded invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-50">
+                  <div className="bg-white dark:bg-dark-bg-secondary text-[#00314B] dark:text-dark-text-primary shadow-lg border border-gray-200 dark:border-dark-bg-primary rounded p-3">
+                    {renderSubmenu(item.submenu)}
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              )}
+            </li>
+          ))}
+        </ul>
+
+        <div className="hidden xl:block">
+          <Link to="/admin/login">
+            <Button variant="secondary" className="flex items-center gap-2 bg-[#C7B299] text-[#00314B] hover:bg-[#00314B] hover:text-white border-none">
+              <User className="w-5 h-5" />
+              Espace apprenant
+            </Button>
+          </Link>
         </div>
       </div>
-      {/* Menu mobile */}
+
       {mobileOpen && (
         <div className="xl:hidden fixed inset-0 bg-black/40 z-40" onClick={handleMobileClose} />
       )}
       <div
-        className={`xl:hidden fixed top-0 right-0 h-full w-4/5 max-w-xs bg-[#F8F6F2] dark:bg-dark-bg-primary dark:text-white dark:hover:text-[#C7B299] shadow-lg z-50 transform transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`xl:hidden fixed top-0 right-0 h-full w-4/5 max-w-xs bg-[#F8F6F2] dark:bg-dark-bg-primary dark:text-white shadow-lg z-50 transform transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : 'translate-x-full'}`}
         style={{ willChange: 'transform', maxWidth: '20rem', overflowY: 'auto' }}
       >
         <div className="flex flex-col h-full p-6 gap-6">
@@ -251,7 +307,7 @@ export default function Navbar() {
                 {item.submenu ? (
                   <button
                     type="button"
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded transition-colors font-medium hover:text-[#C7B299] dark:hover:text-[#C7B299] ${location.pathname.startsWith(item.to) ? 'text-[#C7B299] font-bold' : ''}`}
+                    className={`w-full flex items-center justify-between text-sm px-3 py-2 rounded transition-colors font-medium hover:text-[#C7B299] dark:hover:text-[#C7B299] ${location.pathname.startsWith(item.to) ? 'text-[#C7B299] font-bold' : ''}`}
                     onClick={() => setMobileOpenIndex(mobileOpenIndex === idx ? null : idx)}
                   >
                     <span className="flex items-center break-words whitespace-normal max-w-[14rem]">{item.icon}{item.label}</span>
@@ -260,7 +316,7 @@ export default function Navbar() {
                 ) : (
                   <Link
                     to={item.to}
-                    className={`flex items-center px-3 py-2 rounded transition-colors font-medium hover:text-[#C7B299] dark:hover:text-[#C7B299] ${location.pathname.startsWith(item.to) ? 'text-[#C7B299] font-bold' : ''}`}
+                    className={`flex items-center text-sm px-3 py-2 rounded transition-colors font-medium hover:text-[#C7B299] dark:hover:text-[#C7B299] ${location.pathname.startsWith(item.to) ? 'text-[#C7B299] font-bold' : ''}`}
                     onClick={handleMobileClose}
                   >
                     {item.icon}
@@ -268,19 +324,9 @@ export default function Navbar() {
                   </Link>
                 )}
                 {item.submenu && mobileOpenIndex === idx && (
-                  <ul className="ml-6 mt-2 flex flex-col gap-1 bg-white dark:bg-dark-bg-secondary rounded shadow-lg py-2">
-                    {item.submenu.map((sub) => (
-                      <li key={sub.to}>
-                        <Link
-                          to={sub.to}
-                          className="block px-4 py-3 text-base hover:bg-[#C7B299]/20 dark:hover:bg-dark-accent/20 hover:text-[#C7B299] dark:hover:text-[#C7B299] rounded transition-colors break-words whitespace-normal max-w-[13rem]"
-                          onClick={handleMobileClose}
-                        >
-                          {sub.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="ml-4 transition-all duration-200 opacity-100">
+                    {renderMobileSubmenu(item.submenu)}
+                  </div>
                 )}
               </li>
             ))}
