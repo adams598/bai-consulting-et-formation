@@ -158,11 +158,7 @@ export default function ContactPage() {
                 <Sparkles className="w-4 h-4 mr-2" />
                 Nous contacter
               </div>
-              <AnimatedText
-                text="Contactez-nous"
-                className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white mt-4"
-                delay={0.2}
-              />
+
               <motion.div
                 className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue"
                 initial={{ scaleX: 0 }}
@@ -477,10 +473,10 @@ export default function ContactPage() {
                   <p className="text-white/90 mb-6">
                     Nous proposons des formations adaptées aux besoins spécifiques de votre entreprise.
                   </p>
-                  <Link to="/formation" className="inline-flex items-center justify-center gap-2 bg-brand-blue hover:bg-brand-blue/90 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 group/btn">
+                  {/* <Link to="/formation" className="inline-flex items-center justify-center gap-2 bg-brand-blue hover:bg-brand-blue/90 text-white font-semibold py-3 px-6 rounded-full transition-all duration-300 group/btn">
                     Découvrir nos formations
                     <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
-                  </Link>
+                  </Link> */}
                 </motion.div>
               </motion.section>
             </div>

@@ -267,7 +267,7 @@ export default function CourtageAboutPage() {
                 <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
               </Link>
             </motion.div>
-            <motion.div
+            {/* <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -277,7 +277,7 @@ export default function CourtageAboutPage() {
               >
                 Découvrir nos services
               </Link>
-            </motion.div>
+            </motion.div> */}
           </motion.div>
         </div>
       </div>
@@ -302,11 +302,11 @@ export default function CourtageAboutPage() {
               <Sparkles className="w-4 h-4 mr-2" />
               Nos services
             </div>
-            <AnimatedText
+            {/* <AnimatedText
               text="Nos Services"
               className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white"
               delay={0.2}
-            />
+            /> */}
             <motion.div
               className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue"
               initial={{ scaleX: 0 }}

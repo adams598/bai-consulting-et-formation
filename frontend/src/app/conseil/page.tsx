@@ -273,7 +273,7 @@ export default function ConseillPage() {
                 <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
               </Link>
             </motion.div>
-            <motion.div
+            {/* <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
@@ -283,7 +283,7 @@ export default function ConseillPage() {
               >
                 Découvrir nos services
               </Link>
-            </motion.div>
+            </motion.div> */}
           </motion.div>
         </div>
       </div>
