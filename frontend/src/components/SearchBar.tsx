@@ -7,7 +7,7 @@ interface SearchResult {
   id: string;
   title: string;
   description: string;
-  type: 'banque' | 'assurance' | 'immobilier' | 'solutions';
+  type: 'banque' | 'assurance' | 'immobilier' | 'solutions' | 'courtage' | 'formation' | 'conseil';
   path: string;
 }
 
@@ -156,6 +156,128 @@ const searchData: SearchResult[] = [
     description: "Nos formations sont conçues pour développer les compétences de vos équipes commerciales. De la banque à l'assurance en passant par l'immobilier, nous proposons des parcours adaptés à chaque métier et niveau d'expérience.",
     type: 'solutions',
     path: '/solutions#formations'
+  },
+  // Courtage
+  {
+    id: 'courtage-achat',
+    title: 'Achat Immobilier',
+    description: 'Concrétisez vos projets immobiliers en Afrique avec notre accompagnement complet. Sourcing de biens, analyse de projets, négociation commerciale, financement adapté.',
+    type: 'courtage',
+    path: '/courtage#services'
+  },
+  {
+    id: 'courtage-investissement',
+    title: 'Investissement Locatif',
+    description: 'Générez des revenus réguliers en investissant dans l\'immobilier africain. Analyse de rentabilité, sélection des biens, structuration fiscale, gestion locative.',
+    type: 'courtage',
+    path: '/courtage#services'
+  },
+  {
+    id: 'courtage-credit',
+    title: 'Accès au Crédit Local',
+    description: 'Accédez facilement au crédit auprès des meilleures institutions bancaires africaines. Analyse de dossier, mise en relation bancaire, montage de dossier.',
+    type: 'courtage',
+    path: '/courtage#services'
+  },
+  {
+    id: 'courtage-cameroun',
+    title: 'Courtage Cameroun',
+    description: 'Notre principal marché avec partenariats exclusifs. Résidences secondaires, investissement locatif, immobilier professionnel avec Crédit Foncier du Cameroun.',
+    type: 'courtage',
+    path: '/courtage#cameroun'
+  },
+  {
+    id: 'courtage-cotedivoire',
+    title: 'Courtage Côte d\'Ivoire',
+    description: 'Marché dynamique avec fortes opportunités. Projets résidentiels, copropriétés, programmes commerciaux avec nos partenaires bancaires.',
+    type: 'courtage',
+    path: '/courtage#cotedivoire'
+  },
+  // Formation
+  {
+    id: 'formation-banque',
+    title: 'Conseiller Bancaire',
+    description: 'Formations sur mesure pour conseillers bancaires : techniques de négociation, gestion de portefeuille clients, développement commercial, épargne et placements.',
+    type: 'formation',
+    path: '/formation#nosformations'
+  },
+  {
+    id: 'formation-assurance',
+    title: 'Conseiller en Assurance',
+    description: 'Formations pour aborder tous les univers d\'assurance : IARD, Prévoyance, techniques commerciales, accompagnement client, produits d\'assurance.',
+    type: 'formation',
+    path: '/formation#nosformations'
+  },
+  {
+    id: 'formation-microfinance',
+    title: 'Microfinance',
+    description: 'Formations spécialisées en microfinance pour inclusion financière, accompagnement des petits entrepreneurs, évaluation du crédit, gestion des risques.',
+    type: 'formation',
+    path: '/formation#nosformations'
+  },
+  {
+    id: 'formation-coaching',
+    title: 'Coaching Commercial',
+    description: 'Programmes de coaching intensifs pour développer compétences commerciales, techniques de vente, gestion d\'équipe, leadership commercial.',
+    type: 'formation',
+    path: '/formation#nosformations'
+  },
+  {
+    id: 'formation-etudiants',
+    title: 'Formation Étudiants',
+    description: 'Préparation aux métiers de la finance et de l\'assurance dès les études. Du Bac à Bac+5, développez vos compétences pour une carrière réussie.',
+    type: 'formation',
+    path: '/formation#public'
+  },
+  {
+    id: 'formation-reconversion',
+    title: 'Reconversion Professionnelle',
+    description: 'Changez de carrière en toute confiance avec nos formations adaptées. Accompagnement personnalisé et mise en relation avec nos partenaires recruteurs.',
+    type: 'formation',
+    path: '/formation#public'
+  },
+  // Conseil aux entreprises
+  {
+    id: 'conseil-structuration',
+    title: 'Structuration Financière',
+    description: 'Organisation professionnelle de votre activité : analyse complète, mise en place d\'indicateurs financiers, organisation des flux et gestion.',
+    type: 'conseil',
+    path: '/conseil#solutions'
+  },
+  {
+    id: 'conseil-montage',
+    title: 'Montage de Dossiers de Financement',
+    description: 'Construction de votre dossier bancaire parfait : préparation de business plan, structuration du dossier, optimisation de votre profil emprunteur.',
+    type: 'conseil',
+    path: '/conseil#solutions'
+  },
+  {
+    id: 'conseil-relation',
+    title: 'Mise en Relation avec les Banques',
+    description: 'Ouverture des portes des institutions financières : identification des partenaires adaptés, présentation de votre dossier, accompagnement jusqu\'à validation.',
+    type: 'conseil',
+    path: '/conseil#solutions'
+  },
+  {
+    id: 'conseil-pme',
+    title: 'Conseil PME en Croissance',
+    description: 'Accélérez votre développement avec des financements adaptés. Structuration, optimisation des process et stratégie de financement pour PME.',
+    type: 'conseil',
+    path: '/conseil#public'
+  },
+  {
+    id: 'conseil-entrepreneurs',
+    title: 'Conseil Entrepreneurs',
+    description: 'Structurez vos projets et accédez au financement. Accompagnement complet pour entrepreneurs africains en phase de structuration.',
+    type: 'conseil',
+    path: '/conseil#public'
+  },
+  {
+    id: 'conseil-startups',
+    title: 'Conseil Startups',
+    description: 'Levez des fonds et développez votre activité rapidement. Accompagnement spécialisé pour startups africaines en recherche de financement.',
+    type: 'conseil',
+    path: '/conseil#public'
   },
 ];
 
