@@ -40,7 +40,7 @@ const slides = [
 
         {/* Texte */}
         <div className="text-center sm:text-left text-brand-blue text-base sm:text-xl md:text-3xl lg:text-4xl font-bold font-sans tracking-wide uppercase w-full sm:w-1/2 px-2 sm:px-4">
-          Nos formations sont destinées aux commerciaux du secteur de la banque, de l'assurance et de l'immobilier
+          Nos formations sont destinées aux commerciaux du secteur de la banque, de l'assurance et de la microfinance.
         </div>
       </div>
 
@@ -54,7 +54,7 @@ const slides = [
   {
     image: "/images/pexels-banque-7821702.jpg",
     imageWebp: "/images/banque.webp",
-    title: "Courtage",
+    title: "Courtage Diaspora",
     text: (
       <motion.div
         initial={{ opacity: 0, x: -15 }}
@@ -63,7 +63,7 @@ const slides = [
         className="hidden md:flex text-base md:text-lg items-center justify-center w-full max-w-4xl mx-auto text-center"
       >
         <span className="px-4 py-2 text-white">
-          Accompagnement de vos projets financiers et immobiliers, avec un appui concret pour sécuriser vos dossiers et mobiliser les bonnes solutions. Nous structurons vos financements et optimisons votre gestion d'actifs.
+          Nous accompagnons vos projets immobiliers et financiers en Afrique francophone et mobilisons nos partenaire bancaires locaux pour le financement de votre projet.
         </span>
       </motion.div>
     ),
@@ -72,7 +72,7 @@ const slides = [
   {
     image: "/images/pexels-assurance-5255183.jpg",
     imageWebp: "/images/assurance.webp",
-    title: "Formation",
+    title: "Formations et employabilité",
     text: (
       <motion.div
         initial={{ opacity: 0, x: -15 }}
@@ -81,7 +81,7 @@ const slides = [
         className="hidden md:flex text-base md:text-lg items-center justify-center w-full max-w-4xl mx-auto text-center"
       >
         <span className="px-4 py-2 text-white">
-          Parcours opérationnels, mises en situation et montée en compétences pour vos équipes commerciales dans la banque, l'assurance et l'immobilier. Nous renforçons les skills de vos talents et accélérez votre croissance.
+          Bilan de compétence, parcours opérationnels, mises en situation, montée en compétence de vos équipes commerciales et de vos managers commerciaux. Nous renforçons les skills de vos talents et favorisons l’augmentation de votre PNB. Nos domaines de formation Banque, Assurance et Microfinance
         </span>
       </motion.div>
     ),
@@ -90,7 +90,7 @@ const slides = [
   {
     image: "https://images.pexels.com/photos/439391/pexels-photo-439391.jpeg",
     imageWebp: "/images/immobilier.webp",
-    title: "Conseil aux entreprises",
+    title: "Conseils aux entreprises",
     text: (
       <motion.div
         initial={{ opacity: 0, x: -15 }}
@@ -310,7 +310,7 @@ function HomePage() {
                         />
                       </picture>
                       <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center text-center px-2 sm:px-4 pb-8 sm:pb-12">
-                        <h2 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white drop-shadow-lg max-w-full mb-4 text-center leading-normal tracking-wider break-words whitespace-normal">
+                        <h2 className="text-3xl sm:text-5xl md:text-6xl font-bold text-white drop-shadow-lg max-w-full mb-4 text-center leading-normal tracking-wider break-words whitespace-normal">
                           {slide.title}
                         </h2>
                         {slide.link && typeof slide.link === 'string' && slide.link !== '' && (
@@ -411,13 +411,13 @@ function HomePage() {
         >
           <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-8 lg:px-12">
             <div className="space-y-8 text-center">
-              <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+              <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue dark:text-brand-beige px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
                 Nos 3 thématiques</div>
               <div className="space-y-3">
-                <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">
+                <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">
                   Courtage, Formation et Conseil alignés autour de l’impact business.
                 </h2>
-                <div className="mx-auto mt-3 h-1.5 w-28 rounded-full bg-brand-blue"></div>
+                <div className="mx-auto mt-3 h-1.5 w-28 rounded-full bg-brand-blue dark:bg-brand-beige"></div>
                 <p className="mx-auto max-w-3xl text-base text-slate-600 dark:text-slate-300 sm:text-lg">
                   Trois axes structurés pour sécuriser vos projets, développer vos talents et optimiser votre stratégie d’entreprise.</p>
               </div>
@@ -426,20 +426,20 @@ function HomePage() {
             <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
               {[
                 {
-                  icon: <BookOpen className="h-6 w-6" />,
-                  title: 'Courtage',
+                  icon: <BookOpen className="h-6 w-6 dark:text-blue-200" />,
+                  title: 'Courtage Diaspora',
                   text: 'Accompagnement de vos projets financiers et immobiliers, avec un appui concret pour sécuriser vos dossiers et mobiliser les bonnes solutions.',
                   link: '/courtage'
                 },
                 {
-                  icon: <Presentation className="h-6 w-6" />,
-                  title: 'Formation',
-                  text: 'Parcours opérationnels, mises en situation et montée en compétences pour vos équipes commerciales dans la banque, l’assurance et l’immobilier.',
+                  icon: <Presentation className="h-6 w-6 dark:text-blue-200" />,
+                  title: 'Formation et employabilité',
+                  text: 'Parcours opérationnels, mises en situation et montée en compétences pour vos équipes commerciales dans la banque, l’assurance et la microfinance.',
                   link: '/formation'
                 },
                 {
-                  icon: <TrendingUp className="h-6 w-6" />,
-                  title: 'Conseil aux entreprises',
+                  icon: <TrendingUp className="h-6 w-6 dark:text-blue-200" />,
+                  title: 'Conseils aux entreprises',
                   text: 'Structuration d’entreprise, optimisation des process et stratégie de financement pour accélérer votre croissance en confiance.',
                   link: '/conseil'
                 }
@@ -468,7 +468,7 @@ function HomePage() {
 
             <div className="flex justify-center mt-10">
               <Link to="/contact">
-                <button className="rounded-full bg-brand-blue px-8 py-4 text-base font-semibold text-white shadow-lg shadow-brand-blue/20 hover:bg-brand-blue/90 transition">
+                <button className="rounded-full bg-brand-beige px-8 py-4 text-base font-semibold dark:text-brand-blue dark:font-bold hover:bg-brand-beige/90 transition">
                   Contactez-nous
                 </button>
               </Link>
@@ -493,17 +493,17 @@ function HomePage() {
                 className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] items-center"
               >
                 <div className="space-y-4">
-                  <p className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.24em]">
+                  <p className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue dark:text-brand-beige px-4 py-2 text-sm font-semibold uppercase tracking-[0.24em]">
                     Notre Architecture Conseil</p>
-                  <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white">Une structure claire pour sécuriser vos décisions et déployer vos projets.</h2>
-                  <div className="h-1.5 w-24 rounded-full bg-brand-blue" />
+                  <h2 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white">Une structure claire pour sécuriser vos décisions et déployer vos projets.</h2>
+                  <div className="h-1.5 w-24 rounded-full bg-brand-blue dark:bg-brand-beige" />
                   <p className="text-base text-slate-600 dark:text-slate-300 max-w-2xl">
-                    BAI Consulting combine courtage, formation et conseil aux entreprises pour offrir un accompagnement complet : diagnostic, structuration, mobilisation de financements et montée en compétences.</p>
+                    BAI Consulting combine courtage, formations et conseils aux entreprises pour offrir un accompagnement complet : diagnostic, structuration, mobilisation de financements et montée en compétences.</p>
                 </div>
                 <div className="overflow-hidden">
                   <img
                     src="/images/diplome.png"
-                    alt="Conseil aux entreprises"
+                    alt="Conseils aux entreprises"
                     className="w-full h-auto max-h-[320px] object-cover"
                   />
                 </div>
@@ -512,22 +512,22 @@ function HomePage() {
               <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
                 {[
                   {
-                    icon: <BookOpen className="h-6 w-6" />,
+                    icon: <BookOpen className="h-6 w-6 dark:text-blue-200" />,
                     title: 'Ce que nous faisons',
                     text: 'Diagnostic profond et restructuration des flux financiers pour optimiser la rentabilité globale.'
                   },
                   {
-                    icon: <Presentation className="h-6 w-6" />,
+                    icon: <Presentation className="h-6 w-6 dark:text-blue-200" />,
                     title: 'Pour qui',
                     text: 'Dirigeants d’entreprises en croissance et directions financières cherchant l’excellence opérationnelle.'
                   },
                   {
-                    icon: <TrendingUp className="h-6 w-6" />,
+                    icon: <TrendingUp className="h-6 w-6 dark:text-blue-200" />,
                     title: 'Résultat attendu',
                     text: 'Une structure résiliente, des équipes commerciales motivées et une trajectoire de croissance claire.'
                   },
                   {
-                    icon: <Home className="h-6 w-6" />,
+                    icon: <Home className="h-6 w-6 dark:text-blue-200" />,
                     title: 'Approche',
                     text: 'Méthodologie sur-mesure combinant data-analyse et intelligence émotionnelle organisationnelle.'
                   }
@@ -556,11 +556,11 @@ function HomePage() {
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-bold break-words whitespace-normal">Prêt à structurer vos projets et renforcer vos équipes ?</h2>
             <p className="mt-4 text-xl max-w-2xl mx-auto break-words whitespace-normal">
-              Échangez avec nous pour construire une solution sur mesure : courtage de financement, formation commerciale ou conseil stratégique pour votre entreprise.
+              Échangez avec nous pour construire une solution sur mesure : courtage, formation commerciale ou conseil stratégique pour votre entreprise.
             </p>
             <Link to="/contact">
-              <button className="mt-8 bg-brand-beige dark:bg-dark-bg-primary text-brand-blue dark:text-white px-6 py-3 rounded font-semibold hover:bg-brand-beige/80 transition-colors flex items-center mx-auto">
-                <Mail className="mr-2 h-5 w-5" />
+              <button className="mt-8 bg-brand-beige text-brand-blue dark:text-brand-blue px-6 py-3 rounded font-semibold hover:bg-brand-beige/80 transition-colors flex items-center mx-auto">
+                <Mail className="mr-2 h-5 w-5 dark:text-brand-blue" />
                 Échangeons sur votre projet
               </button>
             </Link>
@@ -581,27 +581,27 @@ function HomePage() {
               </p>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Nos expertises</h3>
+              <h3 className="text-lg font-semibold mb-4 text-brand-beige dark:text-brand-beige">Nos expertises</h3>
               <ul className="space-y-2">
                 <li>
                   <Link to="/courtage" className="text-gray-400 hover:text-white transition-colors">
-                    Courtage
+                    Courtage Diaspora
                   </Link>
                 </li>
                 <li>
                   <Link to="/formation" className="text-gray-400 hover:text-white transition-colors">
-                    Formation
+                    Formations et employabilité
                   </Link>
                 </li>
                 <li>
                   <Link to="/conseil" className="text-gray-400 hover:text-white transition-colors">
-                    Conseil aux entreprises
+                    Conseils aux entreprises
                   </Link>
                 </li>
               </ul>
             </div>
             <div>
-              <h3 className="text-lg font-semibold mb-4">Liens utiles</h3>
+              <h3 className="text-lg font-semibold mb-4 text-brand-beige dark:text-brand-beige">Liens utiles</h3>
               <ul className="space-y-2">
                 <li>
                   <Link to="/solutions" className="text-gray-400 hover:text-white transition-colors">
@@ -622,7 +622,7 @@ function HomePage() {
           </div>
           <div className="flex justify-center mt-8">
             <Link to="/contact">
-              <button className="bg-brand-beige text-brand-blue dark:bg-dark-bg-primary dark:text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-brand-beige/80 transition-colors text-lg">
+              <button className="bg-brand-beige text-brand-blue dark:text-brand-blue px-6 py-3 rounded-full font-semibold shadow-lg hover:bg-brand-beige/80 transition-colors text-lg">
                 Contactez-nous
               </button>
             </Link>

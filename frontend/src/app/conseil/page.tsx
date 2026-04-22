@@ -231,7 +231,7 @@ export default function ConseillPage() {
           {/* Titre avec animation lettre par lettre */}
           <div className="mb-6">
             <AnimatedText
-              text="Conseil en Structuration"
+              text="Conseils en Structuration"
               className="text-4xl md:text-5xl lg:text-6xl font-bold drop-shadow-lg block"
               delay={0.1}
             />
@@ -299,13 +299,13 @@ export default function ConseillPage() {
           viewport={{ once: true, amount: 0.2 }}
         >
           <div className="max-w-3xl mx-auto text-center mb-10">
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full dark:bg-brand-beige bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               Notre mission
             </div>
             {/* <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mt-4">
               Notre Mission
             </h2> */}
-            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue" />
+            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full dark:bg-brand-beige bg-brand-blue" />
           </div>
           <div className="max-w-3xl mx-auto">
             <p className="text-lg text-slate-600 dark:text-slate-300 leading-relaxed">
@@ -323,13 +323,13 @@ export default function ConseillPage() {
           viewport={{ once: true, amount: 0.2 }}
         >
           <div className="text-center mb-10">
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full  dark:bg-brand-beige bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               Vos enjeux
             </div>
             {/* <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mt-4">
               Vos Enjeux
             </h2> */}
-            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue" />
+            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full  dark:bg-brand-beige bg-brand-blue" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {challenges.map((challenge, idx) => (
@@ -366,13 +366,13 @@ export default function ConseillPage() {
           viewport={{ once: true, amount: 0.2 }}
         >
           <div className="text-center mb-10">
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full bg-brand-beige/10 dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               Nos solutions
             </div>
             {/* <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mt-4">
               Nos Solutions
             </h2> */}
-            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue" />
+            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full  dark:bg-brand-beige bg-brand-blue" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {solutions.map((solution, idx) => (
@@ -472,13 +472,13 @@ export default function ConseillPage() {
           viewport={{ once: true, amount: 0.2 }}
         >
           <div className="text-center mb-10">
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full dark:bg-brand-beige bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               Pour qui ?
             </div>
             {/* <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mt-4">
               Pour Qui ?
             </h2> */}
-            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue" />
+            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full dark:bg-brand-beige bg-brand-blue" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {targetAudience.map((audience, idx) => (
@@ -511,13 +511,13 @@ export default function ConseillPage() {
           viewport={{ once: true, amount: 0.2 }}
         >
           <div className="max-w-3xl mx-auto text-center mb-10">
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full bg-brand-beige/10  dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               Notre valeur ajoutée
             </div>
             {/* <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mt-4">
               Notre Valeur Ajoutée
             </h2> */}
-            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue" />
+            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full  dark:bg-brand-beige bg-brand-blue" />
           </div>
           <div className="space-y-6">
             {advantages.map((advantage, idx) => (

@@ -64,7 +64,7 @@ export default function CourtageAboutPage() {
       id: 'achat',
       title: 'Achat Immobilier',
       description: 'Concrétisez vos projets immobiliers en Afrique avec notre accompagnement complet.',
-      icon: <Home className="w-12 h-12 text-[#C7B299]" />,
+      icon: <Home className="w-12 h-12 text-[#C7B299] dark:text-white" />,
       link: '/contact',
       features: [
         'Sourcing de biens immobiliers',
@@ -79,7 +79,7 @@ export default function CourtageAboutPage() {
       id: 'investissement',
       title: 'Investissement Locatif',
       description: 'Générez des revenus réguliers en investissant dans l\'immobilier africain.',
-      icon: <TrendingUp className="w-12 h-12 text-[#C7B299]" />,
+      icon: <TrendingUp className="w-12 h-12 text-[#C7B299] dark:text-white" />,
       link: '/contact',
       features: [
         'Analyse de rentabilité',
@@ -94,7 +94,7 @@ export default function CourtageAboutPage() {
       id: 'credit',
       title: 'Accès au Crédit Local',
       description: 'Accédez facilement au crédit auprès des meilleures institutions bancaires africaines.',
-      icon: <Building2 className="w-12 h-12 text-[#C7B299]" />,
+      icon: <Building2 className="w-12 h-12 text-[#C7B299] dark:text-white" />,
       link: '/contact',
       features: [
         'Analyse de dossier',
@@ -298,7 +298,7 @@ export default function CourtageAboutPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
           >
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full bg-brand-beige/10 dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               <Sparkles className="w-4 h-4 mr-2" />
               Nos services
             </div>
@@ -308,7 +308,7 @@ export default function CourtageAboutPage() {
               delay={0.2}
             /> */}
             <motion.div
-              className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue"
+              className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue dark:bg-brand-beige"
               initial={{ scaleX: 0 }}
               whileInView={{ scaleX: 1 }}
               viewport={{ once: true }}
@@ -436,7 +436,7 @@ export default function CourtageAboutPage() {
                             hidden: { opacity: 0, x: -10 },
                             visible: { opacity: 1, x: 0 }
                           }}
-                          className="text-xs text-brand-blue font-medium"
+                          className="text-xs text-brand-blue font-medium dark:text-brand-beige"
                         >
                           +{service.features.length - 3} autres prestations
                         </motion.li>
@@ -493,13 +493,13 @@ export default function CourtageAboutPage() {
         >
           <div className="max-w-3xl mx-auto">
             <div className="space-y-4 text-center mb-8">
-              <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+              <div className="inline-flex items-center rounded-full bg-brand-beige/10 dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
                 Les problèmes
               </div>
               {/* <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white">
                 Les Problèmes (Contexte actuel)
               </h2> */}
-              <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue" />
+              <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue dark:bg-brand-beige" />
             </div>
             <div className="space-y-4">
               {problems.map((problem, idx) => (
@@ -529,14 +529,14 @@ export default function CourtageAboutPage() {
           viewport={{ once: true, amount: 0.2 }}
         >
           <div className="max-w-3xl mx-auto text-center mb-10">
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full bg-brand-beige/10 dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               Nos solutions
             </div>
             {/* <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mt-4">
               Nos Solutions BAI CONSULTING ET FORMATION
             </h2> */}
-            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue" />
-            <p className="text-lg font-semibold text-brand-blue mb-6 italic mt-6">
+            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full dark:bg-brand-beige bg-brand-blue" />
+            <p className="text-xl font-normal text-brand-blue dark:bg-brand-beige rounded-lg mb-6 italic mt-6">
               "Un interlocuteur unique en Europe qui sécurise votre projet en Afrique"
             </p>
           </div>
@@ -575,13 +575,13 @@ export default function CourtageAboutPage() {
           viewport={{ once: true, amount: 0.2 }}
         >
           <div className="text-center mb-10">
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full bg-brand-beige/10 dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               Nos marchés
             </div>
             {/* <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mt-4">
               Nous intervenons dans plusieurs pays
             </h2> */}
-            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue" />
+            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full dark:bg-brand-beige bg-brand-blue" />
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {countries.map((country, idx) => (
@@ -639,13 +639,13 @@ export default function CourtageAboutPage() {
           viewport={{ once: true, amount: 0.2 }}
         >
           <div className="max-w-7xl mx-auto text-center mb-10">
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full bg-brand-beige/10 dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               Preuve sociale
             </div>
             {/* <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mt-4">
               Preuve sociale & storytelling
             </h2> */}
-            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue" />
+            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full dark:bg-brand-beige bg-brand-blue" />
           </div>
           <div className="grid gap-6 mb-16 lg:grid-cols-2">
             <motion.div 
@@ -656,17 +656,17 @@ export default function CourtageAboutPage() {
               transition={{ duration: 0.6 }}
               viewport={{ once: true }}
             >
-              <h3 className="text-3xl font-semibold text-slate-900 dark:text-white mb-4">Preuve sociale</h3>
+              <h3 className="text-3xl font-semibold text-slate-900 dark:text-brand-beige mb-4">Preuve sociale</h3>
               <p className="text-slate-600 dark:text-slate-300 mb-4">
                 Cas clients et partenariats qui montrent notre capacité à sécuriser les projets immobiliers depuis l'Europe vers l'Afrique.
               </p>
               <ul className="space-y-3">
-                <li className="rounded-[20px] border border-slate-200 dark:border-slate-700 p-4">
-                  <p className="font-semibold text-slate-900 dark:text-white">Cas client : financement rapide</p>
+                <li className="rounded-[20px] border border-slate-200 dark:border-slate-700 p-4 ">
+                  <p className="font-semibold text-slate-900 dark:text-brand-beige">Cas client : financement rapide</p>
                   <p className="text-sm text-slate-600 dark:text-slate-300">Analyse de dossier en France et déblocage de crédit immobilier pour un expatrié au Cameroun.</p>
                 </li>
                 <li className="rounded-[20px] border border-slate-200 dark:border-slate-700 p-4">
-                  <p className="font-semibold text-slate-900 dark:text-white">Témoignage</p>
+                  <p className="font-semibold text-slate-900 dark:text-brand-beige">Témoignage</p>
                   <p className="text-sm text-slate-600 dark:text-slate-300">« Une équipe réactive qui a simplifié toutes les étapes de mon projet. »</p>
                 </li>
               </ul>
@@ -680,9 +680,9 @@ export default function CourtageAboutPage() {
               transition={{ duration: 0.6, delay: 0.1 }}
               viewport={{ once: true }}
             >
-              <h3 className="text-3xl font-semibold text-slate-900 dark:text-white mb-4">Notre storytelling</h3>
+              <h3 className="text-3xl font-semibold text-slate-900 dark:text-brand-beige mb-4">Notre storytelling</h3>
               <p className="text-slate-600 dark:text-slate-300 mb-4">
-                Nous intervenons à tous les niveaux du développement du secteur financier africain : formation, conseil et courtage, en connectant une diaspora qualifiée aux banques locales.
+                Nous intervenons à tous les niveaux du développement du secteur financier africain : formations et employabilité, conseils et courtage, en connectant une diaspora qualifiée aux banques locales.
               </p>
               <p className="text-sm text-slate-600 dark:text-slate-300">
                 Notre valeur unique est de proposer un interlocuteur européen capable de sécuriser votre projet en Afrique grâce à un réseau de partenaires locaux de confiance.
@@ -701,13 +701,13 @@ export default function CourtageAboutPage() {
           viewport={{ once: true, amount: 0.2 }}
         >
           <div className="text-center mb-12">
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full bg-brand-beige/10 dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               Processus client
             </div>
             {/* <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white mt-4">
               Notre Processus Client
             </h2> */}
-            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue" />
+            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue dark:bg-brand-beige" />
           </div>
           <div className="relative">
             {/* Ligne de connexion */}

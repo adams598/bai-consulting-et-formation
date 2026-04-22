@@ -236,7 +236,7 @@ const searchData: SearchResult[] = [
     type: 'formation',
     path: '/formation#public'
   },
-  // Conseil aux entreprises
+  // Conseils aux entreprises
   {
     id: 'conseil-structuration',
     title: 'Structuration Financière',

@@ -154,13 +154,13 @@ export default function ContactPage() {
               transition={{ duration: 0.8, ease: 'easeOut' }}
               viewport={{ once: true, amount: 0.2 }}
             >
-              <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+              <div className="inline-flex items-center rounded-full bg-brand-beige/10  dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
                 <Sparkles className="w-4 h-4 mr-2" />
                 Nous contacter
               </div>
 
               <motion.div
-                className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue"
+                className="mx-auto mt-3 h-1.5 w-24 rounded-full  dark:bg-brand-beige bg-brand-blue"
                 initial={{ scaleX: 0 }}
                 whileInView={{ scaleX: 1 }}
                 viewport={{ once: true }}
@@ -186,7 +186,7 @@ export default function ContactPage() {
             >
               <div className="mb-12">
                 <div className="text-center mb-10">
-                  <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white mb-4">
+                  <h2 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-brand-beige mb-4">
                     Comment pouvons-nous vous aider ?
                   </h2>
                   <p className="text-slate-600 dark:text-slate-300">

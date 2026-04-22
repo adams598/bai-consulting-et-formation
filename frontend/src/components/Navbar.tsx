@@ -77,7 +77,7 @@ const navItems = [
     ],
   },
   {
-    label: "Conseil aux entreprises",
+    label: "Conseils aux entreprises",
     icon: <PiggyBank className="inline mr-2 w-5 h-5" />,
     to: "/conseil",
     submenu: [
@@ -251,7 +251,7 @@ export default function Navbar() {
               <div className="flex items-center gap-2">
                 <Link
                   to={item.to}
-                  className={`flex items-center text-xs px-1 py-1 rounded transition-colors font-medium hover:text-[#C7B299] dark:hover:text-dark-accent ${
+                  className={`flex items-center text-sm px-1 py-1 rounded transition-colors font-medium hover:text-[#C7B299] dark:hover:text-dark-accent ${
                     location.pathname.startsWith(item.to) ? 'text-[#C7B299] dark:text-dark-accent font-bold' : ''
                   }`}
                 >

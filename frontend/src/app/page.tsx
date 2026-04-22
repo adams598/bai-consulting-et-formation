@@ -10,9 +10,9 @@ export default function HomePage() {
     <>
       <Helmet>
         {/* Balises meta SEO */}
-        <title>BAI Consulting et Formation - Courtage, Formation, Conseil aux entreprises</title>
-        <meta name="description" content="BAI Formation Consulting - Courtage, formation professionnelle et conseil aux entreprises pour les secteurs de la banque, de l'assurance et de l'immobilier. +200 professionnels accompagnés." />
-        <meta name="keywords" content="courtage, formation, conseil aux entreprises, banque, assurance, immobilier, consulting, accompagnement" />
+        <title>BAI Consulting et Formation - Courtage, Formation, Conseils aux entreprises</title>
+        <meta name="description" content="BAI Formation Consulting - Courtage, formation professionnelle et Conseils aux entreprises pour les secteurs de la banque, de l'assurance et de l'immobilier. +200 professionnels accompagnés." />
+        <meta name="keywords" content="courtage, formation, conseils aux entreprises, banque, assurance, immobilier, consulting, accompagnement" />
         <meta name="author" content="BAI Formation Consulting" />
         <meta name="robots" content="index, follow" />
         
@@ -98,7 +98,7 @@ export default function HomePage() {
           {/* Thématiques principales */}
           <section className="container mx-auto py-20 space-y-12">
             <h2 className="text-4xl font-extrabold text-[#00314B] text-center mb-12">Nos 3 thématiques</h2>
-            <p className="max-w-3xl mx-auto text-center text-xl text-gray-700">BAI Consulting structure son offre autour de trois expertises complémentaires : courtage, formation et conseil aux entreprises. Chacune est pensée pour accélérer votre performance commerciale, sécuriser vos projets et renforcer vos compétences.</p>
+            <p className="max-w-3xl mx-auto text-center text-xl text-gray-700">BAI Consulting structure son offre autour de trois expertises complémentaires : courtage, formations et conseils aux entreprises. Chacune est pensée pour accélérer votre performance commerciale, sécuriser vos projets et renforcer vos compétences.</p>
             <div className="grid md:grid-cols-3 gap-10">
               {/* Carte Courtage */}
               <div className="group bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center transition-all hover:scale-105 hover:shadow-3xl">
@@ -146,7 +146,7 @@ export default function HomePage() {
               <div className="group bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center transition-all hover:scale-105 hover:shadow-3xl">
                 <OptimizedImage 
                   src="/images/optimized/pexels-reunion-3184292-medium.webp" 
-                  alt="Conseil aux entreprises" 
+                  alt="Conseils aux entreprises" 
                   className="w-32 h-32 object-cover rounded-2xl mb-6 shadow-lg group-hover:scale-110 transition-transform"
                   width={128}
                   height={128}
@@ -154,7 +154,7 @@ export default function HomePage() {
                   format="webp"
                   lazy={true}
                 />
-                <h3 className="text-2xl font-bold text-[#00314B] mb-4">Conseil aux entreprises</h3>
+                <h3 className="text-2xl font-bold text-[#00314B] mb-4">Conseils aux entreprises</h3>
                 <p className="text-lg text-gray-700 text-center mb-6">Structuration de votre entreprise, optimisation des process et mobilisation de financements pour accélérer votre développement.</p>
                 <Link to="/conseil">
                   <Button className="rounded-full px-6 py-3 w-full font-bold bg-[#C7B299] hover:bg-[#bfa77a]">Découvrir le conseil</Button>

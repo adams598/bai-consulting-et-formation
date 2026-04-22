@@ -291,7 +291,7 @@ export default function FormationPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 2.5, ease: "easeOut" }}
           >
-            Développez vos compétences dans la <strong>banque</strong>, <strong>l'assurance</strong> et la <strong>microfinance</strong> avec nos formations sur mesure.
+            Développez vos compétences commerciales dans la <strong>Banque</strong>, <strong>l'Assurance</strong> et la <strong>Microfinance</strong>
           </motion.p>
 
           {/* Boutons CTA avec animations */}
@@ -347,13 +347,13 @@ export default function FormationPage() {
             viewport={{ once: true }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
           >
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full bg-brand-beige/10 dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               <Sparkles className="w-4 h-4 mr-2" />
               Nos formations
             </div>
             
             <motion.div
-              className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue"
+              className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue dark:bg-brand-beige"
               initial={{ scaleX: 0 }}
               whileInView={{ scaleX: 1 }}
               viewport={{ once: true }}
@@ -416,7 +416,7 @@ export default function FormationPage() {
                     whileHover={{ opacity: 1 }}
                     transition={{ duration: 0.3 }}
                   />
-                  <motion.div
+                  {/* <motion.div
                     className="absolute top-4 right-4 w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center"
                     whileHover={{
                       scale: 1.1,
@@ -431,7 +431,7 @@ export default function FormationPage() {
                     >
                       {formation.icon}
                     </motion.div>
-                  </motion.div>
+                  </motion.div> */}
                 </div>
 
                 {/* Content */}
@@ -444,7 +444,7 @@ export default function FormationPage() {
                     transition={{ delay: 0.2 + index * 0.1 }}
                   >
                     <motion.div
-                      className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-beige/10 text-brand-blue"
+                      className="flex h-12 w-12 items-center justify-center rounded-2xl dark:bg-transparent bg-brand-beige/10 text-brand-blue"
                       whileHover={{
                         scale: 1.1,
                         backgroundColor: "#C7B299",
@@ -497,7 +497,7 @@ export default function FormationPage() {
                           className="text-xs text-slate-600 dark:text-slate-300 flex items-start gap-2"
                         >
                           <motion.span
-                            className="text-brand-blue mt-0.5"
+                            className="text-brand-blue dark:text-brand-beige mt-0.5"
                             whileHover={{ scale: 1.5, color: "#C7B299" }}
                             transition={{ duration: 0.2 }}
                           >
@@ -512,7 +512,7 @@ export default function FormationPage() {
                             hidden: { opacity: 0, x: -10 },
                             visible: { opacity: 1, x: 0 }
                           }}
-                          className="text-xs text-brand-blue font-medium"
+                          className="text-xs text-brand-blue dark:text-brand-beige font-medium"
                         >
                           +{formation.topics.length - 2} autre{formation.topics.length - 2 > 1 ? 's' : ''}
                         </motion.li>
@@ -568,13 +568,13 @@ export default function FormationPage() {
           transition={{ duration: 0.8, ease: 'easeOut' }}
         >
           <div className="space-y-8 text-center mb-12">
-            <div className="inline-flex items-center rounded-full bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+            <div className="inline-flex items-center rounded-full dark:bg-brand-beige bg-brand-beige/10 text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
               Pour Qui ?
             </div>
             {/* <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white">
               Pour Qui ?
             </h2> */}
-            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue" />
+            <div className="mx-auto mt-3 h-1.5 w-24 rounded-full dark:bg-brand-beige bg-brand-blue" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {targetAudience.map((audience, idx) => (
@@ -611,7 +611,7 @@ export default function FormationPage() {
             <div className="flex items-start gap-4">
               <Target className="w-8 h-8 text-[#C7B299] flex-shrink-0 mt-1" />
               <div>
-                <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white mb-4">
+                <h2 className="text-3xl font-extrabold text-slate-900 dark:text-brand-beige mb-4">
                   Notre Objectif
                 </h2>
                 <p className="text-lg text-slate-600 dark:text-slate-300 mb-4">
