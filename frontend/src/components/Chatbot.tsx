@@ -256,12 +256,12 @@ export default function Chatbot() {
   };
 
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed bottom-4 right-4 z-50 max-w-[calc(100vw-2rem)]">
       {!isOpen ? (
         <div className="flex flex-col items-end space-y-2">
           {/* Message de bienvenue avec croix de fermeture */}
           {showWelcome && (
-            <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg p-3 max-w-xs">
+            <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg p-2 sm:p-3 max-w-xs sm:max-w-sm text-sm sm:text-base">
               <button
                 className="absolute top-1 right-1 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-600 text-lg font-bold p-1 rounded-full focus:outline-none"
                 aria-label="Fermer la bulle de bienvenue"
@@ -269,7 +269,7 @@ export default function Chatbot() {
               >
                 &times;
               </button>
-              <p className="text-sm text-gray-700 dark:text-gray-200">
+              <p className="text-xs sm:text-sm text-gray-700 dark:text-gray-200 pr-4">
                 Bonjour, je suis MAIA 🙂<br/>
                 Comment puis-je vous aider dans le choix de votre formation ?
               </p>
@@ -279,11 +279,12 @@ export default function Chatbot() {
           {/* Bouton du chatbot */}
           <button
             onClick={() => setIsOpen(true)}
-            className="bg-brand-blue text-white p-4 rounded-full shadow-lg hover:bg-brand-blue/90 transition-colors dark:bg-brand-blue dark:hover:bg-brand-blue/80"
+            className="bg-brand-blue text-white p-3 sm:p-4 rounded-full shadow-lg hover:bg-brand-blue/90 transition-colors dark:bg-brand-blue dark:hover:bg-brand-blue/80"
+            aria-label="Ouvrir le chatbot MAIA"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
-              className="h-6 w-6"
+              className="h-5 w-5 sm:h-6 sm:w-6"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -298,21 +299,22 @@ export default function Chatbot() {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-lg shadow-xl w-96 h-[600px] flex flex-col dark:bg-gray-900 dark:text-gray-100">
-          <div className="p-4 border-b flex justify-between items-center bg-brand-blue text-white rounded-t-lg dark:bg-gray-800 dark:text-white">
-            <div className="flex items-center">
-              <div className="w-8 h-8 bg-white dark:bg-gray-900 rounded-full flex items-center justify-center mr-3">
-                <span className="text-brand-blue font-bold text-sm dark:text-brand-blue">M</span>
+        <div className="bg-white rounded-lg shadow-xl w-[min(100vw-2rem,384px)] sm:w-96 h-[480px] sm:h-[600px] flex flex-col dark:bg-gray-900 dark:text-gray-100">
+          <div className="p-3 sm:p-4 border-b flex justify-between items-center bg-brand-blue text-white rounded-t-lg dark:bg-gray-800 dark:text-white">
+            <div className="flex items-center gap-2">
+              <div className="w-6 w-h-6 sm:w-8 sm:h-8 bg-white dark:bg-gray-900 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-brand-blue font-bold text-xs sm:text-sm dark:text-brand-blue">M</span>
               </div>
-              <h3 className="font-semibold">MAIA</h3>
+              <h3 className="font-semibold text-sm sm:text-base">MAIA</h3>
             </div>
             <button
               onClick={() => setIsOpen(false)}
-              className="text-white hover:text-gray-200 dark:text-gray-200 dark:hover:text-gray-400"
+              className="text-white hover:text-gray-200 dark:text-gray-200 dark:hover:text-gray-400 flex-shrink-0"
+              aria-label="Fermer le chatbot"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6"
+                className="h-5 w-5 sm:h-6 sm:w-6"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -327,9 +329,9 @@ export default function Chatbot() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
             {messages.length === 0 && (
-              <div className="text-center text-gray-600 text-sm dark:text-gray-300">
+              <div className="text-center text-gray-600 text-xs sm:text-sm dark:text-gray-300">
                 <p>👋 Bonjour ! Je suis MAIA, votre assistante virtuelle.</p>
                 <p className="mt-2">Comment puis-je vous aider dans le choix de votre formation&nbsp;?</p>
               </div>
@@ -343,7 +345,7 @@ export default function Chatbot() {
                 }`}
               >
                 <div
-                  className={`max-w-[80%] rounded-lg p-3 ${
+                  className={`max-w-[85%] rounded-lg p-2 sm:p-3 text-xs sm:text-sm ${
                     message.role === 'user'
                       ? 'bg-brand-blue text-white dark:bg-brand-blue dark:text-white'
                       : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100'
@@ -351,16 +353,16 @@ export default function Chatbot() {
                 >
                   <div className="whitespace-pre-line">{message.content}</div>
                   {index === messages.length - 1 && message.role === 'assistant' && pendingFeedback && (
-                    <div className="mt-3 flex items-center gap-2 text-sm">
+                    <div className="mt-2 sm:mt-3 flex items-center gap-1 text-xs">
                       <span>Cette réponse vous a-t-elle aidé&nbsp;?</span>
                       <button
                         onClick={() => handleFeedback('yes')}
-                        className="rounded-full bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 ml-2 dark:bg-green-900 dark:hover:bg-green-800 dark:text-green-300"
+                        className="rounded-full bg-green-100 hover:bg-green-200 text-green-700 px-1.5 py-0.5 ml-1 dark:bg-green-900 dark:hover:bg-green-800 dark:text-green-300"
                         aria-label="Oui"
                       >👍</button>
                       <button
                         onClick={() => handleFeedback('no')}
-                        className="rounded-full bg-red-100 hover:bg-red-200 text-red-700 px-2 py-1 ml-1 dark:bg-red-900 dark:hover:bg-red-800 dark:text-red-300"
+                        className="rounded-full bg-red-100 hover:bg-red-200 text-red-700 px-1.5 py-0.5 dark:bg-red-900 dark:hover:bg-red-800 dark:text-red-300"
                         aria-label="Non"
                       >👎</button>
                     </div>
@@ -372,8 +374,8 @@ export default function Chatbot() {
                     <div className="mt-2 text-red-700 text-xs dark:text-red-300">N'hésitez pas à reformuler votre question ou à <a href="/contact" className="underline text-brand-blue dark:text-brand-blue">contacter notre support</a>.</div>
                   )}
                   {index === messages.length - 1 && message.role === 'assistant' && (
-                    <div className="mt-4 flex justify-center">
-                      <a href="/contact" className="bg-brand-blue text-white px-4 py-2 rounded-full font-semibold shadow hover:bg-brand-beige/90 transition-colors dark:bg-brand-blue dark:hover:bg-brand-blue/80">
+                    <div className="mt-3 sm:mt-4 flex justify-center">
+                      <a href="/contact" className="bg-brand-blue text-white px-3 py-1.5 sm:px-4 sm:py-2 rounded-full font-semibold text-xs sm:text-sm shadow hover:bg-brand-beige/90 transition-colors dark:bg-brand-blue dark:hover:bg-brand-blue/80">
                         Nous contacter
                       </a>
                     </div>
@@ -384,13 +386,13 @@ export default function Chatbot() {
 
             {/* Suggestions */}
             {showSuggestions && (
-              <div className="flex flex-col space-y-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <p className="text-center text-gray-600 text-sm dark:text-gray-300">Suggestions :</p>
+              <div className="flex flex-col space-y-1.5 sm:space-y-2 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
+                <p className="text-center text-gray-600 text-xs sm:text-sm dark:text-gray-300">Suggestions :</p>
                 {suggestedQuestions.map((question, index) => (
                   <button
                     key={index}
                     onClick={() => handleSubmit(undefined, question)}
-                    className="text-left text-brand-blue hover:underline text-sm p-2 bg-gray-100 rounded-md dark:bg-gray-800 dark:text-gray-100"
+                    className="text-left text-brand-blue hover:underline text-xs sm:text-sm p-1.5 sm:p-2 bg-gray-100 rounded-md dark:bg-gray-800 dark:text-gray-100"
                   >
                     {question}
                   </button>
@@ -412,23 +414,24 @@ export default function Chatbot() {
             <div ref={messagesEndRef} />
           </div>
 
-          <form onSubmit={handleSubmit} className="p-4 border-t dark:border-gray-700">
-            <div className="flex space-x-2">
+          <form onSubmit={handleSubmit} className="p-2 sm:p-4 border-t dark:border-gray-700 flex-shrink-0">
+            <div className="flex gap-1.5 sm:gap-2">
               <input
                   type="text"
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   placeholder="Décrivez ce que vous cherchez..."
-                  className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
+                  className="flex-1 px-2 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm border rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
                 />
               <button
                 type="submit"
                 disabled={isLoading}
-                className="bg-brand-blue text-white px-4 py-2 rounded-lg hover:bg-brand-blue/90 transition-colors disabled:opacity-50 dark:bg-brand-blue dark:hover:bg-brand-blue/80"
+                className="bg-brand-blue text-white px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg hover:bg-brand-blue/90 transition-colors disabled:opacity-50 dark:bg-brand-blue dark:hover:bg-brand-blue/80 flex-shrink-0"
+                aria-label="Envoyer le message"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
+                  className="h-4 w-4 sm:h-5 sm:w-5"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -446,10 +449,10 @@ export default function Chatbot() {
 
           {/* Bouton Nouvelle conversation */}
           {messages.length > 0 && (
-            <div className="p-4 border-t flex justify-center bg-gray-50 dark:bg-gray-800 dark:border-gray-700">
+            <div className="p-2 sm:p-4 border-t flex justify-center bg-gray-50 dark:bg-gray-800 dark:border-gray-700 flex-shrink-0">
               <button
                 onClick={() => setShowResetModal(true)}
-                className="bg-brand-beige text-brand-blue font-semibold px-4 py-2 rounded-full shadow hover:bg-brand-beige/90 transition-colors dark:bg-gray-700 dark:text-brand-beige dark:hover:bg-gray-600"
+                className="bg-brand-beige text-brand-blue font-semibold px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm rounded-full shadow hover:bg-brand-beige/90 transition-colors dark:bg-gray-700 dark:text-brand-beige dark:hover:bg-gray-600"
               >
                 Nouvelle conversation
               </button>

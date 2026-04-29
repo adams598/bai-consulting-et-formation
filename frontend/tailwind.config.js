@@ -14,6 +14,9 @@ module.exports = {
   ],
   theme: {
     extend: {
+      screens: {
+        xs: "390px",
+      },
       colors: {
         "brand-blue": "#00314B",
         "brand-beige": "#C7B299",

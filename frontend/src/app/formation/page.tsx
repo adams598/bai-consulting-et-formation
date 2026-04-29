@@ -273,7 +273,7 @@ export default function FormationPage() {
           <div className="mb-6">
             <AnimatedText
               text="Formations Professionnelles"
-              className="text-4xl md:text-5xl lg:text-6xl font-bold drop-shadow-lg block"
+              className="text-2xl xs:text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold drop-shadow-lg block leading-tight sm:leading-snug"
               delay={0.1}
             />
             <motion.div
@@ -286,7 +286,7 @@ export default function FormationPage() {
 
           {/* Paragraphe avec animation améliorée */}
           <motion.p
-            className="text-lg md:text-xl text-gray-100 max-w-2xl drop-shadow-md mb-8"
+            className="text-sm xs:text-base sm:text-lg md:text-xl text-gray-100 max-w-xl sm:max-w-2xl drop-shadow-md mb-8 leading-relaxed break-words"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 2.5, ease: "easeOut" }}
