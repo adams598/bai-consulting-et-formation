@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, PiggyBank, ShieldCheck, Building2, Users, Target, Briefcase, Sparkles, TrendingUp, Award } from 'lucide-react';
+import { ArrowRight, PiggyBank, ShieldCheck, Building2, Users, Target, Briefcase, Sparkles, TrendingUp, Award, Download, BookOpen, Clock, Zap, Shield, TrendingUp as TrendingIcon } from 'lucide-react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 
 // Composant pour animation de texte lettre par lettre
@@ -625,7 +625,261 @@ export default function FormationPage() {
           </div>
         </motion.section>
 
-        {/* OPPORTUNITÉS Section */}
+        {/* PROGRAMME DE FORMATION Section - Grouped */}
+        <motion.section 
+          id="programme-formation"
+          className="py-16 bg-slate-50 dark:bg-slate-950"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          viewport={{ once: true, amount: 0.2 }}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Header */}
+            <motion.div
+              className="mb-16 space-y-8 text-center"
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.8, ease: 'easeOut' }}
+            >
+              <div className="inline-flex items-center rounded-full bg-brand-beige/10 dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+                <BookOpen className="w-4 h-4 mr-2" />
+                Programme de formation
+              </div>
+              
+              <motion.div
+                className="mx-auto mt-3 h-1.5 w-24 rounded-full bg-brand-blue dark:bg-brand-beige"
+                initial={{ scaleX: 0 }}
+                whileInView={{ scaleX: 1 }}
+                viewport={{ once: true }}
+                transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+              />
+            </motion.div>
+
+            {/* Three columns layout */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Contenu pédagogique */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0 }}
+                viewport={{ once: true }}
+                className="bg-white dark:bg-slate-900 rounded-[28px] border border-slate-200 dark:border-slate-700 shadow-sm shadow-slate-200/40 dark:shadow-none p-8 hover:shadow-lg transition-shadow duration-300"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-beige/10 dark:bg-slate-800">
+                    <Sparkles className="w-5 h-5 text-brand-blue" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Contenu Pédagogique
+                  </h3>
+                </div>
+                <div className="space-y-4 text-slate-600 dark:text-slate-300">
+                  <div>
+                    <p className="font-semibold text-slate-900 dark:text-white mb-1">120 modules e-learning</p>
+                    <p className="text-sm">20 minutes à 1 heure chacun, complétés par un parcours en présentiel et stages pratiques</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900 dark:text-white mb-1">Formats variés</p>
+                    <p className="text-sm">Fondamentaux, approfondissements, études de cas, vidéos, travaux pratiques, quiz</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Évaluation & Objectifs */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                viewport={{ once: true }}
+                className="bg-white dark:bg-slate-900 rounded-[28px] border border-slate-200 dark:border-slate-700 shadow-sm shadow-slate-200/40 dark:shadow-none p-8 hover:shadow-lg transition-shadow duration-300"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-beige/10 dark:bg-slate-800">
+                    <Award className="w-5 h-5 text-brand-blue" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Évaluation & Objectifs
+                  </h3>
+                </div>
+                <div className="space-y-4 text-slate-600 dark:text-slate-300">
+                  <div>
+                    <p className="font-semibold text-slate-900 dark:text-white mb-1">Modalités d'évaluation</p>
+                    <p className="text-sm">Quiz QCM avec banque de questions et score de validation à atteindre</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900 dark:text-white mb-1">Objectifs</p>
+                    <p className="text-sm">Acquérir des compétences juridiques, techniques, commerciales et administratives. Mise à jour annuelle</p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Accès & Public */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                viewport={{ once: true }}
+                className="bg-white dark:bg-slate-900 rounded-[28px] border border-slate-200 dark:border-slate-700 shadow-sm shadow-slate-200/40 dark:shadow-none p-8 hover:shadow-lg transition-shadow duration-300"
+              >
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-brand-beige/10 dark:bg-slate-800">
+                    <Clock className="w-5 h-5 text-brand-blue" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">
+                    Accès & Public Cible
+                  </h3>
+                </div>
+                <div className="space-y-4 text-slate-600 dark:text-slate-300">
+                  <div>
+                    <p className="font-semibold text-slate-900 dark:text-white mb-1">Disponibilité</p>
+                    <p className="text-sm">Accès 24h/24h pendant l'ouverture de la session</p>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-slate-900 dark:text-white mb-1">Public cible</p>
+                    <p className="text-sm">Tout professionnel proposant des produits d'assurance</p>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* 3 MARCHÉS & 5 THÉMATIQUES Section */}
+        <motion.section 
+          id="marchés-thematiques"
+          className="py-16"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          viewport={{ once: true, amount: 0.2 }}
+        >
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* 3 Marchés */}
+            <div className="mb-20">
+              <div className="space-y-8 text-center mb-12">
+                <div className="inline-flex items-center rounded-full bg-brand-beige/10 dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Nos 3 marchés
+                </div>
+                <motion.div
+                  className="mx-auto h-1.5 w-24 rounded-full bg-brand-blue dark:bg-brand-beige"
+                  initial={{ scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[
+                  { title: 'Particuliers', description: 'Solutions adaptées aux besoins des individus' },
+                  { title: 'Professionnels', description: 'Offres spécialisées pour les professionnels indépendants' },
+                  { title: 'Entreprises', description: 'Programmes complets pour les organisations' }
+                ].map((marche, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 20 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: idx * 0.1 }}
+                    viewport={{ once: true }}
+                    whileHover={{ y: -4 }}
+                    className="bg-white dark:bg-slate-900 rounded-[28px] border border-slate-200 dark:border-slate-700 shadow-sm shadow-slate-200/40 dark:shadow-none p-8 hover:shadow-lg transition-all duration-300"
+                  >
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">
+                      {marche.title}
+                    </h3>
+                    <p className="text-sm text-slate-600 dark:text-slate-300">
+                      {marche.description}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+
+            {/* 5 Thématiques */}
+            <div>
+              <div className="space-y-8 text-center mb-12">
+                <div className="inline-flex items-center rounded-full bg-brand-beige/10 dark:bg-brand-beige text-brand-blue px-4 py-2 text-sm font-semibold uppercase tracking-[0.22em]">
+                  <TrendingUp className="w-4 h-4 mr-2" />
+                  5 Thématiques principales
+                </div>
+                <motion.div
+                  className="mx-auto h-1.5 w-24 rounded-full bg-brand-blue dark:bg-brand-beige"
+                  initial={{ scaleX: 0 }}
+                  whileInView={{ scaleX: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 1, delay: 0.3, ease: "easeOut" }}
+                />
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                {[
+                  'Réglementation',
+                  'Vie',
+                  'Dommages',
+                  'Prévoyance & Santé',
+                  'Collectif & Risques Pros'
+                ].map((theme, idx) => (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    whileInView={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.5, delay: idx * 0.08 }}
+                    viewport={{ once: true }}
+                    whileHover={{ y: -2 }}
+                    className="bg-white dark:bg-slate-900 rounded-[20px] border border-slate-200 dark:border-slate-700 shadow-sm shadow-slate-200/40 dark:shadow-none p-5 hover:shadow-md transition-all duration-300 text-center"
+                  >
+                    <p className="font-semibold text-sm text-slate-900 dark:text-white">
+                      {theme}
+                    </p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </motion.section>
+
+        {/* CATALOGUE SECTION - Premium */}
+        <motion.section 
+          id="catalogue-pdf"
+          className="mb-16 bg-white dark:bg-slate-900 rounded-[28px] border border-slate-200 dark:border-slate-700 shadow-sm shadow-slate-200/40 dark:shadow-none p-12 md:p-16"
+          initial={{ opacity: 0, y: 30 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          viewport={{ once: true, amount: 0.2 }}
+        >
+          <div className="max-w-3xl mx-auto text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-brand-beige/10 dark:bg-brand-beige/20 mb-6">
+              <Download className="w-8 h-8 text-brand-blue" />
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">
+              Accédez au catalogue complet
+            </h2>
+            <p className="text-lg text-slate-600 dark:text-slate-300 mb-8 leading-relaxed">
+              Découvrez tous les détails de nos formations, modules, et parcours pédagogiques en consultant notre catalogue détaillé.
+            </p>
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <a
+                href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/downloads/catalogue-pdf`}
+                download="BAI-Catalogue-Formations.pdf"
+                className="inline-flex items-center justify-center gap-3 bg-brand-blue hover:bg-brand-blue/90 text-white font-semibold py-4 px-10 rounded-full transition-all duration-300 group/btn shadow-lg hover:shadow-xl"
+              >
+                <Download className="w-5 h-5" />
+                Télécharger le Catalogue
+                <motion.div
+                  whileHover={{ x: 4 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <ArrowRight className="w-4 h-4" />
+                </motion.div>
+              </a>
+            </motion.div>
+          </div>
+        </motion.section>
+        {/* OPPORTUNITÉS Section
         <motion.section 
           id="opportunites"
           className="bg-gradient-to-r from-[#C7B299] to-[#b89968] rounded-[28px] shadow-xl p-10 md:p-16"
@@ -650,7 +904,7 @@ export default function FormationPage() {
               <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
             </Link>
           </div>
-        </motion.section>
+        </motion.section> */}
       </div>
   );
 }
