@@ -8,6 +8,7 @@ import fs from "fs";
 import https from "https";
 import http from "http";
 import { PrismaClient } from "@prisma/client";
+import { fileURLToPath } from "url";
 import { sendContactMail } from "./src/services/contactMail.service.js";
 import {
   validateInput,
@@ -26,6 +27,10 @@ import {
   loginMonitoringMiddleware,
 } from "./src/middleware/monitoring.middleware.js";
 import { cloudinaryService } from "./src/services/cloudinary.service.js";
+
+// Pour ESM, créer __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 dotenv.config();
 
@@ -297,7 +302,7 @@ app.get("/api/health", async (req, res) => {
 // Route API pour télécharger le catalogue PDF
 app.get("/api/downloads/catalogue-pdf", (req, res) => {
   const pdfPath = path.join(
-    process.cwd(),
+    __dirname,
     "uploads",
     "BAI.catalogue formations.pdf",
   );
