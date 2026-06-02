@@ -301,36 +301,30 @@ app.get("/api/health", async (req, res) => {
 
 // Route API pour télécharger le catalogue PDF
 app.get("/api/downloads/catalogue-pdf", (req, res) => {
-  // En production, rediriger vers l'URL configurée (Hostinger par défaut)
-  if (process.env.NODE_ENV === "production") {
-    const pdfUrl = process.env.PDF_CATALOGUE_URL || "https://olivedrab-hornet-656554.hostingersite.com/backend/uploads/BAI-Catalogue-Formations.pdf";
-    return res.redirect(301, pdfUrl);
+  // En développement local, essayer de servir le fichier local
+  if (process.env.RENDER !== 'true' && process.env.NODE_ENV !== 'production') {
+    const pdfPath = path.join(
+      process.cwd(),
+      "uploads",
+      "BAI.catalogue formations.pdf",
+    );
+
+    // Si le fichier existe localement, le servir
+    if (fs.existsSync(pdfPath)) {
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        'attachment; filename="BAI-Catalogue-Formations.pdf"',
+      );
+      res.setHeader("Cache-Control", "public, max-age=86400");
+      return res.sendFile(pdfPath);
+    }
   }
 
-  // En développement, servir depuis le fichier local
-  const pdfPath = path.join(
-    process.cwd(),
-    "uploads",
-    "BAI.catalogue formations.pdf",
-  );
-
-  // Vérifier que le fichier existe
-  if (!fs.existsSync(pdfPath)) {
-    return res
-      .status(404)
-      .json({ error: "Catalogue PDF non trouvé", path: pdfPath });
-  }
-
-  // Ajouter les en-têtes pour le téléchargement
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader(
-    "Content-Disposition",
-    'attachment; filename="BAI-Catalogue-Formations.pdf"',
-  );
-  res.setHeader("Cache-Control", "public, max-age=86400");
-
-  // Envoyer le fichier
-  res.sendFile(pdfPath);
+  // En production (Render, Vercel, etc.) ou si fichier local n'existe pas
+  // Rediriger vers l'URL configurée ou l'URL par défaut sur Hostinger
+  const pdfUrl = process.env.PDF_CATALOGUE_URL || "https://olivedrab-hornet-656554.hostingersite.com/backend/uploads/BAI-Catalogue-Formations.pdf";
+  return res.redirect(301, pdfUrl);
 });
 
 // Routes

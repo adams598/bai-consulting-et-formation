@@ -170,29 +170,26 @@ app.get('/api/formations/:formationTitle/:filename', (req, res) => {
 
 // Route API pour télécharger le catalogue PDF
 app.get('/api/downloads/catalogue-pdf', (req, res) => {
-  // En production, rediriger vers l'URL Hostinger
-  if (process.env.NODE_ENV === 'production') {
-    return res.redirect(301, 'https://olivedrab-hornet-656554.hostingersite.com/backend/uploads/BAI-Catalogue-Formations.pdf');
+  // En développement local, essayer de servir le fichier local
+  if (process.env.RENDER !== 'true' && process.env.NODE_ENV !== 'production') {
+    const pdfPath = path.join(__dirname, '..', 'uploads', 'BAI.catalogue formations.pdf');
+    
+    // Si le fichier existe localement, le servir
+    if (fs.existsSync(pdfPath)) {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET');
+      res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.header('Content-Type', 'application/pdf');
+      res.header('Content-Disposition', 'attachment; filename="BAI-Catalogue-Formations.pdf"');
+      res.header('Cache-Control', 'public, max-age=86400');
+      return res.sendFile(pdfPath);
+    }
   }
 
-  // En développement, servir depuis le fichier local
-  const pdfPath = path.join(__dirname, '..', 'uploads', 'BAI.catalogue formations.pdf');
-  
-  // Vérifier que le fichier existe
-  if (!fs.existsSync(pdfPath)) {
-    return res.status(404).json({ error: 'Catalogue PDF non trouvé' });
-  }
-  
-  // Ajouter les en-têtes CORS et de téléchargement
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.header('Content-Type', 'application/pdf');
-  res.header('Content-Disposition', 'attachment; filename="BAI-Catalogue-Formations.pdf"');
-  res.header('Cache-Control', 'public, max-age=86400');
-  
-  // Envoyer le fichier
-  res.sendFile(pdfPath);
+  // En production (Render, Vercel, etc.) ou si fichier local n'existe pas
+  // Rediriger vers l'URL configurée ou l'URL par défaut sur Hostinger
+  const pdfUrl = process.env.PDF_CATALOGUE_URL || 'https://olivedrab-hornet-656554.hostingersite.com/backend/uploads/BAI-Catalogue-Formations.pdf';
+  return res.redirect(301, pdfUrl);
 });
 
 // Routes
