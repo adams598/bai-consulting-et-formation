@@ -127,9 +127,9 @@ export const formationContentApi = {
 };
 
 export const quizApi = {
-  createQuiz: (formationId: string, data: { title: string; description?: string; passingScore?: number; timeLimit?: number; questions: any[] }) =>
+  createQuiz: (formationId: string, data: { title: string; description?: string; passingScore?: number; timeLimit?: number; questionTimeLimitSec?: number; triggerType?: 'END' | 'MID_VIDEO'; triggerTime?: number; questions: any[] }) =>
     api.post<ApiResponse<Quiz>>(`/api/admin/formations/${formationId}/quiz`, data),
-  updateQuiz: (id: string, data: { title: string; description?: string; passingScore?: number; timeLimit?: number; questions: any[] }) =>
+  updateQuiz: (id: string, data: { title: string; description?: string; passingScore?: number; timeLimit?: number; questionTimeLimitSec?: number; triggerType?: 'END' | 'MID_VIDEO'; triggerTime?: number; questions: any[] }) =>
     api.put<ApiResponse<Quiz>>(`/api/admin/quiz/${id}`, data),
   deleteQuiz: (id: string) => api.delete<ApiResponse<void>>(`/api/admin/quiz/${id}`),
   toggleActive: (id: string) => api.patch<ApiResponse<Quiz>>(`/api/admin/quiz/${id}/toggle`),

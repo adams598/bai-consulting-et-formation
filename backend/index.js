@@ -302,20 +302,25 @@ app.get("/api/health", async (req, res) => {
 // Route API pour télécharger le catalogue PDF
 app.get("/api/downloads/catalogue-pdf", (req, res) => {
   const pdfPath = path.join(
-    __dirname,
+    process.cwd(),
     "uploads",
     "BAI.catalogue formations.pdf",
   );
 
   // Vérifier que le fichier existe
   if (!fs.existsSync(pdfPath)) {
-    return res.status(404).json({ error: "Catalogue PDF non trouvé", path: pdfPath });
+    return res
+      .status(404)
+      .json({ error: "Catalogue PDF non trouvé", path: pdfPath });
   }
 
   // Ajouter les en-têtes pour le téléchargement
-  res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', 'attachment; filename="BAI-Catalogue-Formations.pdf"');
-  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader(
+    "Content-Disposition",
+    'attachment; filename="BAI-Catalogue-Formations.pdf"',
+  );
+  res.setHeader("Cache-Control", "public, max-age=86400");
 
   // Envoyer le fichier
   res.sendFile(pdfPath);

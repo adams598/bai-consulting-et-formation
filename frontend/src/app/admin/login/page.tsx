@@ -91,7 +91,7 @@ export default function AdminLoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="admin@example.com"
-                  className="pl-10"
+                  className="pl-10 dark:text-gray-900"
                   required
                 />
               </div>
@@ -111,7 +111,7 @@ export default function AdminLoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="pl-10 pr-10"
+                  className="pl-10 pr-10 dark:text-gray-900"
                   required
                 />
                 <button

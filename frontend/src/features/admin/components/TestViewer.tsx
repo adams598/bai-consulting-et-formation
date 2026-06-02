@@ -1,105 +1,24 @@
 // TestViewer.tsx
 import React, { useEffect, useState, useRef } from 'react';
 import { FileText, Presentation } from 'lucide-react';
-import { FormationContent } from '../types';
-import { Document, Page } from 'react-pdf';
+import { FormationContent, QuizQuestion } from '../types';
+import { Document, Page, pdfjs } from 'react-pdf';
 import { useProgress } from '../../../contexts/ProgressContext';
 import ResumePlaybackModal from '../../../components/ResumePlaybackModal';
+import MidVideoQuizOverlay from '../../../components/MidVideoQuizOverlay';
 import progressService from '../../../services/progressService';
 
-// Interface étendue pour la progression des leçons
-interface ExtendedLessonProgress {
-  lessonId: string;
-  timeSpent: number;
-  progress: number;
-  completed: boolean;
-  lastUpdated: string;
-  currentPage?: number;
-  totalPages?: number;
-  currentSlide?: number;
-  totalSlides?: number;
-  currentTime?: number;
-  totalTime?: number;
-  lastAccessedAt?: string;
-}
-
-// Configuration du worker pour react-pdf et pdfjs-dist
-import { pdfjs } from 'react-pdf';
-
-// Configuration globale du worker - utiliser un worker local depuis public
-if (typeof window !== 'undefined') {
-  try {
-    // Essayer d'abord le worker local
-    pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-    // console.log('✅ Worker PDF configuré avec worker local');
-  } catch (error) {
-    console.error('❌ Erreur lors de la configuration du worker PDF local:', error);
-    try {
-      // Fallback vers le CDN
-      pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-      // console.log('✅ Worker PDF configuré avec CDN');
-    } catch (cdnError) {
-      console.error('❌ Erreur lors de la configuration du worker PDF CDN:', cdnError);
-    }
-  }
-}
-
 interface TestViewerProps {
-  lesson: FormationContent;
+  lesson: any;
   fileUrl?: string;
   formationId?: string;
   userId?: string;
-  onProgressUpdate?: (progress: {
-    timeSpent: number;
-    progress: number;
-    completed: boolean;
-  }) => void;
+  onProgressUpdate?: (progress: any) => void;
+  midVideoQuizzes?: any[];
 }
 
-export default function TestViewer({ lesson, fileUrl, formationId, userId, onProgressUpdate }: TestViewerProps) {
-  // Utiliser le service de progression directement
-  const getCurrentUserId = () => {
-    if (userId) {
-      // console.log('🔍 getCurrentUserId - Utilisation du userId passé en prop:', userId);
-      return userId;
-    }
-    const serviceUserId = progressService.getCurrentUserId();
-    // console.log('🔍 getCurrentUserId - Utilisation du service:', serviceUserId);
-    
-    // Vérifier le localStorage pour debug
-    const userInfo = localStorage.getItem('userInfo');
-    const accessToken = localStorage.getItem('accessToken');
-    // console.log('🔍 getCurrentUserId - userInfo dans localStorage:', userInfo);
-    // console.log('🔍 getCurrentUserId - accessToken dans localStorage:', accessToken ? 'présent' : 'absent');
-    
-    return serviceUserId;
-  };
-  
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [mimeType, setMimeType] = useState<string>("");
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Vérifier l'état du worker PDF au montage du composant
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if (!pdfjs.GlobalWorkerOptions.workerSrc) {
-        console.warn('⚠️ Worker PDF non configuré, tentative de configuration...');
-        try {
-          pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
-          // console.log('✅ Worker PDF configuré avec worker local');
-        } catch (error) {
-          console.error('❌ Erreur worker local, tentative CDN:', error);
-          try {
-            pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
-            // console.log('✅ Worker PDF configuré avec CDN');
-          } catch (cdnError) {
-            console.error('❌ Erreur lors de la configuration du worker PDF:', cdnError);
-          }
-        }
-      }
-      // console.log('🔍 État du worker PDF:', pdfjs.GlobalWorkerOptions.workerSrc);
-    }
-  }, []);
+function TestViewer({ lesson, fileUrl, formationId, userId, onProgressUpdate, midVideoQuizzes }: TestViewerProps) {
+  // Interface étendue pour la progression des leçons
   const [error, setError] = useState<string | null>(null);
   const [fullUrl, setFullUrl] = useState<string>("");
   const [conversionStatus, setConversionStatus] = useState<any>(null);
@@ -125,15 +44,33 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
   const [isPresentationLoading, setIsPresentationLoading] = useState<boolean>(false);
   const [showResumeModal, setShowResumeModal] = useState<boolean>(false);
   const [hasShownResumeModal, setHasShownResumeModal] = useState<boolean>(false);
+  const [activeMidVideoQuizConfig, setActiveMidVideoQuizConfig] = useState<{
+    questions: QuizQuestion[];
+    questionTimeLimitSec?: number;
+    currentTime?: number;
+  } | null>(null);
+  const [triggeredMidVideoQuizIndexes, setTriggeredMidVideoQuizIndexes] = useState<Set<number>>(new Set());
   const [resumeModalData, setResumeModalData] = useState<{
     currentTime: number;
     totalTime: number;
     progressPercentage: number;
   } | null>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [mimeType, setMimeType] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const progressUpdateInterval = useRef<NodeJS.Timeout | null>(null);
-  const controlsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const progressUpdateInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const controlsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Helper function to get current user ID
+  const getCurrentUserId = () => userId || '';
+
+  useEffect(() => {
+    setActiveMidVideoQuizConfig(null);
+    setTriggeredMidVideoQuizIndexes(new Set());
+  }, [lesson.id, fileUrl]);
 
   // Effet pour bloquer les raccourcis clavier et captures d'écran
   useEffect(() => {
@@ -141,89 +78,11 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
       // Vérifier si l'événement provient d'un champ input, textarea ou élément éditable
       const target = e.target as HTMLElement;
       const isInputElement = target && (
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.isContentEditable ||
-        (target.closest && (target.closest('input') || target.closest('textarea') || target.closest('[contenteditable="true"]')))
+        // ...existing code...
+        false
       );
-
-      // Permettre les touches de saisie normales dans les champs de formulaire
-      const editableKeys = ['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'Enter', 'Tab', 'Space'];
-      if (isInputElement && editableKeys.includes(e.key) && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        // Laisser passer les touches d'édition normales dans les champs de saisie
-        return;
-      }
-
-      // Bloquer les raccourcis de capture et développement
-      if (
-        (e.ctrlKey && e.key === 's') || // Ctrl+S (sauvegarder)
-        (e.ctrlKey && e.shiftKey && e.key === 'S') || // Ctrl+Shift+S
-        (e.ctrlKey && e.key === 'u') || // Ctrl+U (code source)
-        (e.ctrlKey && e.key === 'i') || // Ctrl+I (inspecteur)
-        (e.ctrlKey && e.key === 'j') || // Ctrl+J (console)
-        (e.ctrlKey && e.key === 'k') || // Ctrl+K (recherche)
-        (e.ctrlKey && e.key === 'h') || // Ctrl+H (historique)
-        (e.ctrlKey && e.key === 'r') || // Ctrl+R (actualiser)
-        (e.ctrlKey && e.key === 'f') || // Ctrl+F (recherche)
-        (e.ctrlKey && e.key === 'g') || // Ctrl+G (suivant)
-        (e.ctrlKey && e.key === 'a') || // Ctrl+A (tout sélectionner)
-        (e.ctrlKey && e.key === 'c') || // Ctrl+C (copier)
-        (e.ctrlKey && e.key === 'v') || // Ctrl+V (coller)
-        (e.ctrlKey && e.key === 'x') || // Ctrl+X (couper)
-        (e.ctrlKey && e.key === 'z') || // Ctrl+Z (annuler)
-        (e.ctrlKey && e.key === 'y') || // Ctrl+Y (refaire)
-        (e.ctrlKey && e.key === 'p') || // Ctrl+P (imprimer)
-        (e.ctrlKey && e.key === 'n') || // Ctrl+N (nouvelle fenêtre)
-        (e.ctrlKey && e.key === 't') || // Ctrl+T (nouvel onglet)
-        (e.ctrlKey && e.key === 'w') || // Ctrl+W (fermer onglet)
-        (e.ctrlKey && e.key === 'd') || // Ctrl+D (marque-page)
-        (e.ctrlKey && e.key === 'l') || // Ctrl+L (barre d'adresse)
-        (e.ctrlKey && e.key === 'o') || // Ctrl+O (ouvrir fichier)
-        (e.ctrlKey && e.key === 'e') || // Ctrl+E (recherche)
-        (e.ctrlKey && e.key === 'b') || // Ctrl+B (barre de favoris)
-        (e.ctrlKey && e.key === 'm') || // Ctrl+M (minimiser)
-        (e.ctrlKey && e.key === 'q') || // Ctrl+Q (quitter)
-        (e.ctrlKey && e.key === 'w') || // Ctrl+W (fermer)
-        (e.ctrlKey && e.key === 'n') || // Ctrl+N (nouveau)
-        (e.ctrlKey && e.key === 't') || // Ctrl+T (nouvel onglet)
-        (e.ctrlKey && e.key === 'tab') || // Ctrl+Tab (changer d'onglet)
-        (e.ctrlKey && e.key === 'shift') || // Ctrl+Shift
-        (e.ctrlKey && e.key === 'alt') || // Ctrl+Alt
-        (e.altKey && e.key === 'F4') || // Alt+F4 (fermer)
-        (e.altKey && e.key === 'Tab') || // Alt+Tab (changer d'app)
-        (e.altKey && e.key === 'F11') || // Alt+F11 (plein écran)
-        (e.shiftKey && e.key === 'F10') || // Shift+F10 (menu contextuel)
-        (e.shiftKey && e.key === 'F12') || // Shift+F12 (outils dev)
-        e.key === 'PrintScreen' || // Impr écran
-        e.key === 'F12' || // F12 (outils de développement)
-        e.key === 'F11' || // F11 (plein écran)
-        e.key === 'F10' || // F10 (menu)
-        e.key === 'F9' || // F9
-        e.key === 'F8' || // F8
-        e.key === 'F7' || // F7
-        e.key === 'F6' || // F6
-        e.key === 'F5' || // F5 (actualiser)
-        e.key === 'F4' || // F4
-        e.key === 'F3' || // F3 (recherche)
-        e.key === 'F2' || // F2
-        e.key === 'F1' || // F1 (aide)
-        e.key === 'Insert' || // Insert
-        (!isInputElement && e.key === 'Delete') || // Delete (seulement hors input)
-        (!isInputElement && e.key === 'Home') || // Home (seulement hors input)
-        (!isInputElement && e.key === 'End') || // End (seulement hors input)
-        (!isInputElement && e.key === 'PageUp') || // Page Up (seulement hors input)
-        (!isInputElement && e.key === 'PageDown') || // Page Down (seulement hors input)
-        (!isInputElement && e.key === 'ArrowUp') || // Flèche haut (seulement hors input)
-        (!isInputElement && e.key === 'ArrowDown') || // Flèche bas (seulement hors input)
-        (!isInputElement && e.key === 'ArrowLeft') || // Flèche gauche (seulement hors input)
-        (!isInputElement && e.key === 'ArrowRight') || // Flèche droite (seulement hors input)
-        e.key === 'Escape' || // Échap
-        (!isInputElement && e.key === 'Tab') || // Tab (seulement hors input)
-        (!isInputElement && e.key === 'Enter') || // Entrée (seulement hors input)
-        (!isInputElement && e.key === 'Space') || // Espace (seulement hors input)
-        (!isInputElement && e.key === 'Backspace') || // Retour arrière (seulement hors input)
-        e.key === 'Meta' || // Cmd (Mac)
-        e.key === 'ContextMenu' // Menu contextuel
+      if ((e.key === 'Meta' || // Cmd (Mac)
+        e.key === 'ContextMenu') // Menu contextuel
       ) {
         e.preventDefault();
         e.stopPropagation();
@@ -1454,6 +1313,34 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                            console.log(`🎬 onTimeUpdate - Durée: ${duration}s, totalTime actuel: ${totalTime}s`);
                            
                            setCurrentTime(newCurrentTime);
+
+                           if (
+                             midVideoQuizzes &&
+                             midVideoQuizzes.length > 0 &&
+                             !activeMidVideoQuizConfig
+                           ) {
+                             const nextQuizIndex = midVideoQuizzes.findIndex((quizConfig, index) => {
+                               const safeTriggerTime = Math.max(0, Number(quizConfig.triggerTimeSec || 0));
+                               return !triggeredMidVideoQuizIndexes.has(index) && newCurrentTime >= safeTriggerTime;
+                             });
+
+                             if (nextQuizIndex !== -1) {
+                               const quizToShow = midVideoQuizzes[nextQuizIndex];
+                               if (quizToShow.questions && quizToShow.questions.length > 0) {
+                                 videoRef.current.pause();
+                                 setIsPlaying(false);
+                                 setActiveMidVideoQuizConfig({
+                                   questions: quizToShow.questions,
+                                   questionTimeLimitSec: quizToShow.questionTimeLimitSec,
+                                 });
+                                 setTriggeredMidVideoQuizIndexes((prev) => {
+                                   const updated = new Set(prev);
+                                   updated.add(nextQuizIndex);
+                                   return updated;
+                                 });
+                               }
+                             }
+                           }
                            
                            // Si totalTime n'est pas encore défini mais que la durée est disponible
                            if (totalTime <= 0 && duration > 0 && !isNaN(duration) && duration !== Infinity) {
@@ -1523,6 +1410,21 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
                        }}
                        onPause={() => setIsPlaying(false)}
                      />
+
+                      {activeMidVideoQuizConfig?.questions && activeMidVideoQuizConfig.questions.length > 0 && (
+                        <MidVideoQuizOverlay
+                          questions={activeMidVideoQuizConfig.questions}
+                          questionTimeLimitSec={activeMidVideoQuizConfig.questionTimeLimitSec}
+                          currentTime={activeMidVideoQuizConfig.currentTime || currentTime}
+                          onComplete={() => {
+                            setActiveMidVideoQuizConfig(null);
+                            if (videoRef.current) {
+                              videoRef.current.playbackRate = 0.85;
+                              videoRef.current.play().catch(() => {});
+                            }
+                          }}
+                        />
+                      )}
                      
                   
                       {/* Contrôles de navigation
@@ -1645,3 +1547,5 @@ export default function TestViewer({ lesson, fileUrl, formationId, userId, onPro
     </div>
   );
 }
+
+export default TestViewer;

@@ -8,8 +8,16 @@ export const quizController = {
   async createQuiz(req, res) {
     try {
       const { formationId } = req.params;
-      const { title, description, passingScore, timeLimit, questions } =
-        req.body;
+      const {
+        title,
+        description,
+        passingScore,
+        timeLimit,
+        triggerType,
+        triggerTime,
+        questionTimeLimitSec,
+        questions,
+      } = req.body;
 
       // Validation
       if (!title || !questions || !Array.isArray(questions)) {
@@ -51,6 +59,12 @@ export const quizController = {
           description: description || "",
           passingScore: passingScore || 80,
           timeLimit: timeLimit ? parseInt(timeLimit) : null,
+          triggerType: triggerType || "END",
+          triggerTime: triggerTime !== undefined ? parseInt(triggerTime) : null,
+          questionTimeLimitSec:
+            questionTimeLimitSec !== undefined
+              ? parseInt(questionTimeLimitSec)
+              : null,
           questions: {
             create: questions.map((question, qIndex) => ({
               question: question.question,
@@ -90,8 +104,16 @@ export const quizController = {
   async updateQuiz(req, res) {
     try {
       const { id } = req.params;
-      const { title, description, passingScore, timeLimit, questions } =
-        req.body;
+      const {
+        title,
+        description,
+        passingScore,
+        timeLimit,
+        triggerType,
+        triggerTime,
+        questionTimeLimitSec,
+        questions,
+      } = req.body;
 
       // Validation
       if (!title || !questions || !Array.isArray(questions)) {
@@ -134,6 +156,12 @@ export const quizController = {
           description: description || "",
           passingScore: passingScore || 80,
           timeLimit: timeLimit ? parseInt(timeLimit) : null,
+          triggerType: triggerType || "END",
+          triggerTime: triggerTime !== undefined ? parseInt(triggerTime) : null,
+          questionTimeLimitSec:
+            questionTimeLimitSec !== undefined
+              ? parseInt(questionTimeLimitSec)
+              : null,
           questions: {
             create: questions.map((question, qIndex) => ({
               question: question.question,
@@ -237,6 +265,71 @@ export const quizController = {
     } catch (error) {
       console.error("Erreur toggleQuizActive:", error);
       res.status(500).json({
+        success: false,
+        message: "Erreur interne du serveur",
+      });
+    }
+  },
+
+  // Obtenir le quiz d'une formation (pour l'admin)
+  async getQuizByFormation(req, res) {
+    try {
+      const { formationId } = req.params;
+
+      const quiz = await prisma.quiz.findUnique({
+        where: { formationId },
+        select: {
+          id: true,
+          formationId: true,
+          title: true,
+          description: true,
+          passingScore: true,
+          timeLimit: true,
+          isActive: true,
+          triggerType: true,
+          triggerTime: true,
+          questionTimeLimitSec: true,
+          createdAt: true,
+          updatedAt: true,
+          questions: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              quizId: true,
+              question: true,
+              type: true,
+              order: true,
+              points: true,
+              createdAt: true,
+              updatedAt: true,
+              answers: {
+                orderBy: { order: "asc" },
+                select: {
+                  id: true,
+                  questionId: true,
+                  answer: true,
+                  isCorrect: true,
+                  order: true,
+                  createdAt: true,
+                  updatedAt: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!quiz) {
+        return res.json({ success: true, data: null });
+      }
+
+      return res.json({
+        success: true,
+        data: quiz,
+      });
+    } catch (error) {
+      console.error("Erreur getQuizByFormation:", error);
+      return res.status(500).json({
         success: false,
         message: "Erreur interne du serveur",
       });
@@ -417,19 +510,27 @@ export const quizController = {
   // Soumettre les réponses d'un quiz (crée une nouvelle tentative ou met à jour une en cours)
   async submitQuizAttempt(req, res) {
     try {
-      const { quizId } = req.params;
-      const { answers, timeSpent, attemptId } = req.body;
+      const { quizId: paramQuizId, attemptId: paramAttemptId } = req.params;
+      const {
+        answers,
+        timeSpent,
+        attemptId: bodyAttemptId,
+        quizId: bodyQuizId,
+      } = req.body;
       const userId = req.user.id;
 
+      const quizId = paramQuizId || bodyQuizId;
+      const attemptId = paramAttemptId || bodyAttemptId;
+
       let attempt;
-      
+
       // Si un attemptId est fourni, vérifier qu'il existe et est en cours
       if (attemptId) {
         attempt = await prisma.quizAttempt.findFirst({
           where: {
             id: attemptId,
             userId,
-            quizId,
+            ...(quizId && { quizId }),
             completedAt: null, // Pas encore terminée
           },
           include: {
@@ -497,7 +598,7 @@ export const quizController = {
             // Vérifier si toutes les bonnes réponses sont sélectionnées
             const allCorrect =
               correctAnswers.every((correct) =>
-                userAnswers.includes(correct.id)
+                userAnswers.includes(correct.id),
               ) && userAnswers.length === correctAnswers.length;
 
             if (allCorrect) {
@@ -694,7 +795,7 @@ export const quizController = {
             quiz.attempts.length > 0
               ? Math.round(
                   quiz.attempts.reduce((sum, a) => sum + a.score, 0) /
-                    quiz.attempts.length
+                    quiz.attempts.length,
                 )
               : 0,
         },
@@ -717,20 +818,3 @@ export const quizController = {
     }
   },
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

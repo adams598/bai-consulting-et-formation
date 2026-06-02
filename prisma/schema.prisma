@@ -189,6 +189,8 @@ model Quiz {
   passingScore Int      @default(80) // pourcentage minimum pour réussir
   timeLimit    Int? // en minutes, null = pas de limite
   isActive     Boolean  @default(true)
+  triggerType  String   @default("END") // "END" ou "MID_VIDEO"
+  triggerTime  Int?     // en secondes, utilisé si triggerType = "MID_VIDEO"
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

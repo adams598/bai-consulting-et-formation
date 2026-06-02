@@ -10,9 +10,9 @@ export default function HomePage() {
     <>
       <Helmet>
         {/* Balises meta SEO */}
-        <title>BAI Consulting et Formation - Formations professionnelles Banque, Assurance, Immobilier</title>
-        <meta name="description" content="BAI Formation Consulting - Des formations professionnelles d'excellence pour les secteurs de la banque, de l'assurance et de l'immobilier. +200 professionnels accompagnés, 98% de satisfaction." />
-        <meta name="keywords" content="formation, banque, assurance, immobilier, consulting, professionnel, formation continue, expertise, accompagnement" />
+        <title>BAI Consulting et Formation - Courtage, Formation, Conseils aux entreprises</title>
+        <meta name="description" content="BAI Formation Consulting - Courtage, formation professionnelle et Conseils aux entreprises pour les secteurs de la banque, de l'assurance et de l'immobilier. +200 professionnels accompagnés." />
+        <meta name="keywords" content="courtage, formation, conseils aux entreprises, banque, assurance, immobilier, consulting, accompagnement" />
         <meta name="author" content="BAI Formation Consulting" />
         <meta name="robots" content="index, follow" />
         
@@ -59,13 +59,13 @@ export default function HomePage() {
             <div className="container mx-auto flex flex-col md:flex-row items-center gap-16 px-6">
               <div className="flex-1 space-y-10">
                 <h1 className="text-6xl md:text-7xl font-extrabold leading-tight tracking-wide mb-4">
-                  <span className="bg-[#1B5E20] px-4 py-2 rounded-xl">FORMATION & CONSULTING</span>
+                  <span className="bg-[#1B5E20] px-4 py-2 rounded-xl">Courtage, Formation & Conseil</span>
                 </h1>
-                <p className="text-2xl md:text-3xl text-[#C7B299] mb-4 font-semibold" style={{lineHeight: '1.4', letterSpacing: '0.03em'}}>Comprenez notre offre en moins de 5 secondes&nbsp;: <span className="text-white">accompagnement, expertise, résultats.</span></p>
+                <p className="text-2xl md:text-3xl text-[#C7B299] mb-4 font-semibold" style={{lineHeight: '1.4', letterSpacing: '0.03em'}}>Trois thématiques pour structurer votre croissance : <span className="text-white">accompagnement projet, montée en compétences et stratégie d'entreprise.</span></p>
                 <p className="text-xl md:text-2xl text-white mb-8">+200 professionnels accompagnés – 98% de satisfaction</p>
                 <div className="flex flex-col sm:flex-row gap-6">
-                  <Link to="/apprenant/inscription">
-                    <Button className="rounded-full px-8 py-4 text-lg font-bold shadow-lg bg-[#1B5E20] hover:bg-[#388E3C]">Découvrir nos formations</Button>
+                  <Link to="/solutions">
+                    <Button className="rounded-full px-8 py-4 text-lg font-bold shadow-lg bg-[#1B5E20] hover:bg-[#388E3C]">Découvrir nos thématiques</Button>
                   </Link>
                   <Link to="/contact">
                     <Button variant="outline" className="rounded-full px-8 py-4 text-lg font-bold border-white text-white hover:bg-white hover:text-[#00314B] shadow-lg">Nous contacter</Button>
@@ -95,15 +95,16 @@ export default function HomePage() {
             </div>
           </section>
 
-          {/* Domaines d'expertise */}
+          {/* Thématiques principales */}
           <section className="container mx-auto py-20 space-y-12">
-            <h2 className="text-4xl font-extrabold text-[#00314B] text-center mb-12">Nos domaines d'expertise</h2>
+            <h2 className="text-4xl font-extrabold text-[#00314B] text-center mb-12">Nos 3 thématiques</h2>
+            <p className="max-w-3xl mx-auto text-center text-xl text-gray-700">BAI Consulting structure son offre autour de trois expertises complémentaires : courtage, formations et conseils aux entreprises. Chacune est pensée pour accélérer votre performance commerciale, sécuriser vos projets et renforcer vos compétences.</p>
             <div className="grid md:grid-cols-3 gap-10">
-              {/* Carte Banque */}
+              {/* Carte Courtage */}
               <div className="group bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center transition-all hover:scale-105 hover:shadow-3xl">
                 <OptimizedImage 
-                  src="/images/optimized/pexels-banque-7821702-medium.webp" 
-                  alt="Banque" 
+                  src="/images/optimized/pexels-consultation-3183171-medium.webp" 
+                  alt="Courtage" 
                   className="w-32 h-32 object-cover rounded-2xl mb-6 shadow-lg group-hover:scale-110 transition-transform"
                   width={128}
                   height={128}
@@ -111,20 +112,20 @@ export default function HomePage() {
                   format="webp"
                   lazy={true}
                 />
-                <h3 className="text-2xl font-bold text-[#00314B] mb-4">Banque</h3>
-                <p className="text-lg text-gray-700 text-center mb-6">Formations en conformité bancaire, gestion de patrimoine, crédit et financement.</p>
-                <Link to="/banque">
-                  <Button className="rounded-full px-6 py-3 w-full font-bold bg-[#C7B299] hover:bg-[#bfa77a]">En savoir plus</Button>
+                <h3 className="text-2xl font-bold text-[#00314B] mb-4">Courtage</h3>
+                <p className="text-lg text-gray-700 text-center mb-6">Accompagnement global de vos projets financiers et immobiliers, avec un appui Europe-Afrique pour sécuriser vos dossiers.</p>
+                <Link to="/courtage">
+                  <Button className="rounded-full px-6 py-3 w-full font-bold bg-[#C7B299] hover:bg-[#bfa77a]">Découvrir le courtage</Button>
                 </Link>
                 <Link to="/contact">
                   <Button variant="outline" className="rounded-full px-6 py-3 w-full font-bold border-[#00314B] text-[#00314B] hover:bg-[#1B5E20] hover:text-white mt-2">Contactez-nous</Button>
                 </Link>
               </div>
-              {/* Carte Assurance */}
+              {/* Carte Formation */}
               <div className="group bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center transition-all hover:scale-105 hover:shadow-3xl">
                 <OptimizedImage 
-                  src="/images/optimized/pexels-assurance-7821701-medium.webp" 
-                  alt="Assurance et prévoyance" 
+                  src="/images/optimized/pexels-presentation-3184465-medium.webp" 
+                  alt="Formation" 
                   className="w-32 h-32 object-cover rounded-2xl mb-6 shadow-lg group-hover:scale-110 transition-transform"
                   width={128}
                   height={128}
@@ -132,20 +133,20 @@ export default function HomePage() {
                   format="webp"
                   lazy={true}
                 />
-                <h3 className="text-2xl font-bold text-[#00314B] mb-4">Assurance & Prévoyance</h3>
-                <p className="text-lg text-gray-700 text-center mb-6">Formations en assurance vie, prévoyance, gestion des risques et sinistres.</p>
-                <Link to="/assurance">
-                  <Button className="rounded-full px-6 py-3 w-full font-bold bg-[#C7B299] hover:bg-[#bfa77a]">En savoir plus</Button>
+                <h3 className="text-2xl font-bold text-[#00314B] mb-4">Formation</h3>
+                <p className="text-lg text-gray-700 text-center mb-6">Parcours opérationnels pour vos équipes commerciales, avec méthodologie et mises en situation adaptées aux secteurs banque, assurance et immobilier.</p>
+                <Link to="/formation">
+                  <Button className="rounded-full px-6 py-3 w-full font-bold bg-[#C7B299] hover:bg-[#bfa77a]">Découvrir la formation</Button>
                 </Link>
                 <Link to="/contact">
                   <Button variant="outline" className="rounded-full px-6 py-3 w-full font-bold border-[#00314B] text-[#00314B] hover:bg-[#1B5E20] hover:text-white mt-2">Contactez-nous</Button>
                 </Link>
               </div>
-              {/* Carte Immobilier */}
+              {/* Carte Conseil */}
               <div className="group bg-white rounded-3xl shadow-2xl p-8 flex flex-col items-center transition-all hover:scale-105 hover:shadow-3xl">
                 <OptimizedImage 
-                  src="/images/optimized/pexels-immobilier-7578986-medium.webp" 
-                  alt="Immobilier" 
+                  src="/images/optimized/pexels-reunion-3184292-medium.webp" 
+                  alt="Conseils aux entreprises" 
                   className="w-32 h-32 object-cover rounded-2xl mb-6 shadow-lg group-hover:scale-110 transition-transform"
                   width={128}
                   height={128}
@@ -153,10 +154,10 @@ export default function HomePage() {
                   format="webp"
                   lazy={true}
                 />
-                <h3 className="text-2xl font-bold text-[#00314B] mb-4">Immobilier</h3>
-                <p className="text-lg text-gray-700 text-center mb-6">Formations en transaction immobilière, gestion locative et expertise immobilière.</p>
-                <Link to="/immobilier">
-                  <Button className="rounded-full px-6 py-3 w-full font-bold bg-[#C7B299] hover:bg-[#bfa77a]">En savoir plus</Button>
+                <h3 className="text-2xl font-bold text-[#00314B] mb-4">Conseils aux entreprises</h3>
+                <p className="text-lg text-gray-700 text-center mb-6">Structuration de votre entreprise, optimisation des process et mobilisation de financements pour accélérer votre développement.</p>
+                <Link to="/conseil">
+                  <Button className="rounded-full px-6 py-3 w-full font-bold bg-[#C7B299] hover:bg-[#bfa77a]">Découvrir le conseil</Button>
                 </Link>
                 <Link to="/contact">
                   <Button variant="outline" className="rounded-full px-6 py-3 w-full font-bold border-[#00314B] text-[#00314B] hover:bg-[#1B5E20] hover:text-white mt-2">Contactez-nous</Button>

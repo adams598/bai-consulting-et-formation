@@ -8,7 +8,7 @@ import { useConfirmation } from '../../../hooks/useConfirmation';
 interface QuizConfigModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (quizData: Partial<Quiz>) => void;
+  onSave: (quizData: Partial<Quiz>) => Promise<void>;  // <--- async
   formationId: string;
   existingQuiz?: Quiz | null;
 }
@@ -25,288 +25,168 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
     description: '',
     passingScore: 80,
     timeLimit: undefined,
-    isActive: true
+    questionTimeLimitSec: undefined,
+    isActive: true,
+    triggerType: 'END',
+    triggerTime: undefined,
   });
 
   const [questions, setQuestions] = useState<Partial<QuizQuestion>[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  
+  const [loadedQuizId, setLoadedQuizId] = useState<string | 'new' | null>(null);
+
   // Hook de confirmation
   const confirmation = useConfirmation();
 
   useEffect(() => {
+    if (!isOpen) {
+      setLoadedQuizId(null);
+      return;
+    }
+
     if (existingQuiz) {
+      if (loadedQuizId === existingQuiz.id) return;
+      setLoadedQuizId(existingQuiz.id);
+
       setQuizData({
         title: existingQuiz.title,
         description: existingQuiz.description,
         passingScore: existingQuiz.passingScore,
         timeLimit: existingQuiz.timeLimit,
-        isActive: existingQuiz.isActive
+        questionTimeLimitSec: existingQuiz.questionTimeLimitSec,
+        isActive: existingQuiz.isActive,
+        triggerType: existingQuiz.triggerType || 'END',
+        triggerTime: existingQuiz.triggerTime,
       });
-      
-      if (existingQuiz.questions) {
-        setQuestions(existingQuiz.questions.map(q => ({
-          ...q,
-          answers: q.answers || []
-        })));
-      }
-    } else {
-      // Nouveau quiz - ajouter une première question
-      setQuestions([{
-        question: '',
-        type: 'multiple_choice',
-        order: 1,
-        points: 1,
-        isRequired: true,
-        answers: [
-          { answer: '', isCorrect: false, order: 1 },
-          { answer: '', isCorrect: false, order: 2 }
-        ]
-      }]);
+
+      setQuestions((existingQuiz.questions || []).map(q => ({
+        ...q,
+        answers: q.answers || [],
+        triggerTime: q.triggerTime ?? 0,
+      })));
+
+      return;
     }
-  }, [existingQuiz]);
+
+    if (loadedQuizId === 'new') return;
+    setLoadedQuizId('new');
+
+    setQuestions([{
+      question: '',
+      type: 'single_choice',
+      answers: [],
+      order: 1,
+      triggerTime: 0,
+      id: '',
+      questionId: '',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }]);
+  }, [isOpen, existingQuiz, loadedQuizId]);
 
   const handleQuizDataChange = (field: keyof Quiz, value: any) => {
-    setQuizData(prev => ({ ...prev, [field]: value }));
+    setQuizData(prev => {
+      const newData = { ...prev, [field]: value };
+
+      // Si on passe en mode MID_VIDEO et que triggerTime est indéfini, on met 0 par défaut (0 min)
+      if (field === 'triggerType' && value === 'MID_VIDEO' && prev.triggerTime === undefined) {
+        newData.triggerTime = 0;
+      }
+
+      return newData;
+    });
   };
 
   const addQuestion = () => {
-    const newQuestion: Partial<QuizQuestion> = {
-      question: '',
-      type: 'multiple_choice',
-      order: questions.length + 1,
-      points: 1,
-      isRequired: true,
-      answers: [
-        { answer: '', isCorrect: false, order: 1 },
-        { answer: '', isCorrect: false, order: 2 }
-      ]
-    };
-    setQuestions(prev => [...prev, newQuestion]);
+    setQuestions(prev => [
+      ...prev,
+      {
+        question: '',
+        type: 'single_choice',
+        answers: [],
+        order: prev.length + 1,
+        triggerTime: 0,
+        id: '',
+        questionId: '',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as Partial<QuizQuestion>,
+    ]);
   };
 
   const removeQuestion = (index: number) => {
-    // console.log('removeQuestion appelé avec index:', index);
-    // console.log('Questions avant suppression:', questions);
     setQuestions(prev => {
       const newQuestions = prev.filter((_, i) => i !== index);
-      // console.log('Questions après suppression:', newQuestions);
-      return newQuestions;
+      return newQuestions.map((q, i) => ({ ...q, order: i + 1 }));
     });
-    // Réorganiser l'ordre
-    setQuestions(prev => prev.map((q, i) => ({ ...q, order: i + 1 })));
   };
 
-  const updateQuestion = (index: number, field: keyof QuizQuestion, value: any) => {
-    setQuestions(prev => prev.map((q, i) => {
-      if (i === index) {
-        const updatedQuestion = { ...q, [field]: value };
-        
-        // Si on change le type de question, adapter les réponses
-        if (field === 'type') {
-          if (value === 'true_false') {
-            updatedQuestion.answers = [
-              { answer: 'Vrai', isCorrect: true, order: 1 },
-              { answer: 'Faux', isCorrect: false, order: 2 }
-            ];
-          } else if (value === 'text') {
-            updatedQuestion.answers = [
-              { answer: 'Réponse libre', isCorrect: true, order: 1 }
-            ];
-          } else if (value === 'fill_in_blank') {
-            // Pour les phrases à trous, initialiser avec une phrase vide
-            updatedQuestion.answers = [];
-          } else if (value === 'multiple_choice' && (!q.answers || q.answers.length < 2)) {
-            updatedQuestion.answers = [
-              { answer: '', isCorrect: false, order: 1 },
-              { answer: '', isCorrect: false, order: 2 }
-            ];
-          }
-        }
-        
-        return updatedQuestion;
-      }
-      return q;
-    }));
+  const updateQuestion = (idx: number, field: keyof Partial<QuizQuestion>, value: any) => {
+    const normalized = field === 'triggerTime' ? normalizeTriggerTime(value) : value;
+    setQuestions(prev => prev.map((q, i) => (i === idx ? { ...q, [field]: normalized } : q)));
   };
 
-  const addAnswer = (questionIndex: number) => {
-    setQuestions(prev => prev.map((q, i) => {
-      if (i === questionIndex) {
-        const newOrder = (q.answers?.length || 0) + 1;
-        return {
-          ...q,
-          answers: [...(q.answers || []), { answer: '', isCorrect: false, order: newOrder }]
-        };
-      }
-      return q;
-    }));
-  };
-
-  const removeAnswer = (questionIndex: number, answerIndex: number) => {
-    // console.log('removeAnswer appelé avec questionIndex:', questionIndex, 'answerIndex:', answerIndex);
-    // console.log('Questions avant suppression de réponse:', questions);
-    setQuestions(prev => prev.map((q, i) => {
-      if (i === questionIndex) {
-        const newAnswers = q.answers?.filter((_, ai) => ai !== answerIndex) || [];
-        // console.log('Nouvelles réponses pour question', i, ':', newAnswers);
-        // Réorganiser l'ordre des réponses
-        return {
-          ...q,
-          answers: newAnswers.map((a, ai) => ({ ...a, order: ai + 1 }))
-        };
-      }
-      return q;
-    }));
-  };
-
-  const updateAnswer = (questionIndex: number, answerIndex: number, field: keyof QuizAnswer, value: any) => {
-    setQuestions(prev => prev.map((q, i) => {
-      if (i === questionIndex) {
-        return {
-          ...q,
-          answers: q.answers?.map((a, ai) => 
-            ai === answerIndex ? { ...a, [field]: value } : a
-          ) || []
-        };
-      }
-      return q;
-    }));
-  };
-
-  const setCorrectAnswer = (questionIndex: number, answerIndex: number, isMultipleChoice: boolean = false) => {
-    setQuestions(prev => prev.map((q, i) => {
-      if (i === questionIndex) {
-        if (isMultipleChoice) {
-          // Pour choix multiples : toggle (permet plusieurs réponses correctes)
-          return {
-            ...q,
-            answers: q.answers?.map((a, ai) => ({
-              ...a,
-              isCorrect: ai === answerIndex ? !a.isCorrect : a.isCorrect
-            })) || []
-          };
-        } else {
-          // Pour Vrai/Faux : une seule réponse possible (radio)
-          return {
-            ...q,
-            answers: q.answers?.map((a, ai) => ({
-              ...a,
-              isCorrect: ai === answerIndex
-            })) || []
-          };
-        }
-      }
-      return q;
-    }));
-  };
-
-  // Fonction pour compter le nombre de réponses correctes
-  const getCorrectAnswersCount = (question: Partial<QuizQuestion>) => {
-    return question.answers?.filter(a => a.isCorrect).length || 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Validation
+  const validateQuiz = (): boolean => {
     if (!quizData.title?.trim()) {
-      confirmation.showConfirmation({
-        title: 'Titre requis',
-        message: 'Le titre du quiz est requis pour continuer.',
-        confirmText: 'Compris',
-        type: 'warning',
-        onConfirm: () => {}
-      });
-      return;
+      confirmation.showConfirmation({ title: 'Titre manquant', message: 'Le titre du quiz est requis.', confirmText: 'OK', type: 'warning', onConfirm: () => {} });
+      return false;
     }
 
-    if (questions.length === 0) {
-      confirmation.showConfirmation({
-        title: 'Questions requises',
-        message: 'Au moins une question est requise pour créer le quiz.',
-        confirmText: 'Compris',
-        type: 'warning',
-        onConfirm: () => {}
-      });
-      return;
-    }
-
-    // Vérifier que chaque question a au moins 2 réponses et une réponse correcte
-    for (let i = 0; i < questions.length; i++) {
+    for (let i = 0; i < questions.length; i += 1) {
       const q = questions[i];
-      if (!q.question?.trim()) {
+      if (q.triggerTime == null || q.triggerTime < 0) {
         confirmation.showConfirmation({
-          title: 'Question incomplète',
-          message: `Question ${i + 1}: Le texte de la question est requis.`,
-          confirmText: 'Compris',
+          title: 'Moment manquant',
+          message: `Question ${i + 1} : indiquez un moment >= 0.`,
+          confirmText: 'OK',
           type: 'warning',
-          onConfirm: () => {}
+          onConfirm: () => {},
         });
-        return;
-      }
-      
-      if (!q.answers || q.answers.length < 2) {
-        confirmation.showConfirmation({
-          title: 'Réponses insuffisantes',
-          message: `Question ${i + 1}: Au moins 2 réponses sont requises.`,
-          confirmText: 'Compris',
-          type: 'warning',
-          onConfirm: () => {}
-        });
-        return;
-      }
-
-      const hasCorrectAnswer = q.answers.some(a => a.isCorrect);
-      if (!hasCorrectAnswer) {
-        confirmation.showConfirmation({
-          title: 'Aucune réponse correcte',
-          message: `Question ${i + 1}: Au moins une réponse correcte doit être sélectionnée.`,
-          confirmText: 'Compris',
-          type: 'warning',
-          onConfirm: () => {}
-        });
-        return;
-      }
-
-      for (let j = 0; j < q.answers.length; j++) {
-        if (!q.answers[j].answer?.trim()) {
-          confirmation.showConfirmation({
-            title: 'Réponse incomplète',
-            message: `Question ${i + 1}, Réponse ${j + 1}: Le texte de la réponse est requis.`,
-            confirmText: 'Compris',
-            type: 'warning',
-            onConfirm: () => {}
-          });
-          return;
-        }
+        return false;
       }
     }
 
+    return true;
+  };
+
+  const handleSaveQuiz = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!validateQuiz()) return;
+
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      
       const quizToSave = {
         ...quizData,
         formationId,
         questions: questions.map((q, index) => ({
           ...q,
           order: index + 1,
-          answers: q.answers?.map((a, aIndex) => ({
-            ...a,
-            order: aIndex + 1
-          })) || []
-        }))
+          triggerTime: normalizeTriggerTime(q.triggerTime) ?? 0,
+          answers: q.answers?.map((a, aIndex) => ({ ...a, order: aIndex + 1 })) || [],
+        })) as QuizQuestion[],
       };
-
       await onSave(quizToSave);
       onClose();
     } catch (error) {
       console.error('Erreur lors de la sauvegarde du quiz:', error);
+      confirmation.showConfirmation({ title: 'Erreur', message: 'Une erreur est survenue.', confirmText: 'OK', type: 'danger', onConfirm: () => {} });
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const getCorrectAnswersCount = (q: Partial<QuizQuestion> = {}): number => {
+    return q.answers?.filter(a => a.isCorrect).length ?? 0;
+  };
+
+  const normalizeTriggerTime = (raw: number | string | undefined): number | undefined => {
+    if (raw === undefined || raw === null || raw === '') return undefined;
+    const str = String(raw).trim().replace(',', '.');
+    const n = Number(str);
+    if (Number.isNaN(n) || n < 0) return undefined;
+    if (n < 1) return Math.round(n * 100); // 0.3 => 30
+    return Math.round(n);
   };
 
   if (!isOpen) return null;
@@ -326,7 +206,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSaveQuiz} className="p-6 space-y-6">
           {/* Informations générales du quiz */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -342,7 +222,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                 required
               />
             </div>
-            
+
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Score de réussite (%) *
@@ -372,7 +252,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Limite de temps (minutes)
@@ -384,6 +264,20 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                 onChange={(e) => handleQuizDataChange('timeLimit', e.target.value ? parseInt(e.target.value) : undefined)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Pas de limite"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Temps max / question (secondes)
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={quizData.questionTimeLimitSec || ''}
+                onChange={(e) => handleQuizDataChange('questionTimeLimitSec', e.target.value ? parseInt(e.target.value) : undefined)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ex: 15"
               />
             </div>
 
@@ -401,7 +295,57 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
             </div>
           </div>
 
+          {/* Déclenchement du quiz */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Moment du quiz
+              </label>
+              <select
+                value={quizData.triggerType || 'END'}
+                onChange={(e) => handleQuizDataChange('triggerType', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="END">Fin de la vidéo</option>
+                <option value="MID_VIDEO">En cours de vidéo</option>
+              </select>
+            </div>
+
+            {quizData.triggerType === 'MID_VIDEO' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Déclencher à la minute
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={quizData.triggerTime !== undefined ? ((quizData.triggerTime || 0) / 60) : ''}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (!value) {
+                      handleQuizDataChange('triggerTime', undefined);
+                      return;
+                    }
+
+                    const minutes = parseFloat(value);
+                    if (isNaN(minutes) || minutes < 0) {
+                      handleQuizDataChange('triggerTime', undefined);
+                      return;
+                    }
+
+                    handleQuizDataChange('triggerTime', Math.round(minutes * 60));
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ex: 0.5 (pour 30 secondes)"
+                />
+                <p className="text-xs text-gray-500 mt-1">La vidéo sera mise en pause à ce moment.</p>
+              </div>
+            )}
+          </div>
+
           {/* Questions */}
+
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <h3 className="text-lg font-medium text-gray-900">Questions</h3>
@@ -415,15 +359,15 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
               </button>
             </div>
 
-            {questions.map((question, qIndex) => (
-              <div key={qIndex} className="border border-gray-200 rounded-lg p-4 space-y-4">
+            {questions.map((q, questionIndex) => (
+              <div key={questionIndex} className="p-4 border rounded-lg bg-gray-50 space-y-3">
                 <div className="flex justify-between items-start">
                   <h4 className="text-md font-medium text-gray-900">
-                    Question {qIndex + 1}
+                    Question {questionIndex + 1}
                   </h4>
                   <button
                     type="button"
-                    onClick={() => removeQuestion(qIndex)}
+                    onClick={() => removeQuestion(questionIndex)}
                     className="text-red-600 hover:text-red-700 p-1"
                     disabled={questions.length === 1}
                   >
@@ -431,14 +375,14 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                   </button>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Question *
                     </label>
                     <textarea
-                      value={question.question}
-                      onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
+                      value={q.question}
+                      onChange={(e) => updateQuestion(questionIndex, 'question', e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="Texte de la question"
                       rows={2}
@@ -447,42 +391,27 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                       Points
                     </label>
                     <input
                       type="number"
                       min="1"
                       max="10"
-                      value={question.points}
-                      onChange={(e) => updateQuestion(qIndex, 'points', parseInt(e.target.value))}
+                      value={q.points}
+                      onChange={(e) => updateQuestion(questionIndex, 'points', parseInt(e.target.value))}
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
-                  </div>
-
-                  <div className="flex flex-col justify-end">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id={`required-${qIndex}`}
-                        checked={question.isRequired !== false}
-                        onChange={(e) => updateQuestion(qIndex, 'isRequired', e.target.checked)}
-                        className="rounded border-gray-300"
-                      />
-                      <label htmlFor={`required-${qIndex}`} className="text-sm text-gray-700">
-                        Obligatoire
-                      </label>
-                    </div>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Type de question
                   </label>
                   <select
-                    value={question.type}
-                    onChange={(e) => updateQuestion(qIndex, 'type', e.target.value)}
+                    value={q.type}
+                    onChange={(e) => updateQuestion(questionIndex, 'type', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="multiple_choice">Choix multiple</option>
@@ -493,7 +422,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                 </div>
 
                 {/* Interface spéciale pour phrases à trous */}
-                {question.type === 'fill_in_blank' && (
+                {q.type === 'fill_in_blank' && (
                   <div className="space-y-3">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -514,19 +443,23 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                         </div>
                       </div>
                       <textarea
-                        value={question.question}
+                        value={q.question}
                         onChange={(e) => {
-                          updateQuestion(qIndex, 'question', e.target.value);
+                          updateQuestion(questionIndex, 'question', e.target.value);
                           // Extraire automatiquement les réponses des trous
                           const matches = e.target.value.match(/\{([^}]+)\}/g);
                           if (matches) {
                             const blanks = matches.map((match, idx) => ({
                               answer: match.replace(/[{}]/g, ''),
                               isCorrect: true,
-                              order: idx + 1
+                              order: idx + 1,
+                              id: '',
+                              questionId: '',
+                              createdAt: new Date(),
+                              updatedAt: new Date()
                             }));
-                            setQuestions(prev => prev.map((q, i) => 
-                              i === qIndex ? { ...q, answers: blanks } : q
+                            setQuestions(prev => prev.map((q, i) =>
+                              i === questionIndex ? { ...q, answers: blanks } : q
                             ));
                           }
                         }}
@@ -536,15 +469,15 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                         required
                       />
                     </div>
-                    
+
                     {/* Aperçu des trous détectés */}
-                    {question.answers && question.answers.length > 0 && (
+                    {q.answers && q.answers.length > 0 && (
                       <div className="bg-green-50 border border-green-200 rounded-md p-3">
                         <p className="text-sm font-medium text-green-800 mb-2">
-                          {question.answers.length} trou{question.answers.length > 1 ? 's' : ''} détecté{question.answers.length > 1 ? 's' : ''} :
+                          {q.answers.length} trou{q.answers.length > 1 ? 's' : ''} détecté{q.answers.length > 1 ? 's' : ''} :
                         </p>
                         <div className="flex flex-wrap gap-2">
-                          {question.answers.map((answer, idx) => (
+                          {q.answers.map((answer, idx) => (
                             <span key={idx} className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
                               {idx + 1}. {answer.answer}
                             </span>
@@ -556,32 +489,32 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                 )}
 
                 {/* Réponses */}
-                {question.type !== 'text' && question.type !== 'fill_in_blank' && (
+                {q.type !== 'text' && q.type !== 'fill_in_blank' && (
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
                       <label className="block text-sm font-medium text-gray-700">
-                        {question.type === 'true_false' ? 'Réponse correcte *' : 'Réponses *'}
+                        {q.type === 'true_false' ? 'Réponse correcte *' : 'Réponses *'}
                       </label>
-                      {question.type === 'multiple_choice' && (
+                      {q.type === 'multiple_choice' && (
                         <button
                           type="button"
-                          onClick={() => addAnswer(qIndex)}
+                          onClick={() => addAnswer(questionIndex)}
                           className="text-blue-600 hover:text-blue-700 text-sm"
-                          disabled={question.answers && question.answers.length >= 6}
+                          disabled={q.answers && q.answers.length >= 6}
                         >
                           + Ajouter réponse
                         </button>
                       )}
                     </div>
 
-                    {question.type === 'true_false' ? (
+                    {q.type === 'true_false' ? (
                       <div className="space-y-2">
                         <div className="flex items-center space-x-3">
                           <input
                             type="radio"
-                            name={`correct-${qIndex}`}
-                            checked={question.answers?.[0]?.isCorrect}
-                            onChange={() => setCorrectAnswer(qIndex, 0, false)}
+                            name={`correct-${questionIndex}`}
+                            checked={q.answers?.[0]?.isCorrect}
+                            onChange={() => setCorrectAnswer(questionIndex, 0, false)}
                             className="text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm font-medium text-green-600">Vrai</span>
@@ -589,9 +522,9 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                         <div className="flex items-center space-x-3">
                           <input
                             type="radio"
-                            name={`correct-${qIndex}`}
-                            checked={question.answers?.[1]?.isCorrect}
-                            onChange={() => setCorrectAnswer(qIndex, 1, false)}
+                            name={`correct-${questionIndex}`}
+                            checked={q.answers?.[1]?.isCorrect}
+                            onChange={() => setCorrectAnswer(questionIndex, 1, false)}
                             className="text-blue-600 focus:ring-blue-500"
                           />
                           <span className="text-sm font-medium text-red-600">Faux</span>
@@ -600,10 +533,10 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                     ) : (
                       <>
                         {/* Indicateur du nombre de réponses attendues */}
-                        {question.type === 'multiple_choice' && (
+                        {q.type === 'multiple_choice' && (
                           <div className="mb-3">
                             {(() => {
-                              const correctCount = getCorrectAnswersCount(question);
+                              const correctCount = getCorrectAnswersCount(q);
                               if (correctCount === 0) {
                                 return (
                                   <div className="flex items-center space-x-2 text-sm text-gray-500">
@@ -629,30 +562,30 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                             })()}
                           </div>
                         )}
-                        
-                        {question.answers?.map((answer, aIndex) => (
+
+                        {q.answers?.map((answer, aIndex) => (
                           <div key={aIndex} className="flex items-center space-x-3">
                             <input
-                              type={question.type === 'multiple_choice' ? 'checkbox' : 'radio'}
-                              name={question.type === 'multiple_choice' ? `correct-${qIndex}-${aIndex}` : `correct-${qIndex}`}
+                              type={q.type === 'multiple_choice' ? 'checkbox' : 'radio'}
+                              name={q.type === 'multiple_choice' ? `correct-${questionIndex}-${aIndex}` : `correct-${questionIndex}`}
                               checked={answer.isCorrect}
-                              onChange={() => setCorrectAnswer(qIndex, aIndex, question.type === 'multiple_choice')}
-                              className={question.type === 'multiple_choice' ? 'rounded border-gray-300 text-blue-600 focus:ring-blue-500' : 'text-blue-600 focus:ring-blue-500'}
-                              title={question.type === 'multiple_choice' ? 'Cocher/décocher comme réponse correcte' : 'Marquer comme réponse correcte'}
+                              onChange={() => setCorrectAnswer(questionIndex, aIndex, q.type === 'multiple_choice')}
+                              className={q.type === 'multiple_choice' ? 'rounded border-gray-300 text-blue-600 focus:ring-blue-500' : 'text-blue-600 focus:ring-blue-500'}
+                              title={q.type === 'multiple_choice' ? 'Cocher/décocher comme réponse correcte' : 'Marquer comme réponse correcte'}
                             />
                             <input
                               type="text"
                               value={answer.answer}
-                              onChange={(e) => updateAnswer(qIndex, aIndex, 'answer', e.target.value)}
+                              onChange={(e) => updateAnswer(questionIndex, aIndex, 'answer', e.target.value)}
                               className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                               placeholder={`Réponse ${aIndex + 1}`}
                               required
                             />
                             <button
                               type="button"
-                              onClick={() => removeAnswer(qIndex, aIndex)}
+                              onClick={() => removeAnswer(questionIndex, aIndex)}
                               className="text-red-600 hover:text-red-700 p-1"
-                              disabled={question.answers!.length <= 2}
+                              disabled={q.answers!.length <= 2}
                               title="Supprimer cette réponse"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -665,7 +598,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                 )}
 
                 {/* Instructions pour question texte libre */}
-                {question.type === 'text' && (
+                {q.type === 'text' && (
                   <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
                     <div className="flex items-start space-x-2">
                       <AlertCircle className="h-4 w-4 text-blue-600 mt-0.5" />
@@ -702,6 +635,12 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
                 <span className="text-gray-500">Limite de temps :</span>
                 <span className="ml-1 font-medium">
                   {quizData.timeLimit ? `${quizData.timeLimit} min` : 'Aucune'}
+                </span>
+              </div>
+              <div>
+                <span className="text-gray-500">Timer / question :</span>
+                <span className="ml-1 font-medium">
+                  {quizData.questionTimeLimitSec ? `${quizData.questionTimeLimitSec}s` : 'Aucun'}
                 </span>
               </div>
             </div>
@@ -746,7 +685,7 @@ const QuizConfigModal: React.FC<QuizConfigModalProps> = ({
           quizData={quizData}
           questions={questions}
         />
-        
+
         {/* Modal de confirmation */}
         <ConfirmationModal
           isOpen={confirmation.isOpen}

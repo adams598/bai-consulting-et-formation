@@ -384,6 +384,13 @@ router.post(
   newQuizController.createQuiz,
 );
 
+router.get(
+  "/formations/:formationId/quiz",
+  authMiddleware,
+  adminMiddleware,
+  newQuizController.getQuizByFormation,
+);
+
 router.put(
   "/quiz/:id",
   authMiddleware,

@@ -39,7 +39,7 @@ export default function SolutionsPage() {
   }, []);
 
   return (
-    <main className="pb-16 font-sans">
+    <main className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white pb-16 font-sans overflow-x-hidden">
       {/* Vidéo de couverture avec overlay sombre et texte centré */}
       <section className="relative w-full left-1/2 right-1/2 -mx-[50vw] max-w-none" style={{ position: 'relative', left: '50%', right: '50%', width: '100vw', marginLeft: '-50vw', marginRight: '-50vw' }}>
         <div className="w-full h-80 md:h-[420px] relative flex items-center justify-center">
@@ -67,12 +67,12 @@ export default function SolutionsPage() {
       </section>
 
       {/* Sous-thématiques */}
-      <div className="max-w-6xl mx-auto px-4 mt-16 space-y-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16 space-y-16">
         {sousThematiques.map((sous, idx) => (
           <section
             key={sous.id}
             id={sous.id}
-            className={`flex flex-col md:flex-row ${idx % 2 === 1 ? 'md:flex-row-reverse' : ''} items-center gap-8 bg-white rounded-3xl shadow-xl p-8 md:p-12 transition-all duration-300 hover:shadow-2xl group`}
+            className={`flex flex-col md:flex-row ${idx % 2 === 1 ? 'md:flex-row-reverse' : ''} items-center gap-8 bg-white dark:bg-slate-900 rounded-[32px] border border-slate-200 dark:border-slate-700 shadow-sm shadow-slate-200/40 dark:shadow-none p-8 md:p-12 transition-all duration-300 hover:shadow-xl group`}
           >
             <div className="md:w-1/2 w-full flex justify-center items-center mb-6 md:mb-0">
               <div className="overflow-hidden rounded-2xl shadow-lg transition-transform duration-300 group-hover:scale-105 group-hover:shadow-2xl">
@@ -88,7 +88,7 @@ export default function SolutionsPage() {
               <h2 className="text-3xl md:text-4xl font-extrabold text-[#C7B299] mb-4">{sous.titre}</h2>
               <p className="text-lg md:text-xl text-gray-800 mb-2 leading-relaxed">{sous.description}</p>
               <Link to="/contact">
-                <button className="mt-4 px-6 py-3 rounded-full bg-[#1B5E20] text-white font-bold shadow hover:bg-[#388E3C] transition">Demander un devis</button>
+                <button className="mt-4 px-6 py-3 rounded-full bg-brand-blue text-white font-bold shadow hover:bg-brand-blue/90 transition">Demander un devis</button>
               </Link>
             </div>
           </section>

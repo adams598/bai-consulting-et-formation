@@ -149,7 +149,10 @@ export interface Quiz {
   description?: string;
   passingScore: number; // pourcentage minimum pour réussir (80 par défaut)
   timeLimit?: number; // en minutes, null = pas de limite
+  questionTimeLimitSec?: number; // limite de temps par question en secondes
   isActive: boolean;
+  triggerType?: 'END' | 'MID_VIDEO'; // quand le quiz se déclenche
+  triggerTime?: number; // en secondes si triggerType = 'MID_VIDEO'
   createdAt: Date;
   updatedAt: Date;
   questions: QuizQuestion[];
@@ -162,33 +165,22 @@ export interface QuizQuestion {
   type: string; // multiple_choice, true_false, text
   order: number;
   points: number;
+  isRequired?: boolean;
   createdAt: Date;
   updatedAt: Date;
   answers: QuizAnswer[];
+  // Ajout pour quiz vidéo interactif
+  timestamp?: number;
 }
 
 export interface QuizAnswer {
   id: string;
-  questionId: string;
   answer: string;
   isCorrect: boolean;
   order: number;
+  questionId?: string;
   createdAt: Date;
   updatedAt: Date;
-}
-
-export interface UserProgress {
-  id: string;
-  userId: string;
-  formationId: string;
-  contentId?: string;
-  progress: number; // pourcentage de progression (0-100)
-  timeSpent: number; // en secondes
-  lastAccessed: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  user?: User;
-  formation?: Formation;
 }
 
 export interface Notification {
