@@ -170,6 +170,12 @@ app.get('/api/formations/:formationTitle/:filename', (req, res) => {
 
 // Route API pour télécharger le catalogue PDF
 app.get('/api/downloads/catalogue-pdf', (req, res) => {
+  // En production, rediriger vers l'URL Hostinger
+  if (process.env.NODE_ENV === 'production') {
+    return res.redirect(301, 'https://olivedrab-hornet-656554.hostingersite.com/backend/uploads/BAI-Catalogue-Formations.pdf');
+  }
+
+  // En développement, servir depuis le fichier local
   const pdfPath = path.join(__dirname, '..', 'uploads', 'BAI.catalogue formations.pdf');
   
   // Vérifier que le fichier existe

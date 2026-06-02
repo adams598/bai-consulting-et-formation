@@ -301,6 +301,13 @@ app.get("/api/health", async (req, res) => {
 
 // Route API pour télécharger le catalogue PDF
 app.get("/api/downloads/catalogue-pdf", (req, res) => {
+  // En production, rediriger vers l'URL configurée (Hostinger par défaut)
+  if (process.env.NODE_ENV === "production") {
+    const pdfUrl = process.env.PDF_CATALOGUE_URL || "https://olivedrab-hornet-656554.hostingersite.com/backend/uploads/BAI-Catalogue-Formations.pdf";
+    return res.redirect(301, pdfUrl);
+  }
+
+  // En développement, servir depuis le fichier local
   const pdfPath = path.join(
     process.cwd(),
     "uploads",
