@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, PiggyBank, ShieldCheck, Building2, Users, Target, Briefcase, Sparkles, TrendingUp, Award, Download, BookOpen, Clock, Zap, Shield, TrendingUp as TrendingIcon } from 'lucide-react';
 import { motion, useScroll, useTransform, useInView } from 'framer-motion';
@@ -107,32 +107,6 @@ const FloatingParticles = () => {
 };
 
 export default function FormationPage() {
-  const [isDownloading, setIsDownloading] = useState(false);
-
-  const handleDownloadCatalogue = async () => {
-    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/downloads/catalogue-pdf`;
-    try {
-      setIsDownloading(true);
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Erreur lors du téléchargement');
-      
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.download = 'BAI-Catalogue-Formations.pdf';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(objectUrl);
-    } catch (error) {
-      console.error('Erreur:', error);
-      alert('Erreur lors du téléchargement du catalogue');
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
   const formations = [
     {
       id: 'banque',
@@ -888,20 +862,20 @@ export default function FormationPage() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
-              <button
-                onClick={handleDownloadCatalogue}
-                disabled={isDownloading}
-                className="inline-flex items-center justify-center gap-3 bg-brand-blue hover:bg-brand-blue/90 disabled:bg-brand-blue/50 text-white font-semibold py-4 px-10 rounded-full transition-all duration-300 group/btn shadow-lg hover:shadow-xl"
+              <a
+                href="https://olivedrab-hornet-656554.hostingersite.com/backend/uploads/BAI-Catalogue-Formations.pdf"
+                download="BAI-Catalogue-Formations.pdf"
+                className="inline-flex items-center justify-center gap-3 bg-brand-blue hover:bg-brand-blue/90 text-white font-semibold py-4 px-10 rounded-full transition-all duration-300 group/btn shadow-lg hover:shadow-xl"
               >
                 <Download className="w-5 h-5" />
-                {isDownloading ? 'Téléchargement en cours...' : 'Télécharger le Catalogue'}
+                Télécharger le Catalogue
                 <motion.div
                   whileHover={{ x: 4 }}
                   transition={{ duration: 0.2 }}
                 >
                   <ArrowRight className="w-4 h-4" />
                 </motion.div>
-              </button>
+              </a>
             </motion.div>
           </div>
         </motion.section>
