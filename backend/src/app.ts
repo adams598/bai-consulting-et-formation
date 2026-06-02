@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import path from 'path';
+import fs from 'fs';
 import { PrismaClient } from '@prisma/client';
 import learnerRoutes from './routes/learner.routes';
 import adminRoutes from './routes/admin.routes.js';
@@ -165,6 +166,27 @@ app.get('/api/formations/:formationTitle/:filename', (req, res) => {
   } else {
     res.status(404).json({ error: 'Image non trouvée', path: imagePath });
   }
+});
+
+// Route API pour télécharger le catalogue PDF
+app.get('/api/downloads/catalogue-pdf', (req, res) => {
+  const pdfPath = path.join(__dirname, '..', 'uploads', 'BAI.catalogue formations.pdf');
+  
+  // Vérifier que le fichier existe
+  if (!fs.existsSync(pdfPath)) {
+    return res.status(404).json({ error: 'Catalogue PDF non trouvé' });
+  }
+  
+  // Ajouter les en-têtes CORS et de téléchargement
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.header('Content-Type', 'application/pdf');
+  res.header('Content-Disposition', 'attachment; filename="BAI-Catalogue-Formations.pdf"');
+  res.header('Cache-Control', 'public, max-age=86400');
+  
+  // Envoyer le fichier
+  res.sendFile(pdfPath);
 });
 
 // Routes
