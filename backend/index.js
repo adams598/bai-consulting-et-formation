@@ -300,35 +300,25 @@ app.get("/api/health", async (req, res) => {
 });
 
 // Route API pour télécharger le catalogue PDF
-app.get("/api/downloads/catalogue-pdf", (req, res) => {
-  // En production (Render, Vercel, etc.) → rediriger directement vers Hostinger
-  // Render SET la variable RENDER=true
-  if (process.env.RENDER === 'true' || process.env.NODE_ENV === 'production' || process.env.VERCEL) {
-    const pdfUrl = process.env.PDF_CATALOGUE_URL || "https://olivedrab-hornet-656554.hostingersite.com/backend/uploads/BAI-Catalogue-Formations.pdf";
-    return res.redirect(301, pdfUrl);
+app.get("/api/downloads/catalogue-pdf", async (req, res) => {
+  // URL du catalogue PDF hébergé sur Hostinger
+  const catalogPdfUrl = "https://olivedrab-hornet-656554.hostingersite.com/backend/uploads/BAI-Catalogue-Formations.pdf";
+  
+  try {
+    // Fetch le fichier depuis Hostinger
+    const response = await fetch(catalogPdfUrl);
+    if (!response.ok) throw new Error('Fichier non trouvé');
+    
+    const buffer = await response.buffer();
+    
+    // Envoie le fichier directement au client sans redirection
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'attachment; filename="BAI-Catalogue-Formations.pdf"');
+    res.setHeader('Content-Length', buffer.length);
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ error: 'Erreur lors du téléchargement du catalogue' });
   }
-
-  // En développement local, essayer de servir le fichier local
-  const pdfPath = path.join(
-    process.cwd(),
-    "uploads",
-    "BAI.catalogue formations.pdf",
-  );
-
-  // Si le fichier existe localement, le servir
-  if (fs.existsSync(pdfPath)) {
-    res.setHeader("Content-Type", "application/pdf");
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="BAI-Catalogue-Formations.pdf"',
-    );
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    return res.sendFile(pdfPath);
-  }
-
-  // Fichier local n'existe pas → rediriger vers Hostinger
-  const pdfUrl = process.env.PDF_CATALOGUE_URL || "https://olivedrab-hornet-656554.hostingersite.com/backend/uploads/BAI-Catalogue-Formations.pdf";
-  res.redirect(301, pdfUrl);
 });
 
 // Routes
