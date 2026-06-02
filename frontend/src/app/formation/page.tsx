@@ -223,30 +223,6 @@ export default function FormationPage() {
     }
   ];
 
-  const handleDownloadCatalogue = async () => {
-    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/downloads/catalogue-pdf`;
-    try {
-      setIsDownloading(true);
-      const response = await fetch(url);
-      if (!response.ok) throw new Error('Erreur lors du téléchargement');
-      
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.download = 'BAI-Catalogue-Formations.pdf';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(objectUrl);
-    } catch (error) {
-      console.error('Erreur:', error);
-      alert('Erreur lors du téléchargement du catalogue');
-    } finally {
-      setIsDownloading(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
       {/* HERO Section avec image 4K */}
