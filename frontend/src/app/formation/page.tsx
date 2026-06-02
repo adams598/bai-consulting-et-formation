@@ -863,7 +863,7 @@ export default function FormationPage() {
               whileTap={{ scale: 0.98 }}
             >
               <a
-                href={`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/downloads/catalogue-pdf`}
+                href={`${import.meta.env.VITE_UPLOADS_BASE_URL || 'http://localhost:3001'}/api/downloads/catalogue-pdf`}
                 download="BAI-Catalogue-Formations.pdf"
                 className="inline-flex items-center justify-center gap-3 bg-brand-blue hover:bg-brand-blue/90 text-white font-semibold py-4 px-10 rounded-full transition-all duration-300 group/btn shadow-lg hover:shadow-xl"
               >
