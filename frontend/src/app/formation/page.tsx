@@ -738,7 +738,7 @@ export default function FormationPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900 dark:text-white mb-1">Public cible</p>
-                    <p className="text-sm">Tout professionnel proposant des produits d'assurance</p>
+                    <p className="text-sm">Tout professionnel proposant des produits bancaires et d'assurance</p>
                   </div>
                 </div>
               </motion.div>
@@ -773,7 +773,7 @@ export default function FormationPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                  { title: 'Particuliers', description: 'Solutions adaptées aux besoins des individus' },
+                  { title: 'Particuliers', description: 'Solutions adaptées aux besoins des particuliers' },
                   { title: 'Professionnels', description: 'Offres spécialisées pour les professionnels indépendants' },
                   { title: 'Entreprises', description: 'Programmes complets pour les organisations' }
                 ].map((marche, idx) => (
