@@ -11,6 +11,8 @@ export default async function handler(req, res) {
     "https://olivedrab-hornet-656554.hostingersite.com",
     "https://backend-one-lemon.vercel.app",
     "http://localhost:5173",
+    "https://bai-consultingetformation.com",
+    "https://bai-consultingetformation.fr"
   ];
   const origin = req.headers.origin;
   if (allowedOrigins.includes(origin)) {

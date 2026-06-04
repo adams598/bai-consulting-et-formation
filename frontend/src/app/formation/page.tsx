@@ -863,7 +863,7 @@ export default function FormationPage() {
               whileTap={{ scale: 0.98 }}
             >
               <a
-                href="https://olivedrab-hornet-656554.hostingersite.com/backend/uploads/BAI-Catalogue-Formations.pdf"
+                href="https://bai-consultingetformation.com/backend/uploads/BAI-Catalogue-Formations.pdf"
                 download="BAI-Catalogue-Formations.pdf"
                 className="inline-flex items-center justify-center gap-3 bg-brand-blue hover:bg-brand-blue/90 text-white font-semibold py-4 px-10 rounded-full transition-all duration-300 group/btn shadow-lg hover:shadow-xl"
               >

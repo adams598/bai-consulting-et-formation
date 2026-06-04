@@ -83,6 +83,8 @@ const defaultOrigins =
   process.env.NODE_ENV === "production"
     ? [
         "https://olivedrab-hornet-656554.hostingersite.com",
+        "https://bai-consultingetformation.com/",
+        "https://bai-consultingetformation.fr/",
         "https://bai-consulting-et-formation-1.onrender.com",
         "https://bai-consulting-et-formation-pmkxuygdn-adams-projects-b35f6371.vercel.app",
       ]
@@ -586,6 +588,8 @@ app.post(
       "https://olivedrab-hornet-656554.hostingersite.com",
       "https://backend-rczbsah5t-adams-projects-b35f6371.vercel.app",
       "http://localhost:5173",
+      "https://bai-consultingetformation.com/",
+      "https://bai-consultingetformation.fr/",
     ];
     const origin = req.headers.origin;
     if (allowedOrigins.includes(origin)) {
